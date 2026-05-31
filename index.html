@@ -360,12 +360,12 @@ body {
     <button class="btn-rose" onclick="goTo('s-lock1')">Open it ✦</button>
   </div>
 
-  <!-- ══ LOCK 1 — RITI'S DIAL ══ -->
+  <!-- ══ LOCK 1 | RITI'S DIAL ══ -->
   <div class="screen" id="s-lock1">
     <div class="lock-icon">🔐</div>
     <div class="lock-label">Lock One</div>
     <div class="lock-sub">COMBINATION DIAL</div>
-    <div class="lock-owner-tag">🎀 This is Riti's locker — only she knows this PIN</div>
+    <div class="lock-owner-tag">🎀 This is Riti's locker , only she knows this PIN</div>
     <div class="combo-progress" id="cSlots">
       <div class="combo-slot" id="cs0">—</div>
       <div class="combo-slot" id="cs1">—</div>
@@ -384,12 +384,12 @@ body {
     <div class="hint">← spin to your digit, confirm each one →</div>
   </div>
 
-  <!-- ══ LOCK 2 — PARV'S LOCKER ══ -->
+  <!-- ══ LOCK 2 | PARV'S LOCKER ══ -->
   <div class="screen" id="s-lock2">
     <div class="lock-icon">🌺</div>
     <div class="lock-label">Lock Two</div>
     <div class="lock-sub">FLOWER PETAL PLUCK</div>
-    <div class="lock-owner-tag">💙 This is Parv's lock — only he could've set this</div>
+    <div class="lock-owner-tag">💙 This is Parv's lock , only he could've set this</div>
     <div class="pluck-progress" id="pluckPips"></div>
     <div class="flower-status" id="flowerStatus">Tap the petals in the right order to pluck them ✦</div>
     <div class="flower-wrap">
@@ -428,7 +428,7 @@ body {
     <div class="vow-note">"I, Ritika Bajaj, solemnly swear to all of the above, now and always, in every universe."</div>
     <input class="sign-input" id="signInput" type="text" placeholder="Sign your full name..." autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text"/>
     <div class="sign-err" id="signErr"></div>
-    <button class="btn-rose" onclick="checkSign()">I swear it — open the letter ✦</button>
+    <button class="btn-rose" onclick="checkSign()">I swear it, open the letter ✦</button>
     <div class="sign-hint-text">"Only Ritika Bajaj may pass this gate."</div>
   </div>
 
@@ -437,7 +437,7 @@ body {
     <div class="note-wrap">
       <div class="note-head">
         <div class="note-for">A letter for</div>
-        <div class="note-title">Ritika Bajaj</div>
+        <div class="note-title">Meri Riti</div>
         <div class="note-date">31st May, 2026</div>
       </div>
       <div class="divider"></div>
@@ -474,7 +474,7 @@ Juthi Juthi ni bolra Sacchi Sacchi bolra,
       <div class="divider"></div>
       <div class="note-foot">
         <span class="heartbeat">💕</span>
-        <div class="from-sig">— Tera Parv</div>
+        <div class="from-sig">Tera Parv</div>
       </div>
     </div>
   </div>
@@ -511,7 +511,7 @@ function bloom(cb) {
 }
 
 /* ─────────────────────────────────
-   LOCK 1 — COMBINATION DIAL
+   LOCK 1 | COMBINATION DIAL
    PIN: 7692
 ───────────────────────────────── */
 const L1 = [7, 6, 9, 2];
@@ -545,8 +545,8 @@ function drawDial() {
     ctx.strokeStyle = active ? '#f9c6c6' : 'rgba(192,66,90,.35)';
     ctx.lineWidth = active ? 2.5 : 1; ctx.stroke();
     const tx = cx + Math.cos(angle) * (R - 33), ty = cy + Math.sin(angle) * (R - 33);
-    ctx.font = `${active ? '500 19px' : '300 13px'} 'Cormorant Garamond', serif`;
-    ctx.fillStyle = active ? '#f9c6c6' : 'rgba(192,66,90,.4)';
+    ctx.font = "300 13px 'Cormorant Garamond', serif";
+    ctx.fillStyle = 'rgba(192,66,90,.55)';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(i), tx, ty);
   }
@@ -615,7 +615,7 @@ function confirmDigit() {
 drawDial();
 
 /* ─────────────────────────────────
-   LOCK 2 — FLOWER PETAL PLUCK
+   LOCK 2 | FLOWER PETAL PLUCK
    PIN: 7985
    8 petals: [7, 3, 9, 1, 8, 6, 5, 2]
    Correct tap order: idx 0(7) → 2(9) → 4(8) → 6(5)
@@ -655,8 +655,6 @@ function drawFlower() {
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(FCX, FCY, 90, 0, Math.PI * 2); ctx.fill();
 
-  const nextPetal = PETAL_ORDER[petalProgress];
-
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
     const state = petalStates[i];
@@ -689,14 +687,8 @@ function drawFlower() {
     ctx.ellipse(0, 0, PETAL_RX, PETAL_RY, 0, 0, Math.PI * 2);
 
     // glow on next correct petal
-    if (i === nextPetal && state === 'present') {
-      ctx.fillStyle = '#e8708a';
-      ctx.shadowColor = 'rgba(232,112,138,.7)';
-      ctx.shadowBlur = 14;
-    } else {
-      ctx.fillStyle = '#c0425a';
-      ctx.shadowBlur = 0;
-    }
+ctx.fillStyle = '#c0425a';
+ctx.shadowBlur = 0;
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(192,66,90,.4)';
@@ -818,12 +810,15 @@ function initFlower() {
   lastFlowerTs = null;
   buildPluckPips();
   document.getElementById('flowerStatus').textContent = 'Tap the petals in the right order ✦';
-  drawFlower();
 
   const cv = document.getElementById('flowerCanvas');
   // remove old listener by cloning
   const newCv = cv.cloneNode(true);
   cv.parentNode.replaceChild(newCv, cv);
+
+  requestAnimationFrame(() => {
+    drawFlower();
+  });
 
   newCv.addEventListener('click', e => {
     const rect = newCv.getBoundingClientRect();
@@ -851,7 +846,7 @@ function checkSign() {
     err.textContent = '';
     bloom(() => goTo('s-note'));
   } else {
-    err.textContent = v.length === 0 ? 'Please sign your name ✦' : 'That doesn\'t look right — try again 🌸';
+    err.textContent = v.length === 0 ? 'Please sign your name ✦' : 'That doesn\'t look right, try again 🌸';
     const inp = document.getElementById('signInput');
     inp.style.borderColor = 'rgba(255,80,80,.5)';
     setTimeout(() => inp.style.borderColor = '', 900);
