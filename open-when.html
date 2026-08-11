@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="For Toti 🌸">
+<meta name="theme-color" content="#0a0406">
+<title>Open When… 🌸</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="open-when">
+
+<div class="page">
+  <nav class="tabbar" id="nav"></nav>
+
+  <main class="col page-fade">
+    <div class="ow-head">
+      <div class="ow-kicker">Sealed · for the right moment</div>
+      <div class="ow-title">Open When…</div>
+      <div class="ow-note">Chhoti chhoti chitthiyan, teri wait mein. Jab jaisa feel ho, waisi khol lena — main hamesha yahin hoon. 💌</div>
+    </div>
+    <div class="ow-grid" id="owGrid"></div>
+  </main>
+</div>
+
+<!-- Reader overlay: envelope opens → parchment letter -->
+<div class="ow-reader" id="owReader">
+  <button class="ow-close" type="button" onclick="closeWhen()">✕ close</button>
+  <div class="env-stage" id="envStage">
+    <div class="env" id="env">
+      <div class="env-back"></div>
+      <div class="env-letter"></div>
+      <div class="env-pocket"></div>
+      <div class="env-flap"></div>
+      <div class="env-seal">❤</div>
+    </div>
+  </div>
+  <div class="ow-paper" id="owPaper">
+    <div class="ow-paper-emoji" id="owPaperEmoji"></div>
+    <div class="ow-paper-title" id="owPaperTitle"></div>
+    <div class="ow-paper-rule"></div>
+    <div class="ow-voice">
+      <button type="button" class="voice-btn" id="owPlayBtn" onclick="toggleVoice()">
+        <span class="voice-ic" id="owPlayIc">▶</span>
+        <span id="owPlayLbl">Play his voice</span>
+      </button>
+      <div class="voice-hint" id="owVoiceHint"></div>
+    </div>
+    <div class="ow-paper-body" id="owPaperBody"></div>
+  </div>
+  <audio id="owAudio" preload="none"></audio>
+</div>
+
+<script src="js/common.js"></script>
+<script src="js/open-when.js"></script>
+</body>
+</html>
