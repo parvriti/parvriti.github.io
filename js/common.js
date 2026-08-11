@@ -58,4 +58,21 @@
       navEl.appendChild(a);
     });
   }
+
+  /* ── dev-only skip ──
+     A shortcut past the locks + signature while developing. Hidden on the
+     live gift (parvriti.github.io); shows on localhost / file:// / staging. */
+  var PROD_HOST = 'parvriti.github.io';
+  if (page === 'home' && location.hostname !== PROD_HOST) {
+    var skip = document.createElement('button');
+    skip.type = 'button';
+    skip.className = 'dev-skip';
+    skip.textContent = 'skip ›››';
+    skip.title = 'dev only — skip locks straight to the letter';
+    skip.addEventListener('click', function () {
+      try { sessionStorage.setItem('riti_open', '1'); } catch (e) {}
+      location.href = 'letter.html';
+    });
+    document.body.appendChild(skip);
+  }
 })();
