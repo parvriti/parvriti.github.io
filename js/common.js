@@ -59,20 +59,24 @@
     });
   }
 
-  /* ── dev-only skip ──
-     A shortcut past the locks + signature while developing. Hidden on the
-     live gift (parvriti.github.io); shows on localhost / file:// / staging. */
-  var PROD_HOST = 'parvriti.github.io';
-  if (page === 'home' && location.hostname !== PROD_HOST) {
+  /* ╔═══════════════════════════════════════════════════════════════════╗
+     ║  DEV SKIP — TEMPORARY. Comment out (or delete) this whole block    ║
+     ║  when the gift is ready to ship.                                   ║
+     ║  Shows a "skip ›››" button on the home page that jumps past the    ║
+     ║  locks + signature straight to the letter. Live for now so the     ║
+     ║  deployed site is testable too.                                    ║
+     ╚═══════════════════════════════════════════════════════════════════╝ */
+  if (page === 'home') {
     var skip = document.createElement('button');
     skip.type = 'button';
     skip.className = 'dev-skip';
     skip.textContent = 'skip ›››';
-    skip.title = 'dev only — skip locks straight to the letter';
+    skip.title = 'dev — skip locks straight to the letter';
     skip.addEventListener('click', function () {
       try { sessionStorage.setItem('riti_open', '1'); } catch (e) {}
       location.href = 'letter.html';
     });
     document.body.appendChild(skip);
   }
+  /* ────────────────────────────── END DEV SKIP ────────────────────────── */
 })();
