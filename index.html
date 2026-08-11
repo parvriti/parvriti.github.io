@@ -327,6 +327,237 @@ body {
   font-size: 19px; font-style: italic;
   color: #c0728a; margin-top: 8px;
 }
+
+/* ─── UNLOCKED TABS ─── */
+.tabbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; gap: 8px; width: 100%;
+  padding: 12px 0 12px;
+  margin-bottom: 4px;
+  justify-content: center;
+  background: linear-gradient(#0a0406 72%, rgba(10,4,6,0));
+}
+.tab {
+  flex: 1; max-width: 155px;
+  background: rgba(192,66,90,.06);
+  border: 1px solid rgba(192,66,90,.22);
+  color: #c0728a;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px; font-style: italic;
+  padding: 10px 8px; border-radius: 40px;
+  cursor: pointer;
+  transition: background .2s, color .2s, border-color .2s, box-shadow .2s;
+  touch-action: manipulation; -webkit-appearance: none;
+  min-height: 44px;
+}
+.tab.active {
+  background: linear-gradient(135deg, #c0425a, #7a1f3a);
+  color: #fff; border-color: transparent;
+  box-shadow: 0 6px 18px rgba(192,66,90,.32);
+}
+.tab-panel { display: none; width: 100%; }
+.tab-panel.active { display: block; animation: fadeUp .5s ease both; }
+
+/* ─── OPEN WHEN HEADER ─── */
+.ow-head { text-align: center; margin: 12px 0 26px; }
+.ow-kicker {
+  font-size: 10px; color: #8a5a62;
+  letter-spacing: .14em; text-transform: uppercase; margin-bottom: 7px;
+}
+.ow-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 37px; font-weight: 300; font-style: italic;
+  color: #f9c6c6; line-height: 1.02;
+}
+.ow-note {
+  font-size: 12px; color: #7a5060;
+  font-family: 'Cormorant Garamond', serif; font-style: italic;
+  margin-top: 9px; line-height: 1.6; padding: 0 10px;
+}
+
+/* ─── OPEN WHEN GRID · SEALED ENVELOPES ─── */
+.ow-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 20px 16px; width: 100%; padding: 4px 2px 52px;
+}
+.ow-card {
+  background: none; border: none; padding: 0;
+  cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; gap: 11px;
+  touch-action: manipulation; -webkit-appearance: none;
+  animation: owRise .6s ease both;
+}
+@keyframes owRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.mini-env {
+  position: relative; width: 100%; aspect-ratio: 7 / 5;
+  border-radius: 11px;
+  background: linear-gradient(160deg, #cf5c76, #8b2040);
+  box-shadow: 0 12px 26px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.14);
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+/* front pocket seam */
+.mini-env::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(150deg, #c0425a, #75173a);
+  clip-path: polygon(0 42%, 50% 19%, 100% 42%, 100% 100%, 0 100%);
+}
+/* closed flap */
+.mini-env::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 64%;
+  background: linear-gradient(160deg, #e883a0, #b3335a);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  box-shadow: 0 3px 7px rgba(0,0,0,.28);
+}
+.mini-seal {
+  position: absolute; left: 50%; top: 53%; transform: translate(-50%,-50%);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ffbccb, #a01d3e);
+  box-shadow: 0 2px 8px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; z-index: 3;
+}
+.ow-card:active .mini-env { transform: translateY(3px) scale(.965); box-shadow: 0 6px 14px rgba(0,0,0,.4); }
+.ow-cap {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14.5px; font-style: italic;
+  color: #e8d0d0; line-height: 1.3; text-align: center;
+}
+
+/* ─── OPEN WHEN NUDGE (end of letter) ─── */
+.ow-nudge {
+  text-align: center; margin: 6px auto 44px;
+  font-family: 'Cormorant Garamond', serif; font-style: italic;
+  color: #7a5060; font-size: 14px; line-height: 1.6;
+}
+.ow-nudge-btn {
+  display: inline-block; margin-top: 12px;
+  background: rgba(192,66,90,.1);
+  border: 1px solid rgba(192,66,90,.3);
+  color: #f5c6c6;
+  font-family: 'Cormorant Garamond', serif; font-style: italic;
+  font-size: 15px; padding: 10px 22px; border-radius: 40px;
+  cursor: pointer; touch-action: manipulation; -webkit-appearance: none;
+}
+.ow-nudge-btn:active { transform: scale(.96); }
+
+/* ─── READER OVERLAY ─── */
+.ow-reader {
+  position: fixed; inset: 0;
+  background: radial-gradient(120% 90% at 50% 8%, #170a0e, #0a0406 62%);
+  z-index: 300;
+  display: none; flex-direction: column; align-items: center;
+  padding: max(env(safe-area-inset-top,16px),16px) 18px max(env(safe-area-inset-bottom,24px),24px);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.ow-reader.active { display: flex; animation: fadeUp .4s ease both; }
+.ow-close {
+  align-self: flex-start;
+  position: sticky; top: 0;
+  background: none; border: none; color: #c0728a;
+  font-size: 13px; letter-spacing: .04em;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer; padding: 8px 4px; z-index: 6;
+  touch-action: manipulation;
+}
+
+/* envelope opening stage */
+.env-stage {
+  width: 100%; flex: 1 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 62vh;
+}
+.env-stage.done { display: none; }
+.env { position: relative; width: 268px; height: 182px; perspective: 1100px; }
+.env-back {
+  position: absolute; inset: 0; border-radius: 12px;
+  background: linear-gradient(160deg, #9c344e, #63132c);
+  box-shadow: 0 26px 60px rgba(0,0,0,.6);
+}
+.env-letter {
+  position: absolute; left: 15px; right: 15px; top: 15px; bottom: 12px;
+  border-radius: 6px 6px 3px 3px;
+  background: linear-gradient(#fbeee6, #f2d8ca);
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  z-index: 2; opacity: 0;
+  transform: translateY(6px) scale(.98);
+}
+.env-letter::after {
+  content: ''; position: absolute; left: 18px; right: 18px; top: 22px;
+  height: 1px; background: rgba(122,31,58,.16);
+  box-shadow: 0 12px 0 rgba(122,31,58,.12), 0 24px 0 rgba(122,31,58,.12), 0 36px 0 rgba(122,31,58,.1);
+}
+.env-pocket {
+  position: absolute; inset: 0; border-radius: 12px; z-index: 3;
+  background: linear-gradient(150deg, #c0425a, #75173a);
+  clip-path: polygon(0 40%, 50% 17%, 100% 40%, 100% 100%, 0 100%);
+  box-shadow: inset 0 2px 10px rgba(0,0,0,.28);
+}
+.env-flap {
+  position: absolute; top: 0; left: 0; right: 0; height: 62%;
+  transform-origin: top center; transform: rotateX(0deg);
+  background: linear-gradient(160deg, #e883a0, #b3335a);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  z-index: 5; backface-visibility: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.env-seal {
+  position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%);
+  width: 36px; height: 36px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ffbccb, #9e1c3d);
+  box-shadow: 0 3px 10px rgba(0,0,0,.45), inset 0 1px 2px rgba(255,255,255,.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; z-index: 6;
+}
+.env.open .env-seal  { animation: sealOff .3s ease forwards; }
+.env.open .env-flap  { animation: flapOpen .7s cubic-bezier(.6,0,.3,1) .15s forwards; }
+.env.open .env-letter{ animation: letterOut 1s cubic-bezier(.45,0,.15,1) .5s forwards; }
+@keyframes sealOff  { to { transform: translate(-50%,-50%) scale(.2); opacity: 0; } }
+@keyframes flapOpen { to { transform: rotateX(-172deg); } }
+@keyframes letterOut {
+  0%   { opacity: 0; transform: translateY(6px) scale(.98); }
+  22%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(-46%) scale(1.03); }
+}
+
+/* the parchment letter */
+.ow-paper {
+  position: relative; max-width: 346px; width: 100%; margin: auto;
+  padding: 32px 26px 34px; border-radius: 5px;
+  background: linear-gradient(#fbeee6, #f2dccf);
+  color: #6a2036;
+  box-shadow: 0 26px 64px rgba(0,0,0,.58), inset 0 0 0 1px rgba(122,31,58,.12);
+  display: none;
+}
+.ow-paper.show { display: block; animation: paperIn .55s ease both; }
+@keyframes paperIn { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.ow-paper::before {
+  content: ''; position: absolute; inset: 9px;
+  border: 1px solid rgba(122,31,58,.16); border-radius: 3px; pointer-events: none;
+}
+.ow-paper-emoji { font-size: 40px; text-align: center; margin-bottom: 8px; }
+.ow-paper-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 27px; font-weight: 400; font-style: italic;
+  color: #8b2040; text-align: center; line-height: 1.1;
+}
+.ow-paper-rule {
+  width: 52px; height: 1px; margin: 13px auto 20px;
+  background: linear-gradient(90deg, transparent, #bd5670, transparent);
+}
+.ow-paper-body {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px; font-weight: 400;
+  line-height: 1.92; color: #6a2036;
+}
+.ow-paper-sig {
+  display: block; font-style: italic; text-align: right;
+  color: #a53a56; margin-top: 22px; font-size: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .env.open .env-seal, .env.open .env-flap, .env.open .env-letter { animation-duration: .01ms; }
+  .ow-card, .ow-paper.show, .tab-panel.active { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -432,8 +663,14 @@ body {
     <div class="sign-hint-text">"Only Ritika Bajaj may pass this gate."</div>
   </div>
 
-  <!-- ══ NOTE ══ -->
+  <!-- ══ NOTE (tabbed: letter + open-when) ══ -->
   <div class="screen" id="s-note">
+    <div class="tabbar">
+      <button class="tab active" id="tabBtnLetter" type="button" onclick="switchTab('letter')">The Letter</button>
+      <button class="tab" id="tabBtnOpen" type="button" onclick="switchTab('openwhen')">Open When…</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-letter">
     <div class="note-wrap">
       <div class="note-head">
         <div class="note-for">A letter for</div>
@@ -476,8 +713,23 @@ Juthi Juthi ni bolra Sacchi Sacchi bolra,
         <span class="heartbeat">💕</span>
         <div class="from-sig">Tera Parv</div>
       </div>
-    </div>
-  </div>
+    </div><!-- /note-wrap -->
+
+      <div class="ow-nudge">
+        ps — maine tere liye kuch chhoti chhoti chitthiyan chhupa ke rakhi hain, har mood ke liye ek.
+        <button type="button" class="ow-nudge-btn" onclick="switchTab('openwhen')">Open When… 💌</button>
+      </div>
+    </div><!-- /tab-letter -->
+
+    <div class="tab-panel" id="tab-openwhen">
+      <div class="ow-head">
+        <div class="ow-kicker">Sealed · for the right moment</div>
+        <div class="ow-title">Open When…</div>
+        <div class="ow-note">Chhoti chhoti chitthiyan, teri wait mein. Jab jaisa feel ho, waisi khol lena — main hamesha yahin hoon. 💌</div>
+      </div>
+      <div class="ow-grid" id="owGrid"></div>
+    </div><!-- /tab-openwhen -->
+  </div><!-- /s-note -->
 
 </div><!-- /canvas -->
 
@@ -492,6 +744,26 @@ Juthi Juthi ni bolra Sacchi Sacchi bolra,
     <ellipse cx="50" cy="14" rx="9" ry="15" fill="#d4607a" opacity=".8" transform="rotate(300 50 50)"/>
     <circle cx="50" cy="50" r="13" fill="#f9c6c6"/>
   </svg>
+</div>
+
+<!-- Open-When reader: envelope opens → parchment letter -->
+<div class="ow-reader" id="owReader">
+  <button class="ow-close" type="button" onclick="closeWhen()">✕ close</button>
+  <div class="env-stage" id="envStage">
+    <div class="env" id="env">
+      <div class="env-back"></div>
+      <div class="env-letter"></div>
+      <div class="env-pocket"></div>
+      <div class="env-flap"></div>
+      <div class="env-seal">❤</div>
+    </div>
+  </div>
+  <div class="ow-paper" id="owPaper">
+    <div class="ow-paper-emoji" id="owPaperEmoji"></div>
+    <div class="ow-paper-title" id="owPaperTitle"></div>
+    <div class="ow-paper-rule"></div>
+    <div class="ow-paper-body" id="owPaperBody"></div>
+  </div>
 </div>
 
 <script>
@@ -855,6 +1127,195 @@ function checkSign() {
 document.getElementById('signInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); checkSign(); }
 });
+
+/* ─────────────────────────────────
+   UNLOCKED TABS  +  OPEN-WHEN LETTERS
+───────────────────────────────── */
+function switchTab(which) {
+  const isLetter = which === 'letter';
+  document.getElementById('tab-letter').classList.toggle('active', isLetter);
+  document.getElementById('tab-openwhen').classList.toggle('active', !isLetter);
+  document.getElementById('tabBtnLetter').classList.toggle('active', isLetter);
+  document.getElementById('tabBtnOpen').classList.toggle('active', !isLetter);
+  window.scrollTo(0, 0);
+}
+
+/* Little letters — tender + spicy, in your voice. Edit freely. */
+const OPEN_WHEN = [
+  { key:'miss', emoji:'💌', cap:'Open when you miss me',
+    title:'When you miss me',
+    body:`Meri Toti,<br><br>
+Agar tu ye padh rahi hai, matlab abhi main tere paas nahi hoon — aur mujhe pehle se pata hai, main bhi tujhe utna hi miss kar raha hounga.<br><br>
+Aankhein band kar ek second. Main yahin hoon. Wahi haath jo tere baalon mein chalte hain, wahi seene pe teri jagah, wahi "good morning totijaan". Sab tera hai, chahe main kitni bhi door hoon.<br><br>
+Distance sirf kilometre hai, jaan. Mera pura din tere hi aas-paas ghoomta rehta hai.<br><br>
+Ab paani pi, ek lambi saans le, aur yaad rakh — main laut ke aa raha hoon. Hamesha aata hoon. Tere paas hi toh aana hai.
+<span class="ow-paper-sig">— Tera Pavu 💕</span>` },
+
+  { key:'horny', emoji:'🔥', cap:"Open when you're needy for me",
+    title:"When you're needy for me",
+    body:`Toti… itni buri ladki ho tum.<br><br>
+Matlab abhi tu apne pati ko soch rahi hai, hmm? Achha kar rahi ho — tera hi toh haq hai mujh pe.<br><br>
+Aankhein band kar. Socho main peeche se aaya, tera gala halke se pakda, kaan mein dheere se poocha — "meri ho na tum?" Aur tu already pighalne lagi.<br><br>
+Main jaanta hoon tujhe kaise chahiye — thoda rough, thoda slow, aur poora poora mera. Aaj bas meri hoke wait kar. Jab main aaunga na, tujhe achhe se yaad dilaunga ki tu kiski hai.<br><br>
+Tab tak achhi ladki ban ke rehna. Sirf mere liye.
+<span class="ow-paper-sig">— Tera Pavu 🔥</span>` },
+
+  { key:'sad', emoji:'🤍', cap:"Open when you're crying",
+    title:"When you're crying",
+    body:`Meri jaan, aa idhar.<br><br>
+Sabse pehle ye — jo bhi ho raha hai, tu akeli nahi hai. Main hoon. Poora hoon.<br><br>
+Ro le agar rona hai. Main tere aansu pochne ke liye hi toh banaya gaya hoon. Mere saamne "strong" banne ki koi zaroorat nahi.<br><br>
+Ek kaam kar — teen baar gehri saans le. Andar… bahar. Imagine kar main tere saath saans le raha hoon.<br><br>
+Ye feeling permanent nahi hai, jaan. Bas ek phase hai, aur main iske aar-paar tere saath khada hoon. Tujhe kuch nahi hone dunga.<br><br>
+I love you. Aur abhi ke abhi tujhe seene se laga lena chahta hoon.
+<span class="ow-paper-sig">— Tera Pavu 🤍</span>` },
+
+  { key:'mad', emoji:'😤', cap:"Open when you're mad at me",
+    title:"When you're mad at me",
+    body:`Haan, mujhe pata hai. Maine kuch kiya hoga, ya kaha hoga, ya woh nahi kiya jo karna chahiye tha.<br><br>
+Toti, tu naaraz ho — poora haq hai tera. Main tera gussa deserve karta hoon, aur main bhaagunga nahi.<br><br>
+Bas itna yaad rakhna: main tere against kabhi nahi hoon, chahe hum kitna bhi lad lein. Tu meri team hai, meri opponent nahi.<br><br>
+Jab thodi shaant ho jaaye, mujhse baat karna. Chilla lena mujh pe agar chahiye — main sunuga, poora sunuga.<br><br>
+Aur phir main tujhe manaunga, jitni baar manana pade. Kyunki tere bina ka ek din bhi mujhe manzoor nahi.<br><br>
+Sorry, meri jaan. Main behtar karunga.
+<span class="ow-paper-sig">— Tera Pavu</span>` },
+
+  { key:'sleep', emoji:'🌙', cap:"Open when you can't sleep",
+    title:"When you can't sleep",
+    body:`Ssshh. Ab phone neeche rakhne wali ho tum.<br><br>
+Aankhein band. Main tere saath let raha hoon, tera sar apne seene pe rakh raha hoon. Sunn — meri dhadkan. Ussi ke saath saans le.<br><br>
+Andar… ek… do… teen… chaar. Bahar… ek… do… teen… chaar. Bas aise hi, dheere dheere.<br><br>
+Kal ki tension kal dekhenge, jaan. Abhi bas ye raat hai, aur main tujhe hold kar raha hoon.<br><br>
+Tu safe hai. Tu meri ho. So ja meri totijaan.<br><br>
+Good night, meri jaan. Sapno mein bhi tere paas hi hoon.
+<span class="ow-paper-sig">— Tera Pavu 🌙</span>` },
+
+  { key:'insecure', emoji:'💖', cap:"Open when you feel not-enough",
+    title:"When you feel not-enough",
+    body:`Ruk. Sheeshe ke saamne jaa, aur meri aankhon se khud ko dekh.<br><br>
+Toti, tu koi "kaafi hoon ya nahi" waala sawaal nahi ho. Tu jawab ho — mere har sawaal ka.<br><br>
+Jo tujhe apni khaami lagti hai na, main aksar ussi ko sabse zyada pyaar karta hoon. Teri hasi, teri chaal, tere sochne ka tareeka, tera thoda sa pagalpan — sab.<br><br>
+Duniya kuch bhi bole. Mere liye tu sabse khoobsurat thi, hai, aur rahegi. Ye compliment nahi, seedha fact hai.<br><br>
+Tu meri wife ho. Main lucky hoon. Aur ye main roz sochta hoon.
+<span class="ow-paper-sig">— Tera Pavu 💖</span>` },
+
+  { key:'owned', emoji:'🎀', cap:'Open when you want to feel mine',
+    title:'When you want to feel mine',
+    body:`Meri achhi ladki.<br><br>
+Tu jaanti hai na tu kiski ho? Bol — kiski ho tum?<br><br>
+Sar se paer tak, andar se bahar tak — har inch teri meri hai. Aur main poora tera.<br><br>
+Aaj bas mere hone ka feel kar. Meri koi shirt pehen le, wahi jo mujhse smell karti hai. Meri hoke reh thodi der.<br><br>
+Jab main aaunga na, main tujhe khud yaad dilaunga — dheere dheere, aaram se. Tab tak achhi ladki ban ke wait kar.<br><br>
+Good girl. Meri hi rehna.
+<span class="ow-paper-sig">— Tera Pavu 🎀</span>` },
+
+  { key:'smile', emoji:'🌸', cap:'Open when you need to smile',
+    title:'When you need to smile',
+    body:`Oye Toti. Haan tujhe hi bol raha hoon. Muskura zara.<br><br>
+Yaad hai tu kaise naak sikodti hai jab zor se hasti hai? Main abhi wahi soch ke smile kar raha hoon.<br><br>
+Tu is puri duniya mein meri favourite jagah hai. Meri favourite awaaz. Mera favourite pareshaan karne waala insaan. 😌<br><br>
+Bas itna sun le: tu is universe ki sabse cute, sabse pagal, sabse meri ladki ho. Aur main har roz tujhe choose karta hoon — aankh band karke.<br><br>
+Ab ja, ek selfie bhej mujhe. Order hai. 📸
+<span class="ow-paper-sig">— Tera Pavu 🌸</span>` },
+
+  { key:'wake', emoji:'🌅', cap:'Open when you wake up',
+    title:'When you wake up',
+    body:`Good morning, meri totijaan. 🌅<br><br>
+Haan tujhe hi. Aankhein malte hue, baalon ka woh haal — aur phir bhi meri favourite tasveer.<br><br>
+Aaj ka din tere liye thoda aur soft ho. Chai garam ho, dhoop halki ho, aur tu yaad rakhna ki koi tujhe subah se raat tak beintehaa pyaar karta hai.<br><br>
+Kuch bhi ho aaj, main tere corner mein hoon. Jeet aaye toh saath, thak jaaye toh bhi saath.<br><br>
+Ja, duniya ko dikha de aaj tu kya cheez hai. Aur haan — nashta zaroor karna, warna daantunga. 😌
+<span class="ow-paper-sig">— Tera Pavu 🌅</span>` },
+
+  { key:'stressed', emoji:'🌊', cap:"Open when it's all too much",
+    title:"When it's all too much",
+    body:`Ruk, jaan. Ek second. Saans.<br><br>
+Sab kuch ek saath karne ki zaroorat nahi hai. Duniya do minute ruk le, kuch nahi girega.<br><br>
+Ek kaam kar — jo cheez sabse zyada bhaari lag rahi hai, sirf ussi ka pehla chhota sa step soch. Bas ek. Baaki baad mein.<br><br>
+Aur agar phir bhi zyada ho, toh mujhe call kar. Main sab drop karke sununga. Tera load thoda mera bhi hai.<br><br>
+Tu bahut strong hai, meri jaan — par mere saamne strong banne ki zaroorat nahi. Tik lag ja mujh pe thodi der.
+<span class="ow-paper-sig">— Tera Pavu 🌊</span>` },
+
+  { key:'period', emoji:'🩷', cap:"Open when your body's fighting you",
+    title:"When your body's fighting you",
+    body:`Aa, idhar aa. Garam paani wali bottle le li? Nahi? Ja pehle — main wait karta hoon.<br><br>
+Meri jaan, aaj tera body thoda zyada maang raha hai — rest, kuch meetha, aur bilkul bhi guilt nahi.<br><br>
+Chidchidi ho toh ho ja. Rona ho toh ro le. Kuch mangna ho toh mang le — main na nahi bolta tujhe, aaj toh bilkul nahi.<br><br>
+Kaash abhi main hota — tera pet dabata, baal sahlata, aur tujhe kuch karne hi nahi deta.<br><br>
+Aaram kar, meri totijaan. Tu is time bhi utni hi khoobsurat hai. Sach mein.
+<span class="ow-paper-sig">— Tera Pavu 🩷</span>` },
+
+  { key:'forever', emoji:'💍', cap:'Open when you doubt us',
+    title:'When you doubt us',
+    body:`Agar kabhi ek pal ke liye bhi lage ki "kya hum forever hain?" — toh ye padh.<br><br>
+Haan. Hum forever hain. Ye koi mood ya phase nahi, ye faisla hai — jo main roz, poore hosh mein, dobara leta hoon.<br><br>
+Ladenge, roothenge, thakenge — par main jaa nahi raha kahin. Tu meri aadat nahi, tu meri choice hai. Har baar.<br><br>
+Har universe mein maine tujhe hi dhoonda hoga, aur is waale mein tu mil gayi. Main isse zyada lucky aur kya hi hounga.<br><br>
+Bas mere paas rehna, Toti. Baaki sab main sambhaal lunga.
+<span class="ow-paper-sig">— Tera Pavu 💍</span>` }
+];
+
+function buildOpenWhen() {
+  const grid = document.getElementById('owGrid');
+  grid.innerHTML = '';
+  OPEN_WHEN.forEach((l, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ow-card';
+    b.style.animationDelay = (i * 0.045) + 's';
+    b.innerHTML =
+      '<div class="mini-env"><div class="mini-seal">❤</div></div>' +
+      '<div class="ow-cap">' + l.cap + '</div>';
+    b.addEventListener('click', () => openEnvelope(l.key));
+    grid.appendChild(b);
+  });
+}
+
+let owTimer = null;
+function openEnvelope(key) {
+  const l = OPEN_WHEN.find(x => x.key === key);
+  if (!l) return;
+
+  document.getElementById('owPaperEmoji').textContent = l.emoji;
+  document.getElementById('owPaperTitle').textContent = l.title;
+  document.getElementById('owPaperBody').innerHTML = l.body;
+
+  const reader = document.getElementById('owReader');
+  const stage  = document.getElementById('envStage');
+  const env    = document.getElementById('env');
+  const paper  = document.getElementById('owPaper');
+
+  // reset to sealed state
+  paper.classList.remove('show');
+  stage.classList.remove('done');
+  env.classList.remove('open');
+
+  reader.classList.add('active');
+  reader.scrollTop = 0;
+
+  // haptic wax-crack on phones
+  if (navigator.vibrate) navigator.vibrate(18);
+
+  // restart the opening animation
+  void env.offsetWidth;
+  env.classList.add('open');
+
+  clearTimeout(owTimer);
+  owTimer = setTimeout(() => {
+    stage.classList.add('done');
+    paper.classList.add('show');
+  }, 1520);
+}
+
+function closeWhen() {
+  clearTimeout(owTimer);
+  document.getElementById('owReader').classList.remove('active');
+  document.getElementById('env').classList.remove('open');
+  document.getElementById('envStage').classList.remove('done');
+  document.getElementById('owPaper').classList.remove('show');
+}
+
+buildOpenWhen();
 </script>
 </body>
 </html>
