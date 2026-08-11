@@ -38,8 +38,10 @@ voice/
 ## Editing content
 
 - **The letter:** edit `letter.html` (the `.note-body` block).
-- **The "Open When…" notes:** edit the `OPEN_WHEN` array in `js/open-when.js`.
-  Each entry has `key`, `emoji`, `cap` (card label), `title`, and `body`.
+- **The "Open When…" notes:** write the words in `open-when-letters.md`
+  (source of truth), then they get copied into the `OPEN_WHEN` array in
+  `js/open-when.js`. Until a note has real text there it shows a placeholder.
+  Each array entry has `key`, `emoji`, `cap` (card label), `title`, and `body`.
 - **Voice notes:** each note plays `voice/<key>.m4a`. Replace a placeholder by
   dropping a real recording in with the same filename — no code change needed.
   (Add an `audio:` field to an entry to point elsewhere.)
