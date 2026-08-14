@@ -1,16 +1,15 @@
 /* =====================================================================
-   open-when.js — the "Open When…" collection (open-when.html)
+   open-when.js : the "Open When…" collection (open-when.html)
 
    Two sides, toggled at the top of the page:
-     · Riti  — notes written by Parv, for Riti (words live in
-               ../open-when-letters.md; bodies here are empty →
-               PLACEHOLDER_BODY until his real text is copied in). Each
-               has a voice clip at voice/<key>.m4a.
-     · Parv  — notes handwritten by Riti, for Parv (transcribed verbatim
-               from her cards; line breaks preserved exactly). No audio.
+     · Riti  = notes written by Parv, for Riti. Source words in
+               ../open-when-letters.md. Each note has a voice clip at
+               voice/<key>.m4a.
+     · Parv  = notes handwritten by Riti, for Parv (transcribed verbatim
+               from her cards). No audio.
 
    Either of them can also add a new note (title + body) via the "＋"
-   card. Added notes are saved with saveUserNotes() — currently
+   card. Added notes are saved with saveUserNotes(), currently
    localStorage (per device). Swap that one function for a shared backend
    to sync between phones.
    ===================================================================== */
@@ -19,20 +18,43 @@ const PLACEHOLDER_BODY =
   '💌<br><br>Pavu\'s real words for this one are coming soon. ' +
   'He\'s writing it himself, just for you.';
 
-/* ── Riti's side: Parv → Riti (placeholders for now) ── */
+/* ── Riti's side: Parv → Riti (his letters + voice; body line breaks tuned for the UI) ── */
 const OPEN_WHEN = [
-  { key:'miss', emoji:'💌', cap:'Open when you miss me',              title:'When you miss me' },
-  { key:'horny', emoji:'🔥', cap:"Open when you're needy for me",      title:"When you're needy for me" },
-  { key:'sad', emoji:'🤍', cap:"Open when you're crying",             title:"When you're crying" },
-  { key:'mad', emoji:'😤', cap:"Open when you're mad at me",          title:"When you're mad at me" },
-  { key:'sleep', emoji:'🌙', cap:"Open when you can't sleep",          title:"When you can't sleep" },
-  { key:'insecure', emoji:'💖', cap:"Open when you feel not-enough",   title:"When you feel not-enough" },
-  { key:'owned', emoji:'🎀', cap:'Open when you want to feel mine',    title:'When you want to feel mine' },
-  { key:'smile', emoji:'🌸', cap:'Open when you need to smile',        title:'When you need to smile' },
-  { key:'wake', emoji:'🌅', cap:'Open when you wake up',              title:'When you wake up' },
-  { key:'stressed', emoji:'🌊', cap:"Open when it's all too much",     title:"When it's all too much" },
-  { key:'period', emoji:'🩷', cap:"Open when your body's fighting you",title:"When your body's fighting you" },
-  { key:'forever', emoji:'💍', cap:'Open when you doubt us',           title:'When you doubt us' }
+  { key:'missing', emoji:'💌', title:'Missing me',
+    body:`Jaan meri, bas ab thode time ki baat hai fir shadi krke saara din terko hi chipte rehna hai maine. kabhi akela chodna hi ni ki terko meri yaad aaye, sara din aapke pass hi baitha milunga.` },
+
+  { key:'wet', emoji:'🔥', title:'Wet',
+    body:`Tera pati to tere liye humesha hard rehta hai meri jaan, mai to aapke iloveyou pe hi itna hard hojata ki aapke liye merko hard krna sbse easy kaam hai. aap to jab jab wet ho, bas mere kaan me iloveyou whisper krdia krro mai ussi second aapke liye hard hoke aapko fuck krega.` },
+
+  { key:'crying', emoji:'🤍', title:'crying',
+    body:`Mere hote hue bhi aap akele ro rhe ho fir to mai gnda pati hua. Mere hote hue aap kabhi akele me mat rona meri beti, bas aake merko sab bta dena jis baat se bhi pareshan hue ho, jo bhi hoga mai sab theek krdega aur aapko bada saara pyaar krega.` },
+
+  { key:'angry', emoji:'😤', title:'Angry',
+    body:`Ab meri beti merse gussa hai to maine gnd to kuch pkka machaya hoga, pr apne tote se aise zyada der naraz mat rehna, tota mana to raha hoga aapko bht, maan jaana na jaldi jaldi, aapme to jaan basti oi, aap naraz hojao to zindagi sooni sooni hojati. tu to merko bas apne sath hasta khelta chahiye hota hai, terko itna pyaar krru bas ki kabhi gussa hone hi na du terko to mai.` },
+
+  { key:'nonini', emoji:'🌙', title:'No nini',
+    body:`Pehle to tu ye baat chod de ki mai so rha hou raat ko to utha ni skte. Terko saare haq aise hi thodi de rkhe oi, tu to merko jab mann krre tab utha skta. jab bhi terko aise neend na aarhi ho tu bas humesha mere pass aajaya kar, merko utha ke merese saari raat baate kar, merse khush dekhio koi ni hoga.` },
+
+  { key:'anxious', emoji:'💖', title:'Anxious',
+    body:`Meri jaan, jabse maine khud anxiety face krri hai na mai smjh gya hu ki ye sbse gndi cheez hoti, aur isme agar aise lag bhi rha ho na ki baat krke kuch theek hoga fir bhi humesha krna, terko pata ni betu pr jo insaan tumse bht pyaar krta hota na usse baat krna har cheez me help krega aur humesha krega fir chahe anxiety hui ho kisi baat ko lekar ya kuch aur bhi hua ho, tu bas mere pass aake merko zor se hug krlio aur jo dimaag me chal rha ho bta diyo sab.` },
+
+  { key:'reassurance', emoji:'🎀', title:'Reassurance',
+    body:`Merko pata hai tu alag alag time pr kuch cheezo ko lekr bht pareshan rha hai jo bhi aapko reasons lagte the jinki vajah se mai chod skta aapko. par terko idea bhi ni hai meri jaan tu mere liye kitna upar hai, yaha mai saari zindagi tera dhyaan teri sehat ka dhyaan rkhne ko taiyaar hu, aur terko lagta terko koi choti si dikkat hogi health wise aur mai chodna consider krlunga? mai kehta hu na terko ki aise koi reason bana hi ni hai, jo merko terko chodne vaali cheez consider bhi karvaade. Mai to bhagwan se bhi ladd jau bas terse alag hone ki ni soch skta kabhi bhi.` },
+
+  { key:'puppy', emoji:'🌸', title:'Puppy',
+    body:`Tu to life bhar ke liye meri whore ban rhi hai, terko to pata ni kis kis cheez ke liye train krna hai maine saari zindagi. tere saath ek bucket list bnani hai alag alag countries jaake puri krenge jo ek ek krke. itni alag alag balconies me terko fuck krna hai, terse dick suck krvaani hai, terko lick krna hai. Saari life ye cheeze khtm ni honi, ek list khtm hogi to dusri bnaa lenge. kabhi kabhi to sochta hu kitna lucky rha hu mai jo meri whore aur biwi dono itni pyaari mili.` },
+
+  { key:'happy', emoji:'🌅', title:'Happy',
+    body:`Aaj tota khush hai itna to ye to mera favourite din hua. terko pata hai mera mood to khud itna dependant rehta hai terpe ki jis din tu khush khush hota hai aise mai apne aap khush hojaata hu. terko khush dekhta hu to andar se ek alag tarah ki satisfaction aajati hai aur mann krta bas tu aise hi rahe humesha. chehekta hua bauu pyara lagta.` },
+
+  { key:'periods', emoji:'🌊', title:'Periods',
+    body:`Merko pata hai terko bht dard horha hota, mai dard to theek ni kar skta pr mai jo jo kr skta hounga na tu dekhio mai sab krega. mai tere per bhi dabayega jaha jaha terko dard hoga vaha massage krega, pura din terko bottle garam krke dega terko ek baar bhi khud ni uthne dega. Abhi to merko khana bnaana ni aata to vo terko khud bna ke ni deskta pr aage jaake vo bhi seekhega taaki terko mere hote hue zara sa bhi pareshan na hona pade. mai hi tera itna acha dhyan rkhlu ki tere liye dard jhelna asaan kar paau.<br><br>teri dolo bnna hai merko xD` },
+
+  { key:'owner', emoji:'🩷', title:'Owner',
+    body:`Maine na kabhi apne andar ye cheez tere aane se pehle feel ni ki thi, pr terse jo merko andha pyaar hai na vo merko itna vulnerable krdeta hai ki mera khud andar se surrender krne ka mann krta hai. Meri puri body meri sunna chod ke tere order manti hai us moment me aur merko vo itna precious lagta hai na jab mai feel krra hota. Aise emotions feel krvaye hai na tune jo merko pata bhi ni tha mere andar exist bhi krte hai. Mai sirf horny hoke terko owner ni bolta, mai vo cheez feel krta hu ki jab jab tu control leta mera mind actual me control chodta hai. Terko ko official contract sign krke bhi dedena hai maine ki mai pura sirf riti ka hu, khud ki koi identity ni hai bas meri riti ka hu mai.<br><br>mai pavu ni hu, mai riti's pavu hu.` },
+
+  { key:'marriage', emoji:'💍', title:'Marriage',
+    body:`fatafat shadi krlo na merse please, merse zara wait ni hota ab. mai na subha uthte hi terko dhundta hu, office se aake tu chahiye hota hai. Tu apna kaam bhi krta rhe na ghar pe tab bhi ek alag tarah ki completeness feel hota hai, tu nai hota na bada adhoora adhoora lagta. Tere bina bilkul acha ni lagrha hota, tu badi zor se chahiye hota hai ab mujhe.<br><br>kisi sundar se pahad pe lejaake merse shadi krlo jaldi jaldi plis.` }
 ];
 
 /* ── Parv's side: Riti → Parv (verbatim; line breaks preserved) ── */
