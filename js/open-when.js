@@ -16,8 +16,8 @@
    ===================================================================== */
 
 const PLACEHOLDER_BODY =
-  '💌<br><br>Pavu\'s real words for this one are coming soon — ' +
-  'he\'s writing it himself, just for you.';
+  '💌<br><br>Pavu\'s real words for this one are coming soon. ' +
+  'He\'s writing it himself, just for you.';
 
 /* ── Riti's side: Parv → Riti (placeholders for now) ── */
 const OPEN_WHEN = [
@@ -97,10 +97,10 @@ function setSide(side) {
   });
   if (side === 'parv') {
     document.getElementById('owKicker').textContent = 'Written by Riti · for you';
-    document.getElementById('owNote').textContent = 'Her little letters — one for every feeling. 💙';
+    document.getElementById('owNote').textContent = 'Her little letters, one for every feeling. 💙';
   } else {
     document.getElementById('owKicker').textContent = 'Sealed · for the right moment';
-    document.getElementById('owNote').textContent = 'Chhoti chhoti chitthiyan, teri wait mein. Jab jaisa feel ho, waisi khol lena — main hamesha yahin hoon. 💌';
+    document.getElementById('owNote').textContent = '';
   }
   buildGrid();
 }
