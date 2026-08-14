@@ -532,6 +532,81 @@ body {
 @keyframes vpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(192,66,90,.45); } 50% { box-shadow: 0 0 0 7px rgba(192,66,90,0); } }
 .voice-hint { font-size: 11px; font-style: italic; color: #a86a78; margin-top: 7px; min-height: 14px; }
 
+/* ── Riti / Parv side toggle ── */
+.ow-sides { display: flex; gap: 8px; justify-content: center; margin: 2px 0 18px; }
+.ow-side {
+  background: rgba(192,66,90,.06); border: 1px solid rgba(192,66,90,.22);
+  color: #c0728a; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 15px;
+  padding: 8px 20px; border-radius: 40px; cursor: pointer;
+  -webkit-appearance: none; touch-action: manipulation;
+  transition: background .2s, color .2s, border-color .2s, box-shadow .2s;
+}
+.ow-side.active { background: linear-gradient(135deg,#c0425a,#7a1f3a); color: #fff; border-color: transparent; box-shadow: 0 6px 18px rgba(192,66,90,.3); }
+.ow-side[data-side="parv"].active { background: linear-gradient(135deg,#5079c4,#22345f); box-shadow: 0 6px 18px rgba(64,96,168,.34); }
+
+/* ── "add a note" card ── */
+.ow-add-card { border: none; background: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 11px; -webkit-appearance: none; touch-action: manipulation; }
+.ow-add-env {
+  position: relative; width: 100%; aspect-ratio: 7 / 5; border-radius: 11px;
+  border: 2px dashed rgba(192,66,90,.4); background: rgba(192,66,90,.04);
+  display: flex; align-items: center; justify-content: center;
+  color: #c0728a; font-size: 34px; font-weight: 300; line-height: 1;
+  transition: transform .18s, background .2s, border-color .2s;
+}
+.ow-add-card:active .ow-add-env { transform: translateY(3px) scale(.965); background: rgba(192,66,90,.1); }
+
+/* ── add-note form ── */
+.ow-form {
+  position: relative; max-width: 346px; width: 100%; margin: auto;
+  padding: 30px 24px 26px; border-radius: 5px;
+  background: linear-gradient(#fbeee6, #f2dccf); color: #6a2036;
+  box-shadow: 0 26px 64px rgba(0,0,0,.58), inset 0 0 0 1px rgba(122,31,58,.12);
+  display: none;
+}
+.ow-form.show { display: block; animation: paperIn .5s ease both; }
+.ow-form h3 { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-style: italic; font-size: 24px; text-align: center; color: #8b2040; margin-bottom: 16px; }
+.ow-form label { display: block; font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #a86a78; margin: 12px 0 5px; }
+.ow-input, .ow-textarea {
+  width: 100%; background: rgba(255,255,255,.5); border: 1px solid rgba(122,31,58,.25); border-radius: 8px;
+  padding: 11px 13px; font-family: 'Cormorant Garamond', serif; font-size: 17px; color: #6a2036; outline: none; -webkit-appearance: none;
+}
+.ow-input:focus, .ow-textarea:focus { border-color: rgba(122,31,58,.55); }
+.ow-textarea { resize: vertical; min-height: 130px; line-height: 1.6; }
+.ow-form-err { font-size: 12px; color: #c0392b; text-align: center; min-height: 16px; margin-top: 8px; font-family: 'DM Sans', sans-serif; }
+.ow-form-actions { display: flex; gap: 10px; margin-top: 14px; }
+.ow-form-actions button { flex: 1; padding: 11px; border-radius: 40px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; -webkit-appearance: none; touch-action: manipulation; }
+.ow-save { background: linear-gradient(135deg,#c0425a,#7a1f3a); color: #fff; border: none; box-shadow: 0 6px 18px rgba(192,66,90,.3); }
+.ow-cancel { background: transparent; border: 1px solid rgba(122,31,58,.3); color: #8b2040; }
+.ow-note-del { display: block; margin: 18px auto 0; background: none; border: none; color: rgba(122,31,58,.55); font-family: 'DM Sans', sans-serif; font-size: 11px; text-decoration: underline; cursor: pointer; }
+
+/* ── Parv side: blue theme (mirror of the rose "for Riti" side) ── */
+body.side-parv .ow-add-env { border-color: rgba(80,120,196,.45); background: rgba(80,120,196,.05); color: #6f8fd0; }
+body.side-parv .mini-env { background: linear-gradient(160deg,#5b7fd0,#22345f); }
+body.side-parv .mini-env::before { background: linear-gradient(150deg,#3a5ba0,#182a4e); }
+body.side-parv .mini-env::after { background: linear-gradient(160deg,#83a4e4,#3a5ba0); }
+body.side-parv .mini-seal { background: radial-gradient(circle at 34% 28%,#c3d5ff,#26468f); }
+body.side-parv .ow-reader { background: radial-gradient(120% 90% at 50% 8%, #0c1226, #070a16 62%); }
+body.side-parv .ow-close { color: #7f9ee0; }
+body.side-parv .env-back { background: linear-gradient(160deg,#34508f,#152647); }
+body.side-parv .env-letter { background: linear-gradient(#eef1fb,#dbe3f4); }
+body.side-parv .env-letter::after { background: rgba(40,60,120,.16); box-shadow: 0 12px 0 rgba(40,60,120,.12), 0 24px 0 rgba(40,60,120,.12), 0 36px 0 rgba(40,60,120,.1); }
+body.side-parv .env-pocket { background: linear-gradient(150deg,#3a5ba0,#182a4e); }
+body.side-parv .env-flap { background: linear-gradient(160deg,#83a4e4,#34508f); }
+body.side-parv .env-seal { background: radial-gradient(circle at 34% 28%,#c3d5ff,#26468f); }
+body.side-parv .ow-paper { background: linear-gradient(#eef1fb,#dfe6f6); color: #24365e; box-shadow: 0 26px 64px rgba(0,0,0,.58), inset 0 0 0 1px rgba(40,60,120,.12); }
+body.side-parv .ow-paper::before { border-color: rgba(40,60,120,.16); }
+body.side-parv .ow-paper-title { color: #274a8c; }
+body.side-parv .ow-paper-rule { background: linear-gradient(90deg, transparent, #5b7fd0, transparent); }
+body.side-parv .ow-paper-body { color: #24365e; }
+body.side-parv .ow-note-del { color: rgba(40,60,120,.55); }
+body.side-parv .ow-form { background: linear-gradient(#eef1fb,#dfe6f6); color: #24365e; box-shadow: 0 26px 64px rgba(0,0,0,.58), inset 0 0 0 1px rgba(40,60,120,.12); }
+body.side-parv .ow-form h3 { color: #274a8c; }
+body.side-parv .ow-form label { color: #6f8fd0; }
+body.side-parv .ow-input, body.side-parv .ow-textarea { border-color: rgba(40,60,120,.25); color: #24365e; }
+body.side-parv .ow-input:focus, body.side-parv .ow-textarea:focus { border-color: rgba(40,60,120,.55); }
+body.side-parv .ow-save { background: linear-gradient(135deg,#5079c4,#22345f); box-shadow: 0 6px 18px rgba(64,96,168,.34); }
+body.side-parv .ow-cancel { border-color: rgba(40,60,120,.3); color: #274a8c; }
+
 /* ─── 8. WEDDING ─── */
 .wed-stage {
   position: relative; width: 100%; max-width: 360px;

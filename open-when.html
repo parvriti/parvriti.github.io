@@ -19,10 +19,14 @@
   <nav class="tabbar" id="nav"></nav>
 
   <main class="col page-fade">
+    <div class="ow-sides">
+      <button class="ow-side active" type="button" data-side="riti">Riti 🎀</button>
+      <button class="ow-side" type="button" data-side="parv">Parv 💙</button>
+    </div>
     <div class="ow-head">
-      <div class="ow-kicker">Sealed · for the right moment</div>
-      <div class="ow-title">Open When…</div>
-      <div class="ow-note">Chhoti chhoti chitthiyan, teri wait mein. Jab jaisa feel ho, waisi khol lena — main hamesha yahin hoon. 💌</div>
+      <div class="ow-kicker" id="owKicker">Sealed · for the right moment</div>
+      <div class="ow-title" id="owTitle">Open When…</div>
+      <div class="ow-note" id="owNote">Chhoti chhoti chitthiyan, teri wait mein. Jab jaisa feel ho, waisi khol lena — main hamesha yahin hoon. 💌</div>
     </div>
     <div class="ow-grid" id="owGrid"></div>
   </main>
@@ -52,8 +56,26 @@
       <div class="voice-hint" id="owVoiceHint"></div>
     </div>
     <div class="ow-paper-body" id="owPaperBody"></div>
+    <button class="ow-note-del" id="owNoteDel" type="button" onclick="deleteCurrentNote()" style="display:none">delete this note</button>
   </div>
   <audio id="owAudio" preload="none"></audio>
+</div>
+
+<!-- Add-a-note form -->
+<div class="ow-reader" id="owAddOverlay">
+  <button class="ow-close" type="button" onclick="closeAdd()">✕ close</button>
+  <form class="ow-form" id="owForm" onsubmit="return saveNote(event)">
+    <h3>Add a note <span id="owFormWho">for Riti</span> ✍️</h3>
+    <label for="owInTitle">Title</label>
+    <input class="ow-input" id="owInTitle" type="text" maxlength="40" placeholder="e.g. Open when you win" autocomplete="off"/>
+    <label for="owInBody">Your words</label>
+    <textarea class="ow-textarea" id="owInBody" placeholder="Write your note… line breaks are kept."></textarea>
+    <div class="ow-form-err" id="owFormErr"></div>
+    <div class="ow-form-actions">
+      <button type="button" class="ow-cancel" onclick="closeAdd()">Cancel</button>
+      <button type="submit" class="ow-save">Save note</button>
+    </div>
+  </form>
 </div>
 
 <script src="js/common.js"></script>
