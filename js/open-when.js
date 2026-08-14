@@ -119,11 +119,10 @@ function setSide(side) {
   });
   if (side === 'parv') {
     document.getElementById('owKicker').textContent = 'Written by Riti · for you';
-    document.getElementById('owNote').textContent = 'Her little letters, one for every feeling. 💙';
   } else {
-    document.getElementById('owKicker').textContent = 'Sealed · for the right moment';
-    document.getElementById('owNote').textContent = '';
+    document.getElementById('owKicker').textContent = 'Written by Pavu · for you';
   }
+  document.getElementById('owNote').textContent = '';
   buildGrid();
 }
 
@@ -142,13 +141,15 @@ function buildGrid() {
     b.addEventListener('click', function () { openEnvelope(i); });
     grid.appendChild(b);
   });
-  // trailing "add a note" card
-  const add = document.createElement('button');
-  add.type = 'button';
-  add.className = 'ow-add-card';
-  add.innerHTML = '<div class="ow-add-env">＋</div><div class="ow-cap">Add a note</div>';
-  add.addEventListener('click', openAdd);
-  grid.appendChild(add);
+  // "Add a note" card is disabled for now. localStorage only saves on one
+  // device, so notes could not actually be shared between phones. Re-enable
+  // once there is a shared backend by uncommenting the block below.
+  // const add = document.createElement('button');
+  // add.type = 'button';
+  // add.className = 'ow-add-card';
+  // add.innerHTML = '<div class="ow-add-env">＋</div><div class="ow-cap">Add a note</div>';
+  // add.addEventListener('click', openAdd);
+  // grid.appendChild(add);
 }
 
 let owTimer = null;
@@ -269,6 +270,13 @@ function toggleVoice() {
   }
 }
 document.getElementById('owAudio').addEventListener('ended', function () { setVoiceUI(false); });
+
+/* Esc closes an open note (or the add form) */
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape' && e.key !== 'Esc') return;
+  if (document.getElementById('owReader').classList.contains('active')) closeWhen();
+  if (document.getElementById('owAddOverlay').classList.contains('active')) closeAdd();
+});
 
 /* wire the Riti / Parv toggle */
 document.querySelectorAll('.ow-side').forEach(function (el) {
