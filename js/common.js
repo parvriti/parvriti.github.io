@@ -305,6 +305,15 @@
       // also push, so it reaches them even if the app is closed
       if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/open-when.html');
     };
+
+    // long-press the heart = send a test to yourself (verify the pulse + push solo)
+    window.parvritiSelfPing = function () {
+      if (!cdb) return;
+      cdb.collection('pings').doc(me).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).catch(function () {});
+      toast('test sent to you 💗');
+      if (navigator.vibrate) navigator.vibrate(24);
+      if (window.parvritiNotify) window.parvritiNotify(me, 'Test 💗', 'your notifications are working', 'https://parvriti.github.io/open-when.html');
+    };
     var pingFirst = true;
     cdb.collection('pings').doc(me).onSnapshot(function (snap) {
       if (pingFirst) { pingFirst = false; return; }   // ignore whatever is already there on load
@@ -341,9 +350,19 @@
     b.type = 'button'; b.id = 'loveFab'; b.className = 'love-fab';
     b.setAttribute('aria-label', 'Send a heartbeat');
     b.innerHTML = '<span>💗</span>';
+    var lpTimer = null, longFired = false;
+    function beat() { b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap'); }
     b.addEventListener('click', function () {
-      b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap');
+      if (longFired) { longFired = false; return; }   // a long-press already handled it
+      beat();
       if (window.parvritiSendLove) window.parvritiSendLove();
+    });
+    b.addEventListener('pointerdown', function () {
+      longFired = false;
+      lpTimer = setTimeout(function () { longFired = true; beat(); if (window.parvritiSelfPing) window.parvritiSelfPing(); }, 650);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) {
+      b.addEventListener(ev, function () { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
     });
     body.appendChild(b);
   }
