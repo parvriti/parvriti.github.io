@@ -509,6 +509,59 @@ body {
   display: block; font-style: italic; text-align: right;
   color: #a53a56; margin-top: 22px; font-size: 20px;
 }
+
+/* ── dated stack: engraved date, pager, entry actions ── */
+.ow-paper-date {
+  font-family: 'Cormorant Garamond', serif; font-style: italic;
+  font-size: 15px; letter-spacing: .06em; color: #b26982;
+  text-align: center; margin: 3px 0 0;
+}
+.ow-pager {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin: 22px 0 2px;
+}
+.ow-pg {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(122,31,58,.3); background: rgba(122,31,58,.06);
+  color: #8b2040; font-size: 18px; line-height: 1; cursor: pointer;
+  -webkit-appearance: none; touch-action: manipulation;
+  display: flex; align-items: center; justify-content: center; padding-bottom: 2px;
+}
+.ow-pg:disabled { opacity: .3; cursor: default; }
+.ow-pg-lbl { font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .08em; color: #a86a78; }
+.ow-entry-actions {
+  text-align: center; margin-top: 18px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; color: #a86a78;
+}
+.ow-entry-actions button {
+  background: none; border: none; color: #8b2040; cursor: pointer;
+  text-decoration: underline; font-size: 12px; padding: 2px 4px; font-family: inherit;
+}
+.ow-entry-actions .sep { opacity: .5; margin: 0 2px; }
+.ow-add-here {
+  display: block; margin: 20px auto 2px;
+  background: rgba(122,31,58,.07); border: 1px solid rgba(122,31,58,.28);
+  color: #8b2040; font-family: 'Cormorant Garamond', serif; font-style: italic;
+  font-size: 15px; padding: 9px 18px; border-radius: 40px; cursor: pointer;
+  -webkit-appearance: none; touch-action: manipulation;
+}
+.ow-add-here:active { transform: scale(.97); }
+.ow-count {
+  position: absolute; top: 7px; right: 8px; z-index: 4;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 10px;
+  background: rgba(10,4,6,.55); color: #ffd9e2;
+  font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+}
+.ow-emoji-input { width: 74px; text-align: center; font-size: 22px; }
+
+body.side-parv .ow-paper-date { color: #5c7fbf; }
+body.side-parv .ow-pg { border-color: rgba(40,60,120,.3); background: rgba(40,60,120,.06); color: #274a8c; }
+body.side-parv .ow-pg-lbl { color: #6f8fd0; }
+body.side-parv .ow-entry-actions { color: #6f8fd0; }
+body.side-parv .ow-entry-actions button { color: #274a8c; }
+body.side-parv .ow-add-here { background: rgba(40,60,120,.07); border-color: rgba(40,60,120,.28); color: #274a8c; }
+body.side-parv .ow-count { background: rgba(6,10,22,.6); color: #cfe0ff; }
 .ow-voice { text-align: center; margin: 2px 0 20px; }
 .voice-btn {
   display: inline-flex; align-items: center; gap: 9px;

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=4">
+<link rel="stylesheet" href="css/styles.css?v=5">
 </head>
 <body data-page="open-when">
 
@@ -44,41 +44,34 @@
       <div class="env-seal">❤</div>
     </div>
   </div>
-  <div class="ow-paper" id="owPaper">
-    <div class="ow-paper-emoji" id="owPaperEmoji"></div>
-    <div class="ow-paper-title" id="owPaperTitle"></div>
-    <div class="ow-paper-rule"></div>
-    <div class="ow-voice">
-      <button type="button" class="voice-btn" id="owPlayBtn" onclick="toggleVoice()">
-        <span class="voice-ic" id="owPlayIc">▶</span>
-        <span id="owPlayLbl">Play his voice</span>
-      </button>
-      <div class="voice-hint" id="owVoiceHint"></div>
-    </div>
-    <div class="ow-paper-body" id="owPaperBody"></div>
-    <button class="ow-note-del" id="owNoteDel" type="button" onclick="deleteCurrentNote()" style="display:none">delete this note</button>
-  </div>
+  <div class="ow-paper" id="owPaper"><div id="owPaperContent"></div></div>
   <audio id="owAudio" preload="none"></audio>
 </div>
 
-<!-- Add-a-note form -->
+<!-- Add / edit form -->
 <div class="ow-reader" id="owAddOverlay">
   <button class="ow-close" type="button" onclick="closeAdd()">✕ close</button>
-  <form class="ow-form" id="owForm" onsubmit="return saveNote(event)">
-    <h3>Add a note <span id="owFormWho">for Riti</span> ✍️</h3>
-    <label for="owInTitle">Title</label>
-    <input class="ow-input" id="owInTitle" type="text" maxlength="40" placeholder="e.g. Open when you win" autocomplete="off"/>
+  <form class="ow-form" id="owForm" onsubmit="return saveForm(event)">
+    <h3 id="owFormHeading">New envelope</h3>
+    <div id="owTitleWrap">
+      <label for="owInTitle">Title</label>
+      <input class="ow-input" id="owInTitle" type="text" maxlength="40" placeholder="e.g. When you win" autocomplete="off"/>
+      <label for="owInEmoji">Emoji</label>
+      <input class="ow-input ow-emoji-input" id="owInEmoji" type="text" maxlength="6" value="💌" autocomplete="off"/>
+    </div>
     <label for="owInBody">Your words</label>
-    <textarea class="ow-textarea" id="owInBody" placeholder="Write your note… line breaks are kept."></textarea>
+    <textarea class="ow-textarea" id="owInBody" placeholder="Write your note…"></textarea>
     <div class="ow-form-err" id="owFormErr"></div>
     <div class="ow-form-actions">
       <button type="button" class="ow-cancel" onclick="closeAdd()">Cancel</button>
-      <button type="submit" class="ow-save">Save note</button>
+      <button type="submit" class="ow-save">Save</button>
     </div>
   </form>
 </div>
 
-<script src="js/common.js?v=4"></script>
-<script src="js/open-when.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="js/common.js?v=5"></script>
+<script src="js/open-when.js?v=5"></script>
 </body>
 </html>
