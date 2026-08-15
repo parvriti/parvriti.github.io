@@ -768,6 +768,25 @@ body.side-parv .ow-seal-field > label, body.side-parv .ow-seal-hint { color: #6f
 .love-text { margin-top: 12px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 22px; color: #ffd9e0; }
 @keyframes heartThrob { 0%,100% { transform: scale(1); } 25% { transform: scale(1.22); } 50% { transform: scale(1.02); } 75% { transform: scale(1.16); } }
 
+/* ══════════════ notifications opt-in prompt ══════════════ */
+.notif-prompt {
+  position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(14px); z-index: 58; opacity: 0;
+  display: flex; align-items: center; gap: 10px; max-width: 92vw;
+  background: rgba(20,6,11,.92); border: 1px solid rgba(192,66,90,.42);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  padding: 9px 10px 9px 16px; border-radius: 40px;
+  transition: opacity .4s ease, transform .4s ease;
+}
+.notif-prompt.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.np-text { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #f0d8dc; }
+.np-yes {
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #fff; cursor: pointer; -webkit-appearance: none;
+  background: linear-gradient(135deg, #c0425a, #7a1f3a); border: none; border-radius: 40px; padding: 7px 15px; white-space: nowrap;
+}
+.np-no { background: none; border: none; color: #b06a7a; font-size: 15px; cursor: pointer; -webkit-appearance: none; padding: 4px 6px; line-height: 1; }
+body.side-parv .np-yes { background: linear-gradient(135deg, #3a5ba0, #1a2f5c); }
+
 /* ══════════════ mini toast ══════════════ */
 .mini-toast { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%) translateY(10px); z-index: 9999; background: rgba(20,6,11,.9); border: 1px solid rgba(192,66,90,.4); color: #ffd9e0; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 9px 18px; border-radius: 40px; opacity: 0; transition: opacity .3s ease, transform .3s ease; pointer-events: none; }
 .mini-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }

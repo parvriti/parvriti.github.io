@@ -519,6 +519,15 @@ function saveForm(ev) {
   const openRaw = document.getElementById('owInOpen') ? document.getElementById('owInOpen').value : '';
   const openDate = (openRaw && openRaw > todayStr()) ? openRaw : null;   // only seal a future date
 
+  // push the other person a nudge (never for a sealed surprise, never to yourself)
+  const notifyRecipient = function (noteTitle) {
+    if (openDate) return;
+    const meP = mePerson();
+    if (!meP || currentSide === meP || !window.parvritiNotify) return;
+    const who = meP === 'parv' ? 'Parv' : 'Riti';
+    window.parvritiNotify(currentSide, who + ' left you a note 💌', noteTitle || '', 'https://parvriti.github.io/open-when.html');
+  };
+
   if (formMode === 'edit') {
     db.collection('notes').doc(formEntry.id).update({ body: body, voice: voice, voiceType: voiceType, editedAt: serverTime() }).then(done).catch(fail);
   } else if (formMode === 'add') {
@@ -526,7 +535,7 @@ function saveForm(ev) {
     db.collection('notes').add({
       side: currentSide, emotion: formEnv.emotion, emoji: formEnv.emoji, title: formEnv.title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(done).catch(fail);
+    }).then(function () { notifyRecipient(formEnv.title); done(); }).catch(fail);
   } else {
     const title = document.getElementById('owInTitle').value.trim();
     const emoji = document.getElementById('owInEmoji').value.trim() || (currentSide === 'parv' ? '💙' : '💌');
@@ -536,7 +545,7 @@ function saveForm(ev) {
     db.collection('notes').add({
       side: currentSide, emotion: key, emoji: emoji, title: title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(done).catch(fail);
+    }).then(function () { notifyRecipient(title); done(); }).catch(fail);
   }
   return false;
 }

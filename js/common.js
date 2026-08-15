@@ -20,6 +20,11 @@
     messagingSenderId: "598106428796",
     appId: "1:598106428796:web:bcb49b129377d9a5d6c0f9"
   };
+  /* Push notifications: fill these two in once set up, and push turns on.
+     Until then the code below stays completely dormant. */
+  var FCM_VAPID_KEY = 'REPLACE_WITH_VAPID_KEY';   // Firebase console → Project settings → Cloud Messaging → Web Push certificates → Key pair
+  var PUSH_ENDPOINT = 'REPLACE_WITH_WORKER_URL';  // your deployed Cloudflare Worker URL
+
   var body = document.body;
   var page = body.dataset.page || '';
   var auth = null;
@@ -59,6 +64,7 @@
     proceed();
     try { startRealtime(); } catch (e) {}
     try { celebrate(); } catch (e) {}
+    try { setupMessaging(); } catch (e) {}
   }
 
   /* ── everything below the gate ── */
@@ -187,6 +193,71 @@
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 
+  /* ══════════════ push notifications (reaches a closed phone) ══════════════ */
+  function setupMessaging() {
+    var u = window.__parvritiUser;
+    if (!u || !cdb || typeof firebase === 'undefined' || !firebase.messaging) return;
+    if (FCM_VAPID_KEY.indexOf('REPLACE') === 0) return;   // not configured yet → stay dormant
+    try { if (firebase.messaging.isSupported && !firebase.messaging.isSupported()) return; } catch (e) { return; }
+    if (typeof Notification === 'undefined') return;
+    var messaging;
+    try { messaging = firebase.messaging(); } catch (e) { return; }
+    if (Notification.permission === 'granted') registerToken(messaging, u.person);
+    else if (Notification.permission === 'default' && page && page !== 'home') buildNotifPrompt(messaging, u.person);
+    try { messaging.onMessage(function () {}); } catch (e) {}   // foreground: the live pulse already covers it
+  }
+  function registerToken(messaging, person) {
+    try {
+      messaging.getToken({ vapidKey: FCM_VAPID_KEY }).then(function (token) {
+        if (!token) return;
+        cdb.collection('deviceTokens').doc(token).set({
+          person: person, token: token, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function () {});
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  function buildNotifPrompt(messaging, person) {
+    try { if (localStorage.getItem('notifDismissed') === '1') return; } catch (e) {}
+    if (document.getElementById('notifPrompt')) return;
+    var other = person === 'riti' ? 'Parv' : 'Riti';
+    var p = document.createElement('div');
+    p.id = 'notifPrompt'; p.className = 'notif-prompt';
+    p.innerHTML = '<span class="np-text">🔔 A nudge whenever ' + other + ' writes you?</span>' +
+      '<button type="button" class="np-yes">Turn on</button>' +
+      '<button type="button" class="np-no" aria-label="dismiss">✕</button>';
+    body.appendChild(p);
+    requestAnimationFrame(function () { p.classList.add('show'); });
+    p.querySelector('.np-yes').addEventListener('click', function () {
+      try { Notification.requestPermission().then(function (perm) { if (perm === 'granted') registerToken(messaging, person); }); } catch (e) {}
+      dismissNotifPrompt();
+    });
+    p.querySelector('.np-no').addEventListener('click', function () {
+      try { localStorage.setItem('notifDismissed', '1'); } catch (e) {}
+      dismissNotifPrompt();
+    });
+  }
+  function dismissNotifPrompt() {
+    var p = document.getElementById('notifPrompt'); if (!p) return;
+    p.classList.remove('show');
+    setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 400);
+  }
+  /* open-when.js calls this when a note is saved; heartbeat calls it too */
+  window.parvritiNotify = function (to, title, text, url) {
+    try {
+      if (PUSH_ENDPOINT.indexOf('REPLACE') === 0) return;
+      if (typeof firebase === 'undefined' || !firebase.auth) return;
+      var user = firebase.auth().currentUser;
+      if (!user) return;
+      user.getIdToken().then(function (idt) {
+        fetch(PUSH_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
+          body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html' })
+        }).catch(function () {});
+      }).catch(function () {});
+    } catch (e) {}
+  };
+
   /* ══════════════ real-time: presence · typing · heartbeat ping ══════════════ */
   function startRealtime() {
     var u = window.__parvritiUser;
@@ -231,6 +302,8 @@
       cdb.collection('pings').doc(other).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).catch(function () {});
       toast('sent 💗');
       if (navigator.vibrate) navigator.vibrate(24);
+      // also push, so it reaches them even if the app is closed
+      if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/open-when.html');
     };
     var pingFirst = true;
     cdb.collection('pings').doc(me).onSnapshot(function (snap) {
