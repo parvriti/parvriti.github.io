@@ -758,6 +758,7 @@ body.side-parv .ow-seal-field > label, body.side-parv .ow-seal-hint { color: #6f
   animation: fabBeat 2.6s ease-in-out infinite;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
+.love-fab span { pointer-events: none; -webkit-user-select: none; user-select: none; }
 .love-fab.tap { animation: fabTap .5s ease; }
 @keyframes fabBeat { 0%,100% { transform: scale(1); } 8% { transform: scale(1.12); } 16% { transform: scale(1); } 24% { transform: scale(1.09); } 32% { transform: scale(1); } }
 @keyframes fabTap { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }

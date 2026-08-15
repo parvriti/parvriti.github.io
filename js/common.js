@@ -202,19 +202,19 @@
     if (typeof Notification === 'undefined') return;
     var messaging;
     try { messaging = firebase.messaging(); } catch (e) { return; }
-    if (Notification.permission === 'granted') registerToken(messaging, u.person);
+    if (Notification.permission === 'granted') registerToken(messaging, u.person, false);
     else if (Notification.permission === 'default' && page && page !== 'home') buildNotifPrompt(messaging, u.person);
     try { messaging.onMessage(function () {}); } catch (e) {}   // foreground: the live pulse already covers it
   }
-  function registerToken(messaging, person) {
+  function registerToken(messaging, person, announce) {
     try {
       messaging.getToken({ vapidKey: FCM_VAPID_KEY }).then(function (token) {
-        if (!token) return;
+        if (!token) { toast('no push token (permission?)'); return; }
         cdb.collection('deviceTokens').doc(token).set({
           person: person, token: token, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(function () {});
-      }).catch(function () {});
-    } catch (e) {}
+        }).then(function () { if (announce) toast('🔔 notifications on'); }).catch(function () { toast('token write blocked'); });
+      }).catch(function (e) { toast('token error: ' + ((e && e.code) || 'unknown')); });
+    } catch (e) { toast('push not supported here'); }
   }
   function buildNotifPrompt(messaging, person) {
     try { if (localStorage.getItem('notifDismissed') === '1') return; } catch (e) {}
@@ -228,7 +228,7 @@
     body.appendChild(p);
     requestAnimationFrame(function () { p.classList.add('show'); });
     p.querySelector('.np-yes').addEventListener('click', function () {
-      try { Notification.requestPermission().then(function (perm) { if (perm === 'granted') registerToken(messaging, person); }); } catch (e) {}
+      try { Notification.requestPermission().then(function (perm) { if (perm === 'granted') registerToken(messaging, person, true); else toast('notifications not allowed'); }); } catch (e) {}
       dismissNotifPrompt();
     });
     p.querySelector('.np-no').addEventListener('click', function () {
@@ -242,19 +242,21 @@
     setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 400);
   }
   /* open-when.js calls this when a note is saved; heartbeat calls it too */
-  window.parvritiNotify = function (to, title, text, url) {
+  window.parvritiNotify = function (to, title, text, url, report) {
     try {
       if (PUSH_ENDPOINT.indexOf('REPLACE') === 0) return;
       if (typeof firebase === 'undefined' || !firebase.auth) return;
       var user = firebase.auth().currentUser;
-      if (!user) return;
+      if (!user) { if (report) toast('not signed in'); return; }
       user.getIdToken().then(function (idt) {
         fetch(PUSH_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
           body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html' })
-        }).catch(function () {});
-      }).catch(function () {});
+        }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (d) {
+          if (report) toast(d && typeof d.sent === 'number' ? ('pushed to ' + d.sent + ' device' + (d.sent === 1 ? '' : 's')) : ('push error: ' + ((d && d.error) || '?')));
+        }).catch(function () { if (report) toast('worker unreachable'); });
+      }).catch(function () { if (report) toast('token fetch failed'); });
     } catch (e) {}
   };
 
@@ -312,7 +314,7 @@
       cdb.collection('pings').doc(me).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).catch(function () {});
       toast('test sent to you 💗');
       if (navigator.vibrate) navigator.vibrate(24);
-      if (window.parvritiNotify) window.parvritiNotify(me, 'Test 💗', 'your notifications are working', 'https://parvriti.github.io/open-when.html');
+      if (window.parvritiNotify) window.parvritiNotify(me, 'Test 💗', 'your notifications are working', 'https://parvriti.github.io/open-when.html', true);
     };
     var pingFirst = true;
     cdb.collection('pings').doc(me).onSnapshot(function (snap) {
