@@ -339,24 +339,10 @@
     o.connect(g); g.connect(c.destination);
     o.start(t); o.stop(t + dur + 0.03);
   }
-  function noise(when, dur, peak, freq) {
-    var c = ac(); if (!c) return;
-    var t = c.currentTime + (when || 0);
-    var n = Math.max(1, Math.floor(c.sampleRate * dur));
-    var buf = c.createBuffer(1, n, c.sampleRate), ch = buf.getChannelData(0);
-    for (var i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
-    var src = c.createBufferSource(); src.buffer = buf;
-    var g = c.createGain(); g.gain.value = peak || 0.04;
-    var f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq || 1200;
-    src.connect(f); f.connect(g); g.connect(c.destination);
-    src.start(t);
-  }
   window.parvritiSfx = {
     tick: function () { blip(660, 0, 0.06, 'triangle', 0.05); },
     pluck: function () { blip(520, 0, 0.14, 'sine', 0.07); blip(780, 0.02, 0.1, 'sine', 0.03); },
     chime: function () { blip(784, 0, 0.5, 'sine', 0.06); blip(1175, 0.04, 0.45, 'sine', 0.035); blip(1568, 0.09, 0.4, 'sine', 0.02); },
-    crack: function () { noise(0, 0.05, 0.06, 2200); },
-    unfold: function () { noise(0, 0.32, 0.03, 900); },
     err: function () { blip(200, 0, 0.2, 'sawtooth', 0.05); }
   };
 })();

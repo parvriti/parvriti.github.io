@@ -676,6 +676,45 @@ body.side-parv .ow-receipt.read { color: #6f8fd0; }
 body.side-parv .ow-receipt.tap { background: rgba(40,60,120,.09); border-color: rgba(40,60,120,.3); color: #2b4d8f; }
 
 /* ══════════════ time-capsule (sealed) ══════════════ */
+/* tiny themed lock on a sealed envelope's seal */
+.mini-seal .lock-ic { width: 15px; height: 15px; fill: #7a1f3a; }
+body.side-parv .mini-seal .lock-ic { fill: #17335f; }
+
+/* the unsealing ceremony overlay */
+.ow-unseal {
+  position: fixed; inset: 0; z-index: 340; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 45%, rgba(139,32,64,.55), rgba(10,4,6,.9) 70%);
+  opacity: 0; transition: opacity .3s ease;
+}
+.ow-unseal.go { opacity: 1; }
+body.side-parv .ow-unseal { background: radial-gradient(circle at 50% 45%, rgba(40,60,120,.55), rgba(6,8,16,.9) 70%); }
+.unseal-stage { position: relative; width: 120px; height: 120px; }
+.unseal-lock, .unseal-heart { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.unseal-lock .lock-ic { width: 66px; height: 66px; fill: #f4c9d3; filter: drop-shadow(0 6px 18px rgba(0,0,0,.5)); }
+body.side-parv .unseal-lock .lock-ic { fill: #cadcff; }
+.unseal-heart { font-size: 72px; opacity: 0; filter: drop-shadow(0 0 22px rgba(255,120,150,.7)); }
+.ow-unseal.go .unseal-lock { animation: unsealLock 1.05s ease forwards; }
+.ow-unseal.go .unseal-heart { animation: unsealHeart 1.05s ease forwards; }
+@keyframes unsealLock {
+  0% { transform: scale(1) rotate(0); opacity: 1; }
+  10% { transform: translateX(-5px) rotate(-7deg); }
+  22% { transform: translateX(5px) rotate(7deg); }
+  34% { transform: translateX(-4px) rotate(-5deg); }
+  46% { transform: translateX(3px) rotate(4deg); }
+  55% { transform: scale(1.12) rotate(0); opacity: 1; }
+  66% { transform: scale(1.55); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+@keyframes unsealHeart {
+  0%, 55% { transform: scale(0); opacity: 0; }
+  70% { transform: scale(1.4); opacity: 1; }
+  84% { transform: scale(.92); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ow-unseal.go .unseal-lock, .ow-unseal.go .unseal-heart { animation-duration: .01s; }
+}
+
 .ow-seal-lock { font-size: 40px; text-align: center; margin: 22px 0 8px; filter: drop-shadow(0 3px 8px rgba(192,66,90,.35)); }
 .ow-sealed-msg { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 21px; color: #8b2040; text-align: center; }
 .ow-countdown { font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .05em; color: #a05a68; text-align: center; margin-top: 6px; }

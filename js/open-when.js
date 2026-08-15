@@ -152,6 +152,25 @@ function sealCountdown(openDate) {
   if (days === 1) return 'opens tomorrow';
   return 'opens in ' + days + ' days';
 }
+/* each person unseals a ripe capsule themselves (their own unwrapping moment), remembered per device */
+function loadUnsealed() { try { return JSON.parse(localStorage.getItem('owunsealed') || '{}'); } catch (e) { return {}; } }
+function markUnsealed(id) { const m = loadUnsealed(); m[id] = Date.now(); try { localStorage.setItem('owunsealed', JSON.stringify(m)); } catch (e) {} }
+/* 'none' (not a capsule) · 'future' (still locked) · 'ripe' (date reached, not yet opened here) · 'opened' */
+function capsuleState(e, unsealed) {
+  if (e.seed || !e.openDate) return 'none';
+  if (todayStr() < e.openDate) return 'future';
+  return (unsealed && unsealed[e.id]) ? 'opened' : 'ripe';
+}
+function envIsLocked(env, unsealed) {
+  return env.entries.length > 0 && env.entries.every(function (e) {
+    const s = capsuleState(e, unsealed);
+    return s === 'future' || s === 'ripe';
+  });
+}
+function envHasRipe(env, unsealed) {
+  return env.entries.some(function (e) { return capsuleState(e, unsealed) === 'ripe'; });
+}
+const LOCK_SVG = '<svg viewBox="0 0 24 24" class="lock-ic" aria-hidden="true"><path d="M12 1a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 9H9V6a3 3 0 0 1 6 0v4z"/></svg>';
 
 /* "read with love" receipt */
 function timeAgo(ms) {
@@ -252,6 +271,7 @@ function buildGrid() {
   grid.innerHTML = '';
   const seal = currentSide === 'parv' ? '💙' : '❤';
   const seen = loadSeen();
+  const unsealed = loadUnsealed();
   envelopesFor(currentSide).forEach(function (env, i) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -262,7 +282,9 @@ function buildGrid() {
       return !e.seed && e.createdAt && (e.createdAt.seconds * 1000) > (seen[currentSide + '|' + env.emotion] || 0);
     });
     const newB = isNew ? '<span class="ow-new">✨</span>' : '';
-    b.innerHTML = '<div class="mini-env">' + count + newB + '<div class="mini-seal">' + seal + '</div></div>' +
+    const locked = envIsLocked(env, unsealed);
+    b.innerHTML = '<div class="mini-env' + (locked ? ' locked' : '') + '">' + count + newB +
+      '<div class="mini-seal' + (locked ? ' locked' : '') + '">' + (locked ? LOCK_SVG : seal) + '</div></div>' +
       '<div class="ow-cap">' + escapeHtml(env.title) + '</div>';
     b.addEventListener('click', function () { openEnvelope(env.emotion); });
     grid.appendChild(b);
@@ -287,8 +309,18 @@ function openEnvelope(emotion) {
   entryIdx = 0;
   const env = currentEnv();
   if (!env) return;
+  const unsealed = loadUnsealed();
+  const doUnseal = envIsLocked(env, unsealed) && envHasRipe(env, unsealed);
+  if (doUnseal) {
+    env.entries.forEach(function (e) { if (capsuleState(e, unsealed) === 'ripe') markUnsealed(e.id); });
+  }
   markSeen(currentSide, emotion);
   buildGrid();
+  if (doUnseal) playUnseal(openReaderNow);   // the lock breaks into the heart, then the letter opens
+  else openReaderNow();
+}
+
+function openReaderNow() {
   const reader = document.getElementById('owReader');
   const stage = document.getElementById('envStage');
   const envEl = document.getElementById('env');
@@ -300,14 +332,27 @@ function openEnvelope(emotion) {
   reader.scrollTop = 0;
   renderEntry();
   if (navigator.vibrate) navigator.vibrate(18);
-  if (window.parvritiSfx) window.parvritiSfx.crack();
   void envEl.offsetWidth;
   envEl.classList.add('open');
   clearTimeout(owTimer);
-  owTimer = setTimeout(function () {
-    stage.classList.add('done'); paper.classList.add('show');
-    if (window.parvritiSfx) window.parvritiSfx.unfold();
-  }, 1520);
+  owTimer = setTimeout(function () { stage.classList.add('done'); paper.classList.add('show'); }, 1520);
+}
+
+/* the unsealing ceremony: a themed lock shakes, bursts, and becomes the heart */
+function playUnseal(cb) {
+  const seal = currentSide === 'parv' ? '💙' : '❤';
+  const ov = document.createElement('div');
+  ov.className = 'ow-unseal';
+  ov.innerHTML = '<div class="unseal-stage"><span class="unseal-lock">' + LOCK_SVG + '</span><span class="unseal-heart">' + seal + '</span></div>';
+  document.body.appendChild(ov);
+  requestAnimationFrame(function () { ov.classList.add('go'); });
+  if (window.parvritiSfx) window.parvritiSfx.chime();
+  if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+  setTimeout(function () {
+    ov.classList.remove('go');
+    if (cb) cb();
+    setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 420);
+  }, 1050);
 }
 
 function renderEntry() {
