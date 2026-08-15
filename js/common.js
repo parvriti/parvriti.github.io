@@ -209,12 +209,12 @@
   function registerToken(messaging, person, announce) {
     try {
       messaging.getToken({ vapidKey: FCM_VAPID_KEY }).then(function (token) {
-        if (!token) { toast('no push token (permission?)'); return; }
+        if (!token) { if (announce) toast('notifications unavailable here'); return; }
         cdb.collection('deviceTokens').doc(token).set({
           person: person, token: token, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(function () { if (announce) toast('🔔 notifications on'); }).catch(function () { toast('token write blocked'); });
-      }).catch(function (e) { toast('token error: ' + ((e && e.code) || 'unknown')); });
-    } catch (e) { toast('push not supported here'); }
+        }).then(function () { if (announce) toast('🔔 notifications on'); }).catch(function () {});
+      }).catch(function () { if (announce) toast('could not turn on notifications'); });
+    } catch (e) {}
   }
   function buildNotifPrompt(messaging, person) {
     try { if (localStorage.getItem('notifDismissed') === '1') return; } catch (e) {}
@@ -242,24 +242,19 @@
     setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 400);
   }
   /* open-when.js calls this when a note is saved; heartbeat calls it too */
-  window.parvritiNotify = function (to, title, text, url, report) {
+  window.parvritiNotify = function (to, title, text, url) {
     try {
       if (PUSH_ENDPOINT.indexOf('REPLACE') === 0) return;
       if (typeof firebase === 'undefined' || !firebase.auth) return;
       var user = firebase.auth().currentUser;
-      if (!user) { if (report) toast('not signed in'); return; }
+      if (!user) return;
       user.getIdToken().then(function (idt) {
         fetch(PUSH_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
           body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html' })
-        }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (d) {
-          if (!report) return;
-          if (d && typeof d.sent === 'number') { toast('pushed to ' + d.sent + ' device' + (d.sent === 1 ? '' : 's')); return; }
-          var why = (d && (d.detail || d.email || d.error)) || '?';
-          toast('push blocked: ' + why);
-        }).catch(function () { if (report) toast('worker unreachable'); });
-      }).catch(function () { if (report) toast('token fetch failed'); });
+        }).catch(function () {});
+      }).catch(function () {});
     } catch (e) {}
   };
 
@@ -310,15 +305,6 @@
       // also push, so it reaches them even if the app is closed
       if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/open-when.html');
     };
-
-    // long-press the heart = send a test to yourself (verify the pulse + push solo)
-    window.parvritiSelfPing = function () {
-      if (!cdb) return;
-      cdb.collection('pings').doc(me).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).catch(function () {});
-      toast('test sent to you 💗');
-      if (navigator.vibrate) navigator.vibrate(24);
-      if (window.parvritiNotify) window.parvritiNotify(me, 'Test 💗', 'your notifications are working', 'https://parvriti.github.io/open-when.html', true);
-    };
     var pingFirst = true;
     cdb.collection('pings').doc(me).onSnapshot(function (snap) {
       if (pingFirst) { pingFirst = false; return; }   // ignore whatever is already there on load
@@ -355,19 +341,9 @@
     b.type = 'button'; b.id = 'loveFab'; b.className = 'love-fab';
     b.setAttribute('aria-label', 'Send a heartbeat');
     b.innerHTML = '<span>💗</span>';
-    var lpTimer = null, longFired = false;
-    function beat() { b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap'); }
     b.addEventListener('click', function () {
-      if (longFired) { longFired = false; return; }   // a long-press already handled it
-      beat();
+      b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap');
       if (window.parvritiSendLove) window.parvritiSendLove();
-    });
-    b.addEventListener('pointerdown', function () {
-      longFired = false;
-      lpTimer = setTimeout(function () { longFired = true; beat(); if (window.parvritiSelfPing) window.parvritiSelfPing(); }, 650);
-    });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) {
-      b.addEventListener(ev, function () { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
     });
     body.appendChild(b);
   }
