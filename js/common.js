@@ -23,7 +23,9 @@
   var body = document.body;
   var page = body.dataset.page || '';
   var auth = null;
+  var cdb = null;
 
+  registerSW();
   buildGate();   // opaque overlay covers everything until we know who this is
 
   try {
@@ -34,7 +36,7 @@
       auth.getRedirectResult().catch(function (e) { gateError(e); });
       auth.onAuthStateChanged(function (user) {
         if (user && ALLOWED.indexOf((user.email || '').toLowerCase()) !== -1) {
-          unlock();
+          unlock(user);
         } else if (user) {
           auth.signOut();
           revealGate('This little world is only for the three of us 💛');
@@ -48,12 +50,15 @@
     }
   } catch (e) { unlock(); }
 
-  function unlock() {
+  function unlock(user) {
     var g = document.getElementById('authGate');
     if (g && g.parentNode) g.parentNode.removeChild(g);
     window.__parvritiAuthed = true;
+    if (user && user.email) window.__parvritiUser = { email: user.email, person: personFor(user.email) };
     try { window.dispatchEvent(new Event('parvriti-authed')); } catch (e) {}
     proceed();
+    try { startRealtime(); } catch (e) {}
+    try { celebrate(); } catch (e) {}
   }
 
   /* ── everything below the gate ── */
@@ -153,4 +158,205 @@
     else gateMsg(e.message || 'Sign-in failed, please try again.');
     revealGate('');
   }
+
+  /* ── who is this? (two of the allowed emails are Parv's) ── */
+  function personFor(email) { return (email || '').toLowerCase() === 'aritika2000@gmail.com' ? 'riti' : 'parv'; }
+
+  /* ── install the app (offline + home-screen icon) ── */
+  function registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+
+  /* ══════════════ real-time: presence · typing · heartbeat ping ══════════════ */
+  function startRealtime() {
+    var u = window.__parvritiUser;
+    if (!u || typeof firebase === 'undefined' || !firebase.firestore) return;
+    try { cdb = firebase.firestore(); } catch (e) { return; }
+    var me = u.person, other = me === 'riti' ? 'parv' : 'riti';
+    var FV = firebase.firestore.FieldValue;
+    var meRef = cdb.collection('presence').doc(me);
+    var inner = page && page !== 'home';
+
+    function beat(extra) {
+      var d = { at: FV.serverTimestamp(), atMs: Date.now(), page: page, hidden: !!document.hidden, gone: false };
+      if (extra) for (var k in extra) d[k] = extra[k];
+      meRef.set(d, { merge: true }).catch(function () {});
+    }
+    beat();
+    setInterval(function () { beat(); }, 25000);
+    document.addEventListener('visibilitychange', function () { beat(); });
+    window.addEventListener('focus', function () { beat(); });
+    window.addEventListener('pagehide', function () { beat({ gone: true }); });
+
+    /* open-when.js calls this while the note box is being typed in */
+    var typingOffT = null;
+    window.parvritiTyping = function (on) {
+      beat({ typing: !!on });
+      clearTimeout(typingOffT);
+      if (on) typingOffT = setTimeout(function () { beat({ typing: false }); }, 5000);
+    };
+
+    /* watch the other person */
+    var lastOther = null;
+    if (inner) buildPresencePill();
+    cdb.collection('presence').doc(other).onSnapshot(function (snap) {
+      lastOther = snap.exists ? snap.data() : null;
+      renderPresence(lastOther, other);
+    }, function () {});
+    setInterval(function () { renderPresence(lastOther, other); }, 15000);
+
+    /* heartbeat ping */
+    window.parvritiSendLove = function () {
+      if (!cdb) return;
+      cdb.collection('pings').doc(other).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).catch(function () {});
+      toast('sent 💗');
+      if (navigator.vibrate) navigator.vibrate(24);
+    };
+    var pingFirst = true;
+    cdb.collection('pings').doc(me).onSnapshot(function (snap) {
+      if (pingFirst) { pingFirst = false; return; }   // ignore whatever is already there on load
+      if (!snap.exists) return;
+      var d = snap.data();
+      pulseHeart(d && d.from);
+    }, function () {});
+    if (inner) buildPingButton();
+  }
+
+  function renderPresence(data, other) {
+    var pill = document.getElementById('presPill');
+    if (!pill) return;
+    var name = other === 'parv' ? 'Parv' : 'Riti';
+    var online = false, typing = false;
+    if (data) {
+      var ms = data.atMs || 0;
+      online = !data.gone && !data.hidden && ms && (Date.now() - ms < 70000);
+      typing = online && data.typing;
+    }
+    if (!online) { pill.classList.remove('show', 'typing'); return; }
+    pill.classList.add('show');
+    if (typing) { pill.classList.add('typing'); pill.innerHTML = '<span class="pres-dot"></span>✍️ ' + name + ' is writing you something…'; }
+    else { pill.classList.remove('typing'); pill.innerHTML = '<span class="pres-dot"></span>' + name + ' is here right now 🌸'; }
+  }
+  function buildPresencePill() {
+    if (document.getElementById('presPill')) return;
+    var p = document.createElement('div'); p.id = 'presPill'; p.className = 'pres-pill';
+    body.appendChild(p);
+  }
+  function buildPingButton() {
+    if (document.getElementById('loveFab')) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'loveFab'; b.className = 'love-fab';
+    b.setAttribute('aria-label', 'Send a heartbeat');
+    b.innerHTML = '<span>💗</span>';
+    b.addEventListener('click', function () {
+      b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap');
+      if (window.parvritiSendLove) window.parvritiSendLove();
+    });
+    body.appendChild(b);
+  }
+  function pulseHeart(from) {
+    var name = from === 'parv' ? 'Parv' : (from === 'riti' ? 'Riti' : 'Someone');
+    var ov = document.createElement('div');
+    ov.className = 'love-pulse';
+    ov.innerHTML = '<div class="love-heart">💗</div><div class="love-text">' + name + ' is thinking of you</div>';
+    body.appendChild(ov);
+    requestAnimationFrame(function () { ov.classList.add('go'); });
+    if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+    setTimeout(function () {
+      ov.classList.remove('go');
+      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 700);
+    }, 2600);
+  }
+  function toast(msg) {
+    var t = document.createElement('div');
+    t.className = 'mini-toast'; t.textContent = msg;
+    body.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add('show'); });
+    setTimeout(function () {
+      t.classList.remove('show');
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 400);
+    }, 1600);
+  }
+
+  /* ══════════════ anniversary / birthday takeover ══════════════ */
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function ord(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  function occasionToday() {
+    var d = new Date(), md = pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()), y = d.getFullYear();
+    if (md === '07-29') { var n = y - 2019; return { emoji: '💍', text: 'Happy anniversary, meri jaan. ' + (n >= 1 ? ord(n) + ' year of us.' : 'Us.') }; }
+    if (md === '04-20') return { emoji: '🎂', text: 'Happy birthday, meri Riti. Today the whole world is yours.' };
+    if (md === '12-10') return { emoji: '🎂', text: 'Happy birthday, mera Pavu.' };
+    return null;
+  }
+  function celebrate() {
+    var occ = occasionToday();
+    if (!occ) return;
+    body.classList.add('celebrate');
+    spawnPetals();
+    if (document.getElementById('celebrateBanner')) return;
+    var bn = document.createElement('div');
+    bn.id = 'celebrateBanner'; bn.className = 'celebrate-banner';
+    bn.innerHTML = '<span class="cb-emoji">' + occ.emoji + '</span><span class="cb-text">' + occ.text + '</span>';
+    body.appendChild(bn);
+    setTimeout(function () { bn.classList.add('show'); }, 500);
+    // greet, then step out of the way (the gold title + petals stay all day)
+    setTimeout(function () {
+      bn.classList.remove('show');
+      setTimeout(function () { if (bn.parentNode) bn.parentNode.removeChild(bn); }, 800);
+    }, 7000);
+  }
+  function spawnPetals() {
+    if (document.querySelector('.petal-fall')) return;
+    var layer = document.createElement('div'); layer.className = 'petal-fall'; body.appendChild(layer);
+    var glyphs = ['🌸', '🌹', '💗', '🌺'];
+    for (var i = 0; i < 18; i++) {
+      var s = document.createElement('span');
+      s.className = 'pf'; s.textContent = glyphs[i % glyphs.length];
+      s.style.left = (Math.random() * 100) + '%';
+      s.style.animationDuration = (5 + Math.random() * 5) + 's';
+      s.style.animationDelay = (Math.random() * 5) + 's';
+      s.style.fontSize = (14 + Math.random() * 16) + 'px';
+      layer.appendChild(s);
+    }
+  }
+
+  /* ══════════════ tiny synthesized sound + haptics ══════════════ */
+  var actx = null;
+  function ac() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (actx.state === 'suspended') { try { actx.resume(); } catch (e) {} }
+    return actx;
+  }
+  function blip(freq, when, dur, type, peak) {
+    var c = ac(); if (!c) return;
+    var t = c.currentTime + (when || 0);
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak || 0.06, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.03);
+  }
+  function noise(when, dur, peak, freq) {
+    var c = ac(); if (!c) return;
+    var t = c.currentTime + (when || 0);
+    var n = Math.max(1, Math.floor(c.sampleRate * dur));
+    var buf = c.createBuffer(1, n, c.sampleRate), ch = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var src = c.createBufferSource(); src.buffer = buf;
+    var g = c.createGain(); g.gain.value = peak || 0.04;
+    var f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq || 1200;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start(t);
+  }
+  window.parvritiSfx = {
+    tick: function () { blip(660, 0, 0.06, 'triangle', 0.05); },
+    pluck: function () { blip(520, 0, 0.14, 'sine', 0.07); blip(780, 0.02, 0.1, 'sine', 0.03); },
+    chime: function () { blip(784, 0, 0.5, 'sine', 0.06); blip(1175, 0.04, 0.45, 'sine', 0.035); blip(1568, 0.09, 0.4, 'sine', 0.02); },
+    crack: function () { noise(0, 0.05, 0.06, 2200); },
+    unfold: function () { noise(0, 0.32, 0.03, 900); },
+    err: function () { blip(200, 0, 0.2, 'sawtooth', 0.05); }
+  };
 })();

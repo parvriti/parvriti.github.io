@@ -5,6 +5,9 @@
    the letter page (common.js's guard checks that flag).
    ===================================================================== */
 
+/* subtle synthesized sound (defined in common.js); silent if unavailable */
+function sfx(n) { if (window.parvritiSfx && window.parvritiSfx[n]) window.parvritiSfx[n](); }
+
 /* ── screen navigation + bloom transition ── */
 function goTo(id) {
   document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
@@ -91,6 +94,7 @@ function confirmDigit() {
   dEntry.push(dVal);
   const sl = document.getElementById('cs' + (dEntry.length - 1));
   sl.textContent = dVal; sl.classList.add('set');
+  sfx('tick');
   dStep++;
   if (dStep < 4) {
     document.getElementById('dialStep').textContent = `digit ${dStep + 1} / 4`;
@@ -99,8 +103,10 @@ function confirmDigit() {
     drawDial();
   } else {
     if (dEntry.every(function (v, i) { return v === L1[i]; })) {
+      sfx('chime');
       bloom(function () { goTo('s-lock2'); initFlower(); });
     } else {
+      sfx('err');
       document.querySelectorAll('.combo-slot').forEach(function (s) { s.classList.add('wrong'); });
       setTimeout(function () {
         dEntry = []; dStep = 0; dVal = 0;
@@ -253,6 +259,7 @@ function tapPetal(idx) {
   if (idx === expected) {
     petalStates[idx] = 'plucking';
     petalAnimT[idx] = 0;
+    sfx('pluck');
     document.getElementById('pp' + petalProgress).classList.add('done');
     petalProgress++;
     startFlowerAnim();
@@ -260,6 +267,7 @@ function tapPetal(idx) {
     if (petalProgress === PETAL_ORDER.length) {
       petalLocked = true;
       document.getElementById('flowerStatus').textContent = '🌸 All petals plucked! Unlocked!';
+      sfx('chime');
       setTimeout(function () { bloom(function () { goTo('s-vows'); }); }, 900);
     } else {
       const msgs = ['Beautiful! Keep going ✦', 'Two more... ✦', 'Last one! ✦'];
@@ -267,6 +275,7 @@ function tapPetal(idx) {
     }
   } else {
     petalLocked = true;
+    sfx('err');
     document.getElementById('flowerStatus').textContent = 'Oops! They\'re growing back... 🌱';
     petalStates[idx] = 'plucking';
     petalAnimT[idx] = 0;
@@ -329,6 +338,7 @@ function checkSign() {
   const err = document.getElementById('signErr');
   if (v.toLowerCase() === 'ritika bajaj') {
     err.textContent = '';
+    sfx('chime');
     try { sessionStorage.setItem('riti_open', '1'); } catch (e) {}
     bloom(function () { location.href = 'letter.html'; });
   } else {

@@ -651,6 +651,102 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
 .auth-google:active { transform: translateY(0); }
 .auth-g { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #fff; color: #4285f4; font-family: Arial, sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .auth-msg { font-family: 'DM Sans', sans-serif; font-size: 12px; color: #e59aa8; margin-top: 18px; min-height: 16px; }
+
+/* ══════════════ on this day ══════════════ */
+.ow-otd { margin: 0 auto 18px; max-width: 520px; }
+.otd-card {
+  display: block; width: 100%; text-align: left; cursor: pointer; -webkit-appearance: none;
+  background: linear-gradient(135deg, rgba(192,66,90,.14), rgba(139,32,64,.08));
+  border: 1px solid rgba(192,66,90,.32); border-radius: 16px; padding: 13px 16px;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.otd-card:hover { transform: translateY(-1px); border-color: rgba(192,66,90,.5); }
+.otd-k { font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #d98ea0; margin-bottom: 3px; }
+.otd-t { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 18px; color: #f0d8dc; }
+.otd-more { color: #b8788a; text-transform: none; letter-spacing: 0; }
+body.side-parv .otd-card { background: linear-gradient(135deg, rgba(40,60,120,.14), rgba(30,45,90,.08)); border-color: rgba(70,100,180,.32); }
+body.side-parv .otd-k { color: #8fb0e6; }
+
+/* ══════════════ read receipt ══════════════ */
+.ow-receipt { display: block; margin: 16px auto 0; font-family: 'DM Sans', sans-serif; font-size: 12.5px; }
+.ow-receipt.read { color: #9c5563; text-align: center; }
+.ow-receipt.tap { background: rgba(192,66,90,.09); border: 1px solid rgba(192,66,90,.3); color: #a8324f; border-radius: 40px; padding: 9px 18px; cursor: pointer; -webkit-appearance: none; transition: transform .14s ease, background .14s ease; }
+.ow-receipt.tap:hover { transform: translateY(-1px); background: rgba(192,66,90,.15); }
+body.side-parv .ow-receipt.read { color: #6f8fd0; }
+body.side-parv .ow-receipt.tap { background: rgba(40,60,120,.09); border-color: rgba(40,60,120,.3); color: #2b4d8f; }
+
+/* ══════════════ time-capsule (sealed) ══════════════ */
+.ow-seal-lock { font-size: 40px; text-align: center; margin: 22px 0 8px; filter: drop-shadow(0 3px 8px rgba(192,66,90,.35)); }
+.ow-sealed-msg { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 21px; color: #8b2040; text-align: center; }
+.ow-countdown { font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .05em; color: #a05a68; text-align: center; margin-top: 6px; }
+.ow-seal-field { margin-top: 14px; }
+.ow-seal-field > label { display: block; font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #a86a78; margin-bottom: 7px; }
+.ow-seal-hint { font-family: 'DM Sans', sans-serif; font-size: 11px; color: #a86a78; margin-top: 6px; }
+body.side-parv .ow-seal-field > label, body.side-parv .ow-seal-hint { color: #6f8fd0; }
+
+/* ══════════════ presence pill ══════════════ */
+.pres-pill {
+  position: fixed; left: 50%; transform: translateX(-50%) translateY(14px);
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px)); z-index: 55;
+  display: flex; align-items: center; gap: 8px; max-width: 90vw;
+  background: rgba(20,6,11,.86); border: 1px solid rgba(192,66,90,.4); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  color: #f0d8dc; font-family: 'DM Sans', sans-serif; font-size: 12.5px;
+  padding: 8px 15px; border-radius: 40px; opacity: 0; pointer-events: none;
+  transition: opacity .4s ease, transform .4s ease;
+}
+.pres-pill.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.pres-dot { width: 8px; height: 8px; border-radius: 50%; background: #57d977; box-shadow: 0 0 8px #57d977; animation: presBlink 2s ease-in-out infinite; flex: none; }
+.pres-pill.typing .pres-dot { background: #f0b95a; box-shadow: 0 0 8px #f0b95a; }
+@keyframes presBlink { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* ══════════════ heartbeat FAB ══════════════ */
+.love-fab {
+  position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 56;
+  width: 54px; height: 54px; border-radius: 50%; border: none; cursor: pointer; -webkit-appearance: none;
+  background: radial-gradient(circle at 32% 28%, #ff6f91, #c0294a);
+  box-shadow: 0 6px 20px rgba(192,42,74,.55); font-size: 24px;
+  display: flex; align-items: center; justify-content: center;
+  animation: fabBeat 2.6s ease-in-out infinite;
+}
+.love-fab.tap { animation: fabTap .5s ease; }
+@keyframes fabBeat { 0%,100% { transform: scale(1); } 8% { transform: scale(1.12); } 16% { transform: scale(1); } 24% { transform: scale(1.09); } 32% { transform: scale(1); } }
+@keyframes fabTap { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
+
+/* ══════════════ love pulse (received heartbeat) ══════════════ */
+.love-pulse { position: fixed; inset: 0; z-index: 9998; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .5s ease; background: radial-gradient(circle at 50% 45%, rgba(192,42,74,.4), rgba(10,4,6,0) 60%); }
+.love-pulse.go { opacity: 1; }
+.love-heart { font-size: 90px; animation: heartThrob 1s ease-in-out infinite; filter: drop-shadow(0 0 24px rgba(255,110,145,.7)); }
+.love-text { margin-top: 12px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 22px; color: #ffd9e0; }
+@keyframes heartThrob { 0%,100% { transform: scale(1); } 25% { transform: scale(1.22); } 50% { transform: scale(1.02); } 75% { transform: scale(1.16); } }
+
+/* ══════════════ mini toast ══════════════ */
+.mini-toast { position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%) translateY(10px); z-index: 9999; background: rgba(20,6,11,.9); border: 1px solid rgba(192,66,90,.4); color: #ffd9e0; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 9px 18px; border-radius: 40px; opacity: 0; transition: opacity .3s ease, transform .3s ease; pointer-events: none; }
+.mini-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══════════════ anniversary / birthday takeover ══════════════ */
+.celebrate-banner {
+  position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%;
+  transform: translateX(-50%) translateY(-16px); z-index: 57; opacity: 0; max-width: 92vw;
+  display: flex; align-items: center; gap: 9px;
+  background: linear-gradient(120deg, rgba(212,175,55,.22), rgba(192,66,90,.22));
+  border: 1px solid rgba(226,190,110,.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  padding: 9px 17px; border-radius: 40px; transition: opacity .6s ease, transform .6s ease;
+  box-shadow: 0 6px 22px rgba(180,130,40,.3);
+}
+.celebrate-banner.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.cb-emoji { font-size: 18px; flex: none; }
+.cb-text { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px; color: #f6e6c8; }
+body.celebrate .headline, body.celebrate .ow-title, body.celebrate .note-title {
+  background: linear-gradient(90deg, #e8c874, #f4dede, #e8c874);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.petal-fall { position: fixed; inset: 0; z-index: 54; pointer-events: none; overflow: hidden; }
+.petal-fall .pf { position: absolute; top: -8%; animation-name: petalDrop; animation-timing-function: linear; animation-iteration-count: infinite; opacity: .85; }
+@keyframes petalDrop { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; } 10% { opacity: .85; } 100% { transform: translateY(112vh) rotate(360deg); opacity: .7; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .love-fab, .love-heart, .pres-dot, .petal-fall .pf, .heartbeat { animation: none !important; }
+}
 .ow-voice { text-align: center; margin: 2px 0 20px; }
 .voice-btn {
   display: inline-flex; align-items: center; gap: 9px;

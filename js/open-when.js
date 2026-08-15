@@ -138,6 +138,74 @@ function markSeen(side, emotion) {
   try { localStorage.setItem('owseen', JSON.stringify(m)); } catch (e) {}
 }
 
+/* who is looking (from the sign-in): 'parv' | 'riti' | null */
+function mePerson() { return (window.__parvritiUser && window.__parvritiUser.person) || null; }
+
+/* time-capsule: a note with a future openDate stays sealed, even for its writer */
+function isSealed(e) { return !e.seed && e.openDate && todayStr() < e.openDate; }
+function sealCountdown(openDate) {
+  const p = String(openDate).split('-'); if (p.length !== 3) return '';
+  const target = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const days = Math.round((target - now) / 86400000);
+  if (days <= 0) return 'opens today';
+  if (days === 1) return 'opens tomorrow';
+  return 'opens in ' + days + ' days';
+}
+
+/* "read with love" receipt */
+function timeAgo(ms) {
+  const s = Math.floor((Date.now() - ms) / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60); if (m < 60) return m + (m === 1 ? ' min ago' : ' mins ago');
+  const h = Math.floor(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  const d = Math.floor(h / 24); if (d < 7) return d + (d === 1 ? ' day ago' : ' days ago');
+  return fmtDate(new Date(ms).toISOString().slice(0, 10));
+}
+function receiptFor(e) {
+  if (e.seed || !e.id) return '';
+  if (e.readAt) {
+    const name = e.side === 'parv' ? 'Parv' : 'Riti';
+    const when = (e.readAt && e.readAt.seconds) ? ' · ' + timeAgo(e.readAt.seconds * 1000) : '';
+    return '<div class="ow-receipt read">💗 ' + name + ' read this' + when + '</div>';
+  }
+  if (mePerson() && mePerson() === e.side) {
+    return '<button type="button" class="ow-receipt tap" data-act="readlove">💗 tap to let them know you read this</button>';
+  }
+  return '';
+}
+function markRead(e) {
+  if (!e || e.seed || !e.id || !db) return;
+  db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: mePerson() }).catch(function (err) { console.warn(err); });
+}
+
+/* "on this day, a year ago…" — surfaces past notes sharing today's month + day */
+function renderOnThisDay() {
+  const host = document.getElementById('owOnThisDay'); if (!host) return;
+  const t = todayStr().split('-'), md = t[1] + '-' + t[2], y = parseInt(t[0], 10);
+  const all = [];
+  ['riti', 'parv'].forEach(function (side) {
+    seedsFor(side).forEach(function (s) { all.push({ side: side, date: s.date, emotion: s.emotion, title: s.title }); });
+  });
+  liveNotes.forEach(function (n) { if (!isSealed(n)) all.push({ side: n.side, date: n.date, emotion: n.emotion, title: n.title }); });
+  const matches = all.filter(function (e) {
+    const p = String(e.date || '').split('-');
+    return p.length === 3 && (p[1] + '-' + p[2]) === md && parseInt(p[0], 10) < y;
+  });
+  if (!matches.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  matches.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+  const m = matches[0];
+  const yrs = y - parseInt(m.date.split('-')[0], 10);
+  const when = yrs === 1 ? 'a year ago today' : yrs + ' years ago today';
+  const more = matches.length > 1 ? ' <span class="otd-more">+' + (matches.length - 1) + ' more</span>' : '';
+  host.style.display = '';
+  host.innerHTML = '<button type="button" class="otd-card"><div class="otd-k">🌸 On this day, ' + when + more + '</div><div class="otd-t">you wrote “' + escapeHtml(m.title) + '”</div></button>';
+  host.querySelector('.otd-card').addEventListener('click', function () {
+    if (currentSide !== m.side) setSide(m.side);
+    openEnvelope(m.emotion);
+  });
+}
+
 let currentSide = 'riti';
 function seedsFor(side) { return side === 'parv' ? SEED_PARV : SEED_RITI; }
 
@@ -232,10 +300,14 @@ function openEnvelope(emotion) {
   reader.scrollTop = 0;
   renderEntry();
   if (navigator.vibrate) navigator.vibrate(18);
+  if (window.parvritiSfx) window.parvritiSfx.crack();
   void envEl.offsetWidth;
   envEl.classList.add('open');
   clearTimeout(owTimer);
-  owTimer = setTimeout(function () { stage.classList.add('done'); paper.classList.add('show'); }, 1520);
+  owTimer = setTimeout(function () {
+    stage.classList.add('done'); paper.classList.add('show');
+    if (window.parvritiSfx) window.parvritiSfx.unfold();
+  }, 1520);
 }
 
 function renderEntry() {
@@ -244,35 +316,45 @@ function renderEntry() {
   if (entryIdx > env.entries.length - 1) entryIdx = env.entries.length - 1;
   if (entryIdx < 0) entryIdx = 0;
   const e = env.entries[entryIdx], total = env.entries.length;
-  const bodyHtml = e.seed ? e.body : escapeHtml(e.body).replace(/\n/g, '<br>');
-  const voiceLbl = currentSide === 'parv' ? 'Play her voice' : 'Play his voice';
-  const voiceHtml = (e.voiceFile || e.voice)
-    ? '<div class="ow-voice"><button type="button" class="voice-btn" data-act="play"><span class="voice-ic">▶</span><span class="voice-lbl">' + voiceLbl + '</span></button></div>'
-    : '';
-  const ms = !e.seed ? milestoneTag(e.date) : null;
-  const msHtml = ms ? '<div class="ow-milestone">' + ms.emoji + ' ' + ms.label + '</div>' : '';
+  const sealed = isSealed(e);
   const pager = total > 1
     ? '<div class="ow-pager"><button type="button" class="ow-pg" data-act="prev"' + (entryIdx === 0 ? ' disabled' : '') + '>‹</button>' +
       '<span class="ow-pg-lbl">' + (entryIdx + 1) + ' of ' + total + '</span>' +
       '<button type="button" class="ow-pg" data-act="next"' + (entryIdx === total - 1 ? ' disabled' : '') + '>›</button></div>'
     : '';
+  // sealed notes can be deleted (a mistaken capsule) but not edited or read early
   const editDel = !e.seed
-    ? '<div class="ow-entry-actions"><button type="button" data-act="edit">edit</button><span class="sep">·</span><button type="button" data-act="delete">delete</button></div>'
+    ? '<div class="ow-entry-actions">' + (sealed ? '' : '<button type="button" data-act="edit">edit</button><span class="sep">·</span>') + '<button type="button" data-act="delete">delete</button></div>'
     : '';
   const addHere = '<button type="button" class="ow-add-here" data-act="addhere">＋ add a note to ' + escapeHtml(env.title) + '</button>';
+
+  let mid;
+  if (sealed) {
+    mid = '<div class="ow-seal-lock">🔒</div>' +
+      '<div class="ow-sealed-msg">Sealed until ' + fmtDate(e.openDate) + '</div>' +
+      '<div class="ow-countdown">' + sealCountdown(e.openDate) + '</div>';
+  } else {
+    const bodyHtml = e.seed ? e.body : escapeHtml(e.body).replace(/\n/g, '<br>');
+    const voiceLbl = currentSide === 'parv' ? 'Play her voice' : 'Play his voice';
+    const voiceHtml = (e.voiceFile || e.voice)
+      ? '<div class="ow-voice"><button type="button" class="voice-btn" data-act="play"><span class="voice-ic">▶</span><span class="voice-lbl">' + voiceLbl + '</span></button></div>'
+      : '';
+    const ms = !e.seed ? milestoneTag(e.date) : null;
+    const msHtml = ms ? '<div class="ow-milestone">' + ms.emoji + ' ' + ms.label + '</div>' : '';
+    mid = msHtml + '<div class="ow-paper-rule"></div>' + voiceHtml +
+      '<div class="ow-paper-body">' + bodyHtml + '</div>' + receiptFor(e);
+  }
+
   document.getElementById('owPaperContent').innerHTML =
     '<div class="ow-paper-emoji">' + env.emoji + '</div>' +
     '<div class="ow-paper-title">' + escapeHtml(env.title) + '</div>' +
     '<div class="ow-paper-date">' + fmtDate(e.date) + '</div>' +
-    msHtml +
-    '<div class="ow-paper-rule"></div>' +
-    voiceHtml +
-    '<div class="ow-paper-body">' + bodyHtml + '</div>' +
-    editDel + pager + addHere;
+    mid + editDel + pager + addHere;
+
   const a = document.getElementById('owAudio');
   a.pause(); a.currentTime = 0;
-  if (e.voiceFile) a.src = e.voiceFile;
-  else if (e.voice) a.src = 'data:' + (e.voiceType || 'audio/mp4') + ';base64,' + e.voice;
+  if (!sealed && e.voiceFile) a.src = e.voiceFile;
+  else if (!sealed && e.voice) a.src = 'data:' + (e.voiceType || 'audio/mp4') + ';base64,' + e.voice;
   else a.removeAttribute('src');
 }
 
@@ -299,6 +381,7 @@ document.getElementById('owReader').addEventListener('click', function (ev) {
   else if (act === 'edit' && env) openForm('edit', env.entries[entryIdx]);
   else if (act === 'delete' && env) delEntry(env.entries[entryIdx]);
   else if (act === 'addhere' && env) openForm('add', env);
+  else if (act === 'readlove' && env) markRead(env.entries[entryIdx]);
 });
 
 /* swipe through the stack on mobile */
@@ -345,19 +428,25 @@ function openForm(mode, ctx) {
   const inEmoji = document.getElementById('owInEmoji');
   const inBody = document.getElementById('owInBody');
   const forWho = currentSide === 'parv' ? 'for Parv' : 'for Riti';
+  const sealField = document.getElementById('owSealField');
+  const inOpen = document.getElementById('owInOpen');
+  if (inOpen) inOpen.value = '';
   document.getElementById('owFormErr').textContent = '';
   if (mode === 'new') {
     titleWrap.style.display = '';
     inTitle.value = ''; inEmoji.value = currentSide === 'parv' ? '💙' : '💌'; inBody.value = '';
     heading.textContent = 'New envelope ' + forWho;
+    if (sealField) sealField.style.display = '';
     resetRecorderUI();
   } else if (mode === 'add') {
     formEnv = ctx; titleWrap.style.display = 'none'; inBody.value = '';
     heading.textContent = 'Add a note to ' + ctx.title;
+    if (sealField) sealField.style.display = '';
     resetRecorderUI();
   } else if (mode === 'edit') {
     formEntry = ctx; formEnv = currentEnv(); titleWrap.style.display = 'none'; inBody.value = ctx.body || '';
     heading.textContent = 'Edit your note';
+    if (sealField) sealField.style.display = 'none';
     if (ctx.voice) { recData = ctx.voice; recType = ctx.voiceType || 'audio/mp4'; showRecState('have'); document.getElementById('owRecHint').textContent = 'saved recording'; }
     else resetRecorderUI();
   }
@@ -368,6 +457,7 @@ function openForm(mode, ctx) {
 function closeAdd() {
   document.getElementById('owAddOverlay').classList.remove('active');
   document.getElementById('owForm').classList.remove('show');
+  if (window.parvritiTyping) window.parvritiTyping(false);
 }
 
 function saveForm(ev) {
@@ -381,6 +471,8 @@ function saveForm(ev) {
 
   const voice = recData || null;
   const voiceType = recData ? recType : null;
+  const openRaw = document.getElementById('owInOpen') ? document.getElementById('owInOpen').value : '';
+  const openDate = (openRaw && openRaw > todayStr()) ? openRaw : null;   // only seal a future date
 
   if (formMode === 'edit') {
     db.collection('notes').doc(formEntry.id).update({ body: body, voice: voice, voiceType: voiceType, editedAt: serverTime() }).then(done).catch(fail);
@@ -388,7 +480,7 @@ function saveForm(ev) {
     pendingOpen = formEnv.emotion;
     db.collection('notes').add({
       side: currentSide, emotion: formEnv.emotion, emoji: formEnv.emoji, title: formEnv.title,
-      body: body, voice: voice, voiceType: voiceType, date: todayStr(), createdAt: serverTime(), editedAt: null
+      body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
     }).then(done).catch(fail);
   } else {
     const title = document.getElementById('owInTitle').value.trim();
@@ -398,7 +490,7 @@ function saveForm(ev) {
     pendingOpen = key;
     db.collection('notes').add({
       side: currentSide, emotion: key, emoji: emoji, title: title,
-      body: body, voice: voice, voiceType: voiceType, date: todayStr(), createdAt: serverTime(), editedAt: null
+      body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
     }).then(done).catch(fail);
   }
   return false;
@@ -413,6 +505,7 @@ function delEntry(entry) {
 /* =====================  live refresh  ===================== */
 function onLive() {
   buildGrid();
+  renderOnThisDay();
   if (pendingOpen) {
     const env = envelopesFor(currentSide).find(function (e) { return e.emotion === pendingOpen; });
     if (env) {
@@ -523,4 +616,15 @@ document.getElementById('owEditToggle').addEventListener('click', function () {
   this.textContent = on ? '📖 Read' : '✎ Edit';
 });
 
+/* typing shimmer: let the other person feel you writing them something */
+(function () {
+  const ta = document.getElementById('owInBody');
+  if (!ta) return;
+  const fire = function () { if (window.parvritiTyping) window.parvritiTyping(true); };
+  ta.addEventListener('input', fire);
+  ta.addEventListener('focus', fire);
+  ta.addEventListener('blur', function () { if (window.parvritiTyping) window.parvritiTyping(false); });
+})();
+
 buildGrid();
+renderOnThisDay();

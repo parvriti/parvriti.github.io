@@ -11,7 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=9">
+<link rel="stylesheet" href="css/styles.css?v=10">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 </head>
 <body data-page="open-when">
 
@@ -31,6 +34,7 @@
     <div class="ow-editbar">
       <button class="ow-edit-toggle" id="owEditToggle" type="button">✎ Edit</button>
     </div>
+    <div class="ow-otd" id="owOnThisDay" style="display:none"></div>
     <div class="ow-grid" id="owGrid"></div>
   </main>
 </div>
@@ -72,6 +76,11 @@
       <div class="ow-rec-hint" id="owRecHint"></div>
       <audio id="owRecAudio" style="display:none"></audio>
     </div>
+    <div class="ow-seal-field" id="owSealField">
+      <label for="owInOpen">Seal until (optional)</label>
+      <input class="ow-input" id="owInOpen" type="date" autocomplete="off"/>
+      <div class="ow-seal-hint">If set, this note stays locked until that day, even for you.</div>
+    </div>
     <div class="ow-form-err" id="owFormErr"></div>
     <div class="ow-form-actions">
       <button type="button" class="ow-cancel" onclick="closeAdd()">Cancel</button>
@@ -83,7 +92,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=9"></script>
-<script src="js/open-when.js?v=9"></script>
+<script src="js/common.js?v=10"></script>
+<script src="js/open-when.js?v=10"></script>
 </body>
 </html>
