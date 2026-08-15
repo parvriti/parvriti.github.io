@@ -260,9 +260,11 @@
 
   /* ══════════════ real-time: presence · typing · heartbeat ping ══════════════ */
   function startRealtime() {
+    if (startRealtime._on) return;   // onAuthStateChanged can fire again; don't stack listeners/timers
     var u = window.__parvritiUser;
     if (!u || typeof firebase === 'undefined' || !firebase.firestore) return;
     try { cdb = firebase.firestore(); } catch (e) { return; }
+    startRealtime._on = true;
     var me = u.person, other = me === 'riti' ? 'parv' : 'riti';
     var FV = firebase.firestore.FieldValue;
     var meRef = cdb.collection('presence').doc(me);
@@ -274,7 +276,7 @@
       meRef.set(d, { merge: true }).catch(function () {});
     }
     beat();
-    setInterval(function () { beat(); }, 25000);
+    setInterval(function () { if (!document.hidden) beat(); }, 25000);   // don't write while backgrounded
     document.addEventListener('visibilitychange', function () { beat(); });
     window.addEventListener('focus', function () { beat(); });
     window.addEventListener('pagehide', function () { beat({ gone: true }); });

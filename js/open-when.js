@@ -502,6 +502,7 @@ function openForm(mode, ctx) {
   setTimeout(function () { inBody.focus(); }, 60);
 }
 function closeAdd() {
+  cancelRec();   // never leave the mic running if the form is closed mid-record
   document.getElementById('owAddOverlay').classList.remove('active');
   document.getElementById('owForm').classList.remove('show');
   if (window.parvritiTyping) window.parvritiTyping(false);
@@ -633,6 +634,13 @@ function stopRec() {
   if (recInterval) { clearInterval(recInterval); recInterval = null; }
   if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
   if (recStream) { recStream.getTracks().forEach(function (t) { t.stop(); }); recStream = null; }
+}
+/* abandon an in-progress recording (form closed): kill the mic, don't save */
+function cancelRec() {
+  if (recInterval) { clearInterval(recInterval); recInterval = null; }
+  if (mediaRec && mediaRec.state !== 'inactive') { mediaRec.onstop = null; try { mediaRec.stop(); } catch (e) {} }
+  if (recStream) { recStream.getTracks().forEach(function (t) { t.stop(); }); recStream = null; }
+  mediaRec = null;
 }
 function finishRec() {
   const hint = document.getElementById('owRecHint');
