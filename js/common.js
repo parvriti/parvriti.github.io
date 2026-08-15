@@ -123,11 +123,21 @@
     g.querySelector('#authGoogle').addEventListener('click', function () {
       gateMsg('');
       if (!auth) { gateMsg('Sign-in is not available right now.'); return; }
-      try {
-        var provider = new firebase.auth.GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        auth.signInWithRedirect(provider);
-      } catch (e) { gateError(e); }
+      var provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      /* Popup keeps the session on our own origin's storage. A redirect
+         (via parvriti.firebaseapp.com) loses it to browser cross-site
+         storage blocking, so popup is primary; redirect is the fallback
+         only when a popup can't open. */
+      auth.signInWithPopup(provider).catch(function (e) {
+        var c = e && e.code;
+        if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return;
+        if (c === 'auth/popup-blocked' || c === 'auth/operation-not-supported-in-this-environment') {
+          try { auth.signInWithRedirect(provider); } catch (er) { gateError(er); }
+          return;
+        }
+        gateError(e);
+      });
     });
   }
   function revealGate(msg) {
