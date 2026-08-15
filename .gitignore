@@ -5,3 +5,10 @@
 # private source material for the "Parv" section — kept out of the public repo
 riti_letters/
 riti-letters-ocr.txt
+
+# secrets — must never be committed to this public repo
+.env
+*.env
+.dev.vars
+*firebase-adminsdk*.json
+*service-account*.json
