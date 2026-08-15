@@ -22,8 +22,8 @@
   };
   /* Push notifications: fill these two in once set up, and push turns on.
      Until then the code below stays completely dormant. */
-  var FCM_VAPID_KEY = 'REPLACE_WITH_VAPID_KEY';   // Firebase console → Project settings → Cloud Messaging → Web Push certificates → Key pair
-  var PUSH_ENDPOINT = 'REPLACE_WITH_WORKER_URL';  // your deployed Cloudflare Worker URL
+  var FCM_VAPID_KEY = 'BC2SDp9eHQzom_RdmSz0Gpuydth7to-6_Zl-4pMKBms90gr2vZOpSJnGbXAtFW-0cfjewlagoQQ7UVefeIuu1Rg';
+  var PUSH_ENDPOINT = 'https://parvriti-push.parvbajaj2000.workers.dev';
 
   var body = document.body;
   var page = body.dataset.page || '';
