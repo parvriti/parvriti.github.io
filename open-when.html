@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=7">
+<link rel="stylesheet" href="css/styles.css?v=8">
 </head>
 <body data-page="open-when">
 
@@ -64,6 +64,14 @@
     </div>
     <label for="owInBody">Your words</label>
     <textarea class="ow-textarea" id="owInBody" placeholder="Write your note…"></textarea>
+    <div class="ow-voice-rec">
+      <label>Voice note (optional)</label>
+      <div class="ow-rec-row" id="owRecIdle"><button type="button" class="ow-rec-btn rec" id="owRecStart">● Record</button></div>
+      <div class="ow-rec-row" id="owRecActive" style="display:none"><span class="ow-rec-dot"></span><span class="ow-rec-time" id="owRecTimer">0:00</span><button type="button" class="ow-rec-btn stop" id="owRecStop">■ Stop</button></div>
+      <div class="ow-rec-row" id="owRecHave" style="display:none"><button type="button" class="ow-rec-btn" id="owRecPlay">▶ Play</button><button type="button" class="ow-rec-btn" id="owRecRedo">Re-record</button><button type="button" class="ow-rec-btn" id="owRecDel">Remove</button></div>
+      <div class="ow-rec-hint" id="owRecHint"></div>
+      <audio id="owRecAudio" style="display:none"></audio>
+    </div>
     <div class="ow-form-err" id="owFormErr"></div>
     <div class="ow-form-actions">
       <button type="button" class="ow-cancel" onclick="closeAdd()">Cancel</button>
@@ -73,8 +81,9 @@
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=7"></script>
-<script src="js/open-when.js?v=7"></script>
+<script src="js/common.js?v=8"></script>
+<script src="js/open-when.js?v=8"></script>
 </body>
 </html>

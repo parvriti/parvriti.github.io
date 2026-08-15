@@ -25,7 +25,7 @@ const firebaseConfig = {
 let db = null;
 try {
   if (typeof firebase !== 'undefined') {
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);   // common.js usually inits first
     db = firebase.firestore();
   }
 } catch (e) { console.warn('Firebase init failed', e); }
@@ -34,8 +34,13 @@ function serverTime() {
   try { return firebase.firestore.FieldValue.serverTimestamp(); } catch (e) { return Date.now(); }
 }
 
+/* We only start listening once the sign-in gate (common.js) has confirmed an
+   allowed account, so the Firestore read carries an auth token. */
 let liveNotes = [];   // notes from Firestore (both sides)
-if (db) {
+let notesStarted = false;
+function startNotes() {
+  if (notesStarted || !db) return;
+  notesStarted = true;
   try {
     db.collection('notes').onSnapshot(function (snap) {
       liveNotes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
@@ -43,6 +48,8 @@ if (db) {
     }, function (err) { console.warn('notes listen error', err); });
   } catch (e) { console.warn('subscribe failed', e); }
 }
+if (window.__parvritiAuthed) startNotes();
+else window.addEventListener('parvriti-authed', startNotes, { once: true });
 
 /* =====================  seed letters (sealed)  ===================== */
 /* Riti's side: Parv → Riti. Dated 14 Aug 2026. Each has voice/<key>.m4a. */
@@ -113,6 +120,24 @@ function todayStr() {
 }
 function newKey() { return 'e' + Date.now().toString(36); }
 
+/* milestone tags: shown only on NEW notes written on these dates */
+function ordinal(n) { const s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+function milestoneTag(iso) {
+  const p = String(iso || '').split('-'); if (p.length !== 3) return null;
+  const md = p[1] + '-' + p[2], y = parseInt(p[0], 10);
+  if (md === '12-10') return { emoji: '🎂', label: "Parv's birthday" };
+  if (md === '04-20') return { emoji: '🎂', label: "Ritika's birthday" };
+  if (md === '07-29') { const n = y - 2019; if (n >= 1) return { emoji: '💍', label: ordinal(n) + ' anniversary' }; }
+  return null;
+}
+
+/* "new" badge: envelopes with notes the viewer has not opened yet (per device) */
+function loadSeen() { try { return JSON.parse(localStorage.getItem('owseen') || '{}'); } catch (e) { return {}; } }
+function markSeen(side, emotion) {
+  const m = loadSeen(); m[side + '|' + emotion] = Date.now();
+  try { localStorage.setItem('owseen', JSON.stringify(m)); } catch (e) {}
+}
+
 let currentSide = 'riti';
 function seedsFor(side) { return side === 'parv' ? SEED_PARV : SEED_RITI; }
 
@@ -158,13 +183,18 @@ function buildGrid() {
   if (!grid) return;
   grid.innerHTML = '';
   const seal = currentSide === 'parv' ? '💙' : '❤';
+  const seen = loadSeen();
   envelopesFor(currentSide).forEach(function (env, i) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'ow-card';
     b.style.animationDelay = (i * 0.04) + 's';
-    const badge = env.entries.length > 1 ? '<span class="ow-count">' + env.entries.length + '</span>' : '';
-    b.innerHTML = '<div class="mini-env">' + badge + '<div class="mini-seal">' + seal + '</div></div>' +
+    const count = env.entries.length > 1 ? '<span class="ow-count">' + env.entries.length + '</span>' : '';
+    const isNew = env.entries.some(function (e) {
+      return !e.seed && e.createdAt && (e.createdAt.seconds * 1000) > (seen[currentSide + '|' + env.emotion] || 0);
+    });
+    const newB = isNew ? '<span class="ow-new">✨</span>' : '';
+    b.innerHTML = '<div class="mini-env">' + count + newB + '<div class="mini-seal">' + seal + '</div></div>' +
       '<div class="ow-cap">' + escapeHtml(env.title) + '</div>';
     b.addEventListener('click', function () { openEnvelope(env.emotion); });
     grid.appendChild(b);
@@ -189,6 +219,8 @@ function openEnvelope(emotion) {
   entryIdx = 0;
   const env = currentEnv();
   if (!env) return;
+  markSeen(currentSide, emotion);
+  buildGrid();
   const reader = document.getElementById('owReader');
   const stage = document.getElementById('envStage');
   const envEl = document.getElementById('env');
@@ -213,9 +245,12 @@ function renderEntry() {
   if (entryIdx < 0) entryIdx = 0;
   const e = env.entries[entryIdx], total = env.entries.length;
   const bodyHtml = e.seed ? e.body : escapeHtml(e.body).replace(/\n/g, '<br>');
-  const voiceHtml = e.voiceFile
-    ? '<div class="ow-voice"><button type="button" class="voice-btn" data-act="play"><span class="voice-ic">▶</span><span class="voice-lbl">Play his voice</span></button></div>'
+  const voiceLbl = currentSide === 'parv' ? 'Play her voice' : 'Play his voice';
+  const voiceHtml = (e.voiceFile || e.voice)
+    ? '<div class="ow-voice"><button type="button" class="voice-btn" data-act="play"><span class="voice-ic">▶</span><span class="voice-lbl">' + voiceLbl + '</span></button></div>'
     : '';
+  const ms = !e.seed ? milestoneTag(e.date) : null;
+  const msHtml = ms ? '<div class="ow-milestone">' + ms.emoji + ' ' + ms.label + '</div>' : '';
   const pager = total > 1
     ? '<div class="ow-pager"><button type="button" class="ow-pg" data-act="prev"' + (entryIdx === 0 ? ' disabled' : '') + '>‹</button>' +
       '<span class="ow-pg-lbl">' + (entryIdx + 1) + ' of ' + total + '</span>' +
@@ -229,13 +264,16 @@ function renderEntry() {
     '<div class="ow-paper-emoji">' + env.emoji + '</div>' +
     '<div class="ow-paper-title">' + escapeHtml(env.title) + '</div>' +
     '<div class="ow-paper-date">' + fmtDate(e.date) + '</div>' +
+    msHtml +
     '<div class="ow-paper-rule"></div>' +
     voiceHtml +
     '<div class="ow-paper-body">' + bodyHtml + '</div>' +
     editDel + pager + addHere;
   const a = document.getElementById('owAudio');
   a.pause(); a.currentTime = 0;
-  if (e.voiceFile) a.src = e.voiceFile; else a.removeAttribute('src');
+  if (e.voiceFile) a.src = e.voiceFile;
+  else if (e.voice) a.src = 'data:' + (e.voiceType || 'audio/mp4') + ';base64,' + e.voice;
+  else a.removeAttribute('src');
 }
 
 function closeWhen() {
@@ -290,7 +328,7 @@ function togglePlay(btn) {
   const a = document.getElementById('owAudio');
   function reset() {
     const b = document.querySelector('#owPaperContent .voice-btn');
-    if (b) { b.classList.remove('playing'); b.querySelector('.voice-ic').textContent = '▶'; b.querySelector('.voice-lbl').textContent = 'Play his voice'; }
+    if (b) { b.classList.remove('playing'); b.querySelector('.voice-ic').textContent = '▶'; b.querySelector('.voice-lbl').textContent = currentSide === 'parv' ? 'Play her voice' : 'Play his voice'; }
   }
   a.addEventListener('pause', reset);
   a.addEventListener('ended', reset);
@@ -312,12 +350,16 @@ function openForm(mode, ctx) {
     titleWrap.style.display = '';
     inTitle.value = ''; inEmoji.value = currentSide === 'parv' ? '💙' : '💌'; inBody.value = '';
     heading.textContent = 'New envelope ' + forWho;
+    resetRecorderUI();
   } else if (mode === 'add') {
     formEnv = ctx; titleWrap.style.display = 'none'; inBody.value = '';
     heading.textContent = 'Add a note to ' + ctx.title;
+    resetRecorderUI();
   } else if (mode === 'edit') {
     formEntry = ctx; formEnv = currentEnv(); titleWrap.style.display = 'none'; inBody.value = ctx.body || '';
     heading.textContent = 'Edit your note';
+    if (ctx.voice) { recData = ctx.voice; recType = ctx.voiceType || 'audio/mp4'; showRecState('have'); document.getElementById('owRecHint').textContent = 'saved recording'; }
+    else resetRecorderUI();
   }
   document.getElementById('owAddOverlay').classList.add('active');
   document.getElementById('owForm').classList.add('show');
@@ -337,13 +379,16 @@ function saveForm(ev) {
   const done = function () { closeAdd(); };
   const fail = function (e) { console.warn(e); err.textContent = 'Could not save, please try again.'; };
 
+  const voice = recData || null;
+  const voiceType = recData ? recType : null;
+
   if (formMode === 'edit') {
-    db.collection('notes').doc(formEntry.id).update({ body: body, editedAt: serverTime() }).then(done).catch(fail);
+    db.collection('notes').doc(formEntry.id).update({ body: body, voice: voice, voiceType: voiceType, editedAt: serverTime() }).then(done).catch(fail);
   } else if (formMode === 'add') {
     pendingOpen = formEnv.emotion;
     db.collection('notes').add({
       side: currentSide, emotion: formEnv.emotion, emoji: formEnv.emoji, title: formEnv.title,
-      body: body, date: todayStr(), createdAt: serverTime(), editedAt: null
+      body: body, voice: voice, voiceType: voiceType, date: todayStr(), createdAt: serverTime(), editedAt: null
     }).then(done).catch(fail);
   } else {
     const title = document.getElementById('owInTitle').value.trim();
@@ -353,7 +398,7 @@ function saveForm(ev) {
     pendingOpen = key;
     db.collection('notes').add({
       side: currentSide, emotion: key, emoji: emoji, title: title,
-      body: body, date: todayStr(), createdAt: serverTime(), editedAt: null
+      body: body, voice: voice, voiceType: voiceType, date: todayStr(), createdAt: serverTime(), editedAt: null
     }).then(done).catch(fail);
   }
   return false;
@@ -392,6 +437,78 @@ document.addEventListener('keydown', function (e) {
   if (document.getElementById('owAddOverlay').classList.contains('active')) closeAdd();
   else if (document.getElementById('owReader').classList.contains('active')) closeWhen();
 });
+
+/* =====================  voice recorder (new / edited notes)  ===================== */
+let mediaRec = null, recChunks = [], recInterval = null, recSeconds = 0, recStream = null;
+let recData = null, recType = null;
+const REC_MAX = 60;
+
+function fmtSec(s) { const m = Math.floor(s / 60), ss = s % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
+function showRecState(s) {
+  document.getElementById('owRecIdle').style.display = s === 'idle' ? '' : 'none';
+  document.getElementById('owRecActive').style.display = s === 'rec' ? '' : 'none';
+  document.getElementById('owRecHave').style.display = s === 'have' ? '' : 'none';
+}
+function resetRecorderUI() {
+  recData = null; recType = null;
+  showRecState('idle');
+  document.getElementById('owRecHint').textContent = '';
+  document.getElementById('owRecTimer').textContent = '0:00';
+}
+async function startRec() {
+  const hint = document.getElementById('owRecHint');
+  hint.textContent = '';
+  if (!navigator.mediaDevices || !window.MediaRecorder) { hint.textContent = 'Recording is not supported on this browser.'; return; }
+  try { recStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { hint.textContent = 'Please allow the microphone to record.'; return; }
+  recChunks = [];
+  try { mediaRec = new MediaRecorder(recStream, { audioBitsPerSecond: 64000 }); }
+  catch (e) { mediaRec = new MediaRecorder(recStream); }
+  recType = mediaRec.mimeType || 'audio/mp4';
+  mediaRec.ondataavailable = function (ev) { if (ev.data && ev.data.size) recChunks.push(ev.data); };
+  mediaRec.onstop = finishRec;
+  mediaRec.start();
+  recSeconds = 0;
+  showRecState('rec');
+  document.getElementById('owRecTimer').textContent = fmtSec(0);
+  recInterval = setInterval(function () {
+    recSeconds++; document.getElementById('owRecTimer').textContent = fmtSec(recSeconds);
+    if (recSeconds >= REC_MAX) stopRec();
+  }, 1000);
+}
+function stopRec() {
+  if (recInterval) { clearInterval(recInterval); recInterval = null; }
+  if (mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
+  if (recStream) { recStream.getTracks().forEach(function (t) { t.stop(); }); recStream = null; }
+}
+function finishRec() {
+  const hint = document.getElementById('owRecHint');
+  const blob = new Blob(recChunks, { type: recType });
+  const fr = new FileReader();
+  fr.onloadend = function () {
+    const b64 = String(fr.result).split(',')[1] || '';
+    if (b64.length > 900000) { hint.textContent = 'That clip is a bit long to save. Please keep it under ~45 seconds.'; resetRecorderUI(); return; }
+    recData = b64;
+    showRecState('have');
+    hint.textContent = fmtSec(recSeconds) + ' recorded';
+  };
+  fr.readAsDataURL(blob);
+}
+function playRec() {
+  if (!recData) return;
+  const a = document.getElementById('owRecAudio');
+  a.src = 'data:' + (recType || 'audio/mp4') + ';base64,' + recData;
+  a.play();
+}
+(function () {
+  const start = document.getElementById('owRecStart');
+  if (!start) return;
+  start.addEventListener('click', startRec);
+  document.getElementById('owRecStop').addEventListener('click', stopRec);
+  document.getElementById('owRecPlay').addEventListener('click', playRec);
+  document.getElementById('owRecRedo').addEventListener('click', function () { resetRecorderUI(); startRec(); });
+  document.getElementById('owRecDel').addEventListener('click', resetRecorderUI);
+})();
 
 /* toggle the Riti / Parv side */
 document.querySelectorAll('.ow-side').forEach(function (el) {
