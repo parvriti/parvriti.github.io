@@ -254,7 +254,10 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
           body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html' })
         }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (d) {
-          if (report) toast(d && typeof d.sent === 'number' ? ('pushed to ' + d.sent + ' device' + (d.sent === 1 ? '' : 's')) : ('push error: ' + ((d && d.error) || '?')));
+          if (!report) return;
+          if (d && typeof d.sent === 'number') { toast('pushed to ' + d.sent + ' device' + (d.sent === 1 ? '' : 's')); return; }
+          var why = (d && (d.detail || d.email || d.error)) || '?';
+          toast('push blocked: ' + why);
         }).catch(function () { if (report) toast('worker unreachable'); });
       }).catch(function () { if (report) toast('token fetch failed'); });
     } catch (e) {}

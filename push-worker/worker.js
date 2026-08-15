@@ -44,8 +44,9 @@ export default {
     // 1) the caller must be one of us
     const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     if (!idToken) return json({ error: 'no token' }, 401);
-    const email = await verifyCaller(idToken, env.FIREBASE_API_KEY);
-    if (!email || ALLOWED.indexOf(email.toLowerCase()) === -1) return json({ error: 'forbidden' }, 403);
+    const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
+    if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
+    if (ALLOWED.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed', email: v.email }, 403);
 
     // 2) service-account access token
     let sa;
@@ -72,16 +73,19 @@ function json(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) });
 }
 
-/* verify the site visitor's Firebase ID token via Google (no crypto needed) */
+/* verify the site visitor's Firebase ID token via Google (no crypto needed).
+   Returns { email, detail } so a failure explains itself instead of a blank 403. */
 async function verifyCaller(idToken, apiKey) {
   try {
+    if (!apiKey) return { email: null, detail: 'FIREBASE_API_KEY missing in Worker' };
     const r = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + apiKey, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken })
     });
-    if (!r.ok) return null;
-    const d = await r.json();
-    return d.users && d.users[0] && d.users[0].email;
-  } catch (e) { return null; }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return { email: null, detail: 'lookup ' + r.status + ': ' + ((d.error && d.error.message) || 'unknown') };
+    const email = d.users && d.users[0] && d.users[0].email;
+    return { email: email || null, detail: email ? 'ok' : 'no email on account' };
+  } catch (e) { return { email: null, detail: 'exception: ' + (e && e.message ? e.message : e) }; }
 }
 
 /* service-account JWT -> OAuth2 access token */
