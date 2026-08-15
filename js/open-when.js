@@ -519,13 +519,17 @@ function saveForm(ev) {
   const openRaw = document.getElementById('owInOpen') ? document.getElementById('owInOpen').value : '';
   const openDate = (openRaw && openRaw > todayStr()) ? openRaw : null;   // only seal a future date
 
-  // push the other person a nudge (never for a sealed surprise, never to yourself)
+  // push the other person a nudge (never to yourself); a sealed capsule teases without spoiling
   const notifyRecipient = function (noteTitle) {
-    if (openDate) return;
     const meP = mePerson();
     if (!meP || currentSide === meP || !window.parvritiNotify) return;
     const who = meP === 'parv' ? 'Parv' : 'Riti';
-    window.parvritiNotify(currentSide, who + ' left you a note 💌', noteTitle || '', 'https://parvriti.github.io/open-when.html');
+    const url = 'https://parvriti.github.io/open-when.html';
+    if (openDate) {
+      window.parvritiNotify(currentSide, who + ' left you a time capsule ⏳', 'Sealed until ' + fmtDate(openDate) + '. Good things take time.', url);
+    } else {
+      window.parvritiNotify(currentSide, who + ' left you a note 💌', noteTitle || '', url);
+    }
   };
 
   if (formMode === 'edit') {
