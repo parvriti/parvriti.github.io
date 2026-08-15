@@ -316,6 +316,7 @@ function openEnvelope(emotion) {
     env.entries.forEach(function (e) { if (capsuleState(e, unsealed) === 'ripe') markUnsealed(e.id); });
   }
   markSeen(currentSide, emotion);
+  if (window.parvritiSetLastOpened) window.parvritiSetLastOpened(env.title);   // for the other's "last opened" line
   buildGrid();
   if (doUnseal) playUnseal(openReaderNow);   // the lock breaks into the heart, then the letter opens
   else openReaderNow();

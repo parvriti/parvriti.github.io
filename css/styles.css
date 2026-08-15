@@ -131,6 +131,13 @@ body {
 .day-counter b { font-weight: 500; color: #e29aae; letter-spacing: .05em; }
 .day-counter .dc-flower { font-size: 10px; opacity: .8; letter-spacing: 0; }
 @keyframes dcFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.last-seen {
+  margin-top: 10px; font-family: 'DM Sans', sans-serif; font-size: 11.5px;
+  color: rgba(232,208,208,.5); text-align: center; line-height: 1.5;
+  max-width: 80%; animation: dcFade 1.6s ease .5s both;
+}
+.last-seen .ls-flower { margin-right: 6px; font-size: 10px; opacity: .85; }
+.last-seen .ls-note { color: rgba(232,208,208,.4); font-style: italic; }
 
 /* lock shared */
 .lock-icon { font-size: 38px; margin-bottom: 10px; }

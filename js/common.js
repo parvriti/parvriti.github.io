@@ -286,6 +286,10 @@
       clearTimeout(typingOffT);
       if (on) typingOffT = setTimeout(function () { beat({ typing: false }); }, 5000);
     };
+    /* open-when.js calls this when a note is opened → the "last opened" line */
+    window.parvritiSetLastOpened = function (title) {
+      meRef.set({ lastOpenedTitle: String(title || '').slice(0, 60), atMs: Date.now(), at: FV.serverTimestamp(), gone: false, hidden: false }, { merge: true }).catch(function () {});
+    };
 
     /* watch the other person */
     var lastOther = null;
@@ -293,8 +297,9 @@
     cdb.collection('presence').doc(other).onSnapshot(function (snap) {
       lastOther = snap.exists ? snap.data() : null;
       renderPresence(lastOther, other);
+      renderLastSeen(lastOther, other);
     }, function () {});
-    setInterval(function () { renderPresence(lastOther, other); }, 15000);
+    setInterval(function () { renderPresence(lastOther, other); renderLastSeen(lastOther, other); }, 15000);
 
     /* heartbeat ping */
     window.parvritiSendLove = function () {
@@ -334,6 +339,32 @@
     if (document.getElementById('presPill')) return;
     var p = document.createElement('div'); p.id = 'presPill'; p.className = 'pres-pill';
     body.appendChild(p);
+  }
+  function timeAgoShort(ms) {
+    var s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return 'just now';
+    var m = Math.floor(s / 60); if (m < 60) return m + (m === 1 ? ' minute ago' : ' minutes ago');
+    var h = Math.floor(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    var d = Math.floor(h / 24); if (d < 7) return d + (d === 1 ? ' day ago' : ' days ago');
+    var w = Math.floor(d / 7); return w + (w === 1 ? ' week ago' : ' weeks ago');
+  }
+  function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  /* "last seen" line under the day counter (home page). Shows the OTHER person. */
+  function renderLastSeen(data, other) {
+    var el = document.querySelector('[data-lastseen]');
+    if (!el) return;
+    var name = other === 'parv' ? 'Parv' : 'Riti';
+    if (!data) { el.style.display = 'none'; return; }
+    var ms = data.atMs || 0;
+    var online = !data.gone && !data.hidden && ms && (Date.now() - ms < 70000);
+    if (online) {
+      el.style.display = ''; el.innerHTML = '<span class="ls-flower">🌸</span>' + name + ' is here right now';
+      return;
+    }
+    if (!ms) { el.style.display = 'none'; return; }
+    var line = '<span class="ls-flower">🌸</span>' + name + ' was here ' + timeAgoShort(ms);
+    if (data.lastOpenedTitle) line += ' <span class="ls-note">· last opened “' + escHtml(data.lastOpenedTitle) + '”</span>';
+    el.style.display = ''; el.innerHTML = line;
   }
   function buildPingButton() {
     if (document.getElementById('loveFab')) return;
