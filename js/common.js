@@ -89,6 +89,7 @@
         a.href = item.href; a.textContent = item.label; navEl.appendChild(a);
       });
     }
+    renderDayCounter();
     /* dev skip (home) — TEMPORARY, remove before this is the finished gift */
     if (page === 'home' && !document.querySelector('.dev-skip')) {
       var skip = document.createElement('button');
@@ -161,6 +162,24 @@
 
   /* ── who is this? (two of the allowed emails are Parv's) ── */
   function personFor(email) { return (email || '').toLowerCase() === 'aritika2000@gmail.com' ? 'riti' : 'parv'; }
+
+  /* ── live "days of us" counter (since 29 July 2019) ── */
+  function renderDayCounter() {
+    var els = document.querySelectorAll('[data-daycounter]');
+    if (!els.length) return;
+    var anniv = new Date(2019, 6, 29);   // 29 Jul 2019
+    function tick() {
+      var now = new Date();
+      var a = new Date(anniv.getFullYear(), anniv.getMonth(), anniv.getDate());
+      var t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      var days = Math.floor((t - a) / 86400000);
+      if (days < 0) days = 0;
+      var s = days.toLocaleString('en-US');
+      for (var i = 0; i < els.length; i++) els[i].innerHTML = '<span class="dc-flower">🌸</span><b>' + s + '</b> days of us';
+    }
+    tick();
+    setInterval(tick, 60000);   // ticks over at midnight if she's watching
+  }
 
   /* ── install the app (offline + home-screen icon) ── */
   function registerSW() {
