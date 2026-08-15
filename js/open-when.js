@@ -83,25 +83,25 @@ const SEED_RITI = [
 /* Parv's side: Riti → Parv. Dated 10 Dec 2020. No voice. */
 const SEED_PARV = [
   { emotion:'p_missing', emoji:'💌', title:'Missing Me', date:'2020-12-10',
-    body:`Oyi pagal<br><br>Yaad aa rhi h terko meri. Koi na, thodi der main tere pass hi hounga.<br>Muh tod liyo fir mera. Terko pta toh h teri bndi badtameez h phone khi bhi rkh ke bhaag<br>jaati h. Phone dekhte hi terko call krna h sbse phle.<br><br>Miss you more :)` },
+    body:`Oyi pagal<br><br>Yaad aa rhi h terko meri. Koi na, thodi der main tere pass hi hounga. Muh tod liyo fir mera. Terko pta toh h teri bndi badtameez h phone khi bhi rkh ke bhaag jaati h. Phone dekhte hi terko call krna h sbse phle.<br><br>Miss you more :)` },
   { emotion:'p_separated', emoji:'🤍', title:'Separated', date:'2020-12-10',
-    body:`Mujhe pta h ye letter kbhi kholne ki zrurat hi nhi pdegi apko.<br>Hum alag ho hi nhi skte.` },
+    body:`Mujhe pta h ye letter kbhi kholne ki zrurat hi nhi pdegi apko. Hum alag ho hi nhi skte.` },
   { emotion:'p_birthday', emoji:'🎂', title:'Birthday', date:'2020-12-10',
-    body:`Happy Birthday my love<br><br>I know tere sath nhi hu physically but aage aane wale life ke sare<br>birthday apko mere sath hi manane h.<br>I promise apki wife apka hr birthday bhut special bnaegi.<br>Tu na jaan se zyda pyra h mujhe. Mn toh mera bhi bhoot tha tere pass<br>hone ka but koi nhi, aage aane wale sare special days sath honge.` },
+    body:`Happy Birthday my love<br><br>I know tere sath nhi hu physically but aage aane wale life ke sare birthday apko mere sath hi manane h. I promise apki wife apka hr birthday bhut special bnaegi. Tu na jaan se zyda pyra h mujhe. Mn toh mera bhi bhoot tha tere pass hone ka but koi nhi, aage aane wale sare special days sath honge.` },
   { emotion:'p_angry', emoji:'😤', title:'Angry', date:'2020-12-10',
-    body:`Bcha gussa h merse<br>Sorry bche, glti krdi hogi na maine koi. Please maaf krdo na bche ko.<br>Sorry love.<br>Aage se apko pareshan nhi krunga.` },
+    body:`Bcha gussa h merse<br><br>Sorry bche, glti krdi hogi na maine koi. Please maaf krdo na bche ko. Sorry love. Aage se apko pareshan nhi krunga.` },
   { emotion:'p_parvie', emoji:'💙', title:'Parvie', date:'2020-12-10',
-    body:`Parvie<br><br>I know tujhe ye chiz bdi vague si lgti h, kpde as a gift lena. But I<br>won't be there on your birthday with you.<br>Mujhe kuch esa dena tha jo tujhe meri presence vha feel krwa pae, my warmth,<br>and I know jacket aap pehnoge toh woh chiz feel kr paoge<br>that I am there around you.<br><br>Teri Riti` },
+    body:`Parvie<br><br>I know tujhe ye chiz bdi vague si lgti h, kpde as a gift lena. But I won't be there on your birthday with you. Mujhe kuch esa dena tha jo tujhe meri presence vha feel krwa pae, my warmth, and I know jacket aap pehnoge toh woh chiz feel kr paoge that I am there around you.<br><br>Teri Riti` },
   { emotion:'p_sex', emoji:'🔥', title:'Sex', date:'2020-12-10',
-    body:`You horny fuck!<br>Gurgaon aaja fir bada sara sex krenge!` },
+    body:`You horny fuck!<br><br>Gurgaon aaja fir bada sara sex krenge!` },
   { emotion:'p_happy', emoji:'😊', title:'Happy', date:'2020-12-10',
-    body:`Hi love,<br><br>Dekh mujhe reason to nhi pata ap kyo khush hoge jb ye letter khologo<br>but I know sbse phle share merse hi karte ho. Sath hue toh acha se<br>time spend krenge, sath main aur sath nhi hua toh phone par toh hounga<br>hi. Tujhe khush dekhna h esse humesha. You know na how much I love<br>you &lt;3` },
+    body:`Hi love,<br><br>Dekh mujhe reason to nhi pata ap kyo khush hoge jb ye letter khologo but I know sbse phle share merse hi karte ho. Sath hue toh acha se time spend krenge, sath main aur sath nhi hua toh phone par toh hounga hi. Tujhe khush dekhna h esse humesha. You know na how much I love you &lt;3` },
   { emotion:'p_fight', emoji:'🌩️', title:'Fight', date:'2020-12-10',
-    body:`Ladai hogyi humari. Merko pta h glti bhi meri hogi, ladai bhi mene ki<br>hogi. Pgal bche udas na ho, abhi aa jana h maine tere pass.<br>Reh hi nhi skti tere bina. Tujhe pta h tu zindagi h meri, zyada dur dur nhi<br>reh paunga.` },
+    body:`Ladai hogyi humari. Merko pta h glti bhi meri hogi, ladai bhi mene ki hogi. Pgal bche udas na ho, abhi aa jana h maine tere pass. Reh hi nhi skti tere bina. Tujhe pta h tu zindagi h meri, zyada dur dur nhi reh paunga.` },
   { emotion:'p_sad', emoji:'🫂', title:'Sad', date:'2020-12-10',
-    body:`Jaan Meri<br><br>Ese udas nhi hote, main hu na apke pass. Apke pass toh itna bda<br>reason h khush hone ka. Sath hounga na, apne bche ko hug krke thk<br>krdunga. Pareshan toh psnd hi nhi h tu. Ab aise shant shant na reh<br>aur jldi se mere pass aaja, main khush krdunga bche ko.<br><br>iloveyou` },
+    body:`Jaan Meri<br><br>Ese udas nhi hote, main hu na apke pass. Apke pass toh itna bda reason h khush hone ka. Sath hounga na, apne bche ko hug krke thk krdunga. Pareshan toh psnd hi nhi h tu. Ab aise shant shant na reh aur jldi se mere pass aaja, main khush krdunga bche ko.<br><br>iloveyou` },
   { emotion:'p_hungry', emoji:'🍜', title:'Hungry', date:'2020-12-10',
-    body:`Call me!<br>You promised mujhe btaega kuch yummy sa khilata hu baby ko.` }
+    body:`Call me!<br><br>You promised mujhe btaega kuch yummy sa khilata hu baby ko.` }
 ];
 
 /* =====================  helpers  ===================== */
@@ -181,21 +181,22 @@ function timeAgo(ms) {
   const d = Math.floor(h / 24); if (d < 7) return d + (d === 1 ? ' day ago' : ' days ago');
   return fmtDate(new Date(ms).toISOString().slice(0, 10));
 }
+/* Read receipt is one-directional by request: only Riti opening a letter Parv
+   wrote FOR her notifies him ("Riti opened your letter…"). Parv reading Riti's
+   notes tells her nothing — she wants it that way. */
 function receiptFor(e) {
-  if (e.seed || !e.id) return '';
-  if (e.readAt) {
-    const name = e.side === 'parv' ? 'Parv' : 'Riti';
-    const when = (e.readAt && e.readAt.seconds) ? ' · ' + timeAgo(e.readAt.seconds * 1000) : '';
-    return '<div class="ow-receipt read">💗 ' + name + ' read this' + when + '</div>';
-  }
-  if (mePerson() && mePerson() === e.side) {
-    return '<button type="button" class="ow-receipt tap" data-act="readlove">💗 tap to let them know you read this</button>';
-  }
-  return '';
+  if (e.seed || !e.id || !e.readAt) return '';
+  const when = e.readAt.seconds ? ' · ' + timeAgo(e.readAt.seconds * 1000) : '';
+  return '<div class="ow-receipt read">💗 Riti opened this' + when + '</div>';
 }
-function markRead(e) {
-  if (!e || e.seed || !e.id || !db) return;
-  db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: mePerson() }).catch(function (err) { console.warn(err); });
+const openNotified = {};   // guard against firing twice before the snapshot lands
+function maybeNotifyOpen(e, env) {
+  if (!e || e.seed || !e.id || isSealed(e)) return;
+  if (mePerson() !== 'riti' || e.side !== 'riti') return;   // only Riti, only Parv's letters
+  if (e.readAt || openNotified[e.id]) return;
+  openNotified[e.id] = true;
+  if (db) db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: 'riti' }).catch(function (err) { console.warn(err); });
+  if (window.parvritiNotify) window.parvritiNotify('parv', 'Riti opened your letter - ' + env.title + ' 💌', '', 'https://parvriti.github.io/open-when.html');
 }
 
 /* "on this day, a year ago…" — surfaces past notes sharing today's month + day */
@@ -362,6 +363,7 @@ function renderEntry() {
   if (entryIdx < 0) entryIdx = 0;
   const e = env.entries[entryIdx], total = env.entries.length;
   const sealed = isSealed(e);
+  maybeNotifyOpen(e, env);   // Riti opening Parv's letter → nudge Parv (once)
   const pager = total > 1
     ? '<div class="ow-pager"><button type="button" class="ow-pg" data-act="prev"' + (entryIdx === 0 ? ' disabled' : '') + '>‹</button>' +
       '<span class="ow-pg-lbl">' + (entryIdx + 1) + ' of ' + total + '</span>' +
@@ -391,7 +393,7 @@ function renderEntry() {
   }
 
   document.getElementById('owPaperContent').innerHTML =
-    '<div class="ow-paper-emoji">' + env.emoji + '</div>' +
+    '<div class="ow-paper-emoji">' + escapeHtml(env.emoji) + '</div>' +
     '<div class="ow-paper-title">' + escapeHtml(env.title) + '</div>' +
     '<div class="ow-paper-date">' + fmtDate(e.date) + '</div>' +
     mid + editDel + pager + addHere;
@@ -426,7 +428,6 @@ document.getElementById('owReader').addEventListener('click', function (ev) {
   else if (act === 'edit' && env) openForm('edit', env.entries[entryIdx]);
   else if (act === 'delete' && env) delEntry(env.entries[entryIdx]);
   else if (act === 'addhere' && env) openForm('add', env);
-  else if (act === 'readlove' && env) markRead(env.entries[entryIdx]);
 });
 
 /* swipe through the stack on mobile */

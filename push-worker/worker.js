@@ -58,12 +58,12 @@ export default {
     const devices = await getTokens(to, accessToken);
     if (!devices.length) return json({ ok: true, sent: 0 });
 
-    // 4) send + prune
+    // 4) send; prune ONLY tokens FCM says are dead (never on a transient error)
     let sent = 0;
     for (const d of devices) {
-      const ok = await sendPush(accessToken, d.token, title, text, link);
-      if (ok) sent++;
-      else await deleteDoc(d.name, accessToken);
+      const res = await sendPush(accessToken, d.token, title, text, link);
+      if (res.ok) sent++;
+      else if (res.dead) await deleteDoc(d.name, accessToken);
     }
     return json({ ok: true, sent });
   }
@@ -172,6 +172,12 @@ async function sendPush(accessToken, token, title, text, link) {
       method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify(message)
     });
-    return r.ok;
-  } catch (e) { return false; }
+    if (r.ok) return { ok: true };
+    // Only these mean the token itself is gone; everything else is transient → keep it.
+    const d = await r.json().catch(() => ({}));
+    const err = d.error || {};
+    const code = (err.details && err.details[0] && err.details[0].errorCode) || err.status || '';
+    const dead = r.status === 404 || code === 'UNREGISTERED' || code === 'INVALID_ARGUMENT';
+    return { ok: false, dead: dead };
+  } catch (e) { return { ok: false, dead: false }; }   // network blip → do NOT delete
 }
