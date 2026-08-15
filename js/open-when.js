@@ -403,7 +403,7 @@ document.querySelectorAll('.ow-side').forEach(function (el) {
 document.getElementById('owEditToggle').addEventListener('click', function () {
   const on = document.body.classList.toggle('editing');
   this.classList.toggle('on', on);
-  this.textContent = on ? '✓ Done' : '✎ Edit';
+  this.textContent = on ? '📖 Read' : '✎ Edit';
 });
 
 buildGrid();
