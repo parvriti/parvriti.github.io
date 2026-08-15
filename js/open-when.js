@@ -398,4 +398,12 @@ document.querySelectorAll('.ow-side').forEach(function (el) {
   el.addEventListener('click', function () { setSide(el.dataset.side); });
 });
 
+/* edit mode: author controls (add / edit / delete / new envelope) only
+   appear while this is on, so the default is a pristine reading experience */
+document.getElementById('owEditToggle').addEventListener('click', function () {
+  const on = document.body.classList.toggle('editing');
+  this.classList.toggle('on', on);
+  this.textContent = on ? '✓ Done' : '✎ Edit';
+});
+
 buildGrid();

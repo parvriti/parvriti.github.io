@@ -562,6 +562,23 @@ body.side-parv .ow-entry-actions { color: #6f8fd0; }
 body.side-parv .ow-entry-actions button { color: #274a8c; }
 body.side-parv .ow-add-here { background: rgba(40,60,120,.07); border-color: rgba(40,60,120,.28); color: #274a8c; }
 body.side-parv .ow-count { background: rgba(6,10,22,.6); color: #cfe0ff; }
+
+/* ── edit mode toggle: author controls stay hidden until you turn it on ── */
+.ow-editbar { display: flex; justify-content: flex-end; margin: -4px 2px 12px; }
+.ow-edit-toggle {
+  background: rgba(192,66,90,.06); border: 1px solid rgba(192,66,90,.22);
+  color: #c0728a; font-family: 'DM Sans', sans-serif; font-size: 11px;
+  letter-spacing: .06em; padding: 6px 14px; border-radius: 40px; cursor: pointer;
+  -webkit-appearance: none; touch-action: manipulation;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.ow-edit-toggle.on { background: linear-gradient(135deg,#c0425a,#7a1f3a); color: #fff; border-color: transparent; }
+body.side-parv .ow-edit-toggle { color: #6f8fd0; border-color: rgba(40,60,120,.22); background: rgba(40,60,120,.06); }
+body.side-parv .ow-edit-toggle.on { background: linear-gradient(135deg,#5079c4,#22345f); color: #fff; border-color: transparent; }
+/* pristine reading by default: add / edit / delete / new-envelope only appear in edit mode */
+body:not(.editing) .ow-add-card,
+body:not(.editing) .ow-add-here,
+body:not(.editing) .ow-entry-actions { display: none; }
 .ow-voice { text-align: center; margin: 2px 0 20px; }
 .voice-btn {
   display: inline-flex; align-items: center; gap: 9px;
