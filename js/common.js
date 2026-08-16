@@ -312,12 +312,30 @@
       // also push, so it reaches them even if the app is closed
       if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/open-when.html');
     };
+
+    /* hold-the-heart reactions (the sender's name is baked into each line) */
+    var meName = me === 'parv' ? 'Parv' : 'Riti';
+    window.parvritiReactions = [
+      { emoji: '💋', text: meName + ' blew you a kiss 💋' },
+      { emoji: '🤗', text: meName + ' wants a hug 🤗' },
+      { emoji: '🥺', text: meName + ' misses you 🥺' },
+      { emoji: '😴', text: meName + "'s going to sleep thinking of you 😴" },
+      { emoji: '👀', text: meName + ' wants to see you nakey nakey 👀' },
+      { emoji: '💦', text: (me === 'parv' ? 'Parv is hard for you 💦' : 'Riti is wet for you 💦') }
+    ];
+    window.parvritiSendReaction = function (i) {
+      var r = window.parvritiReactions[i]; if (!r || !cdb) return;
+      cdb.collection('pings').doc(other).set({ at: FV.serverTimestamp(), from: me, seq: Date.now(), emoji: r.emoji, text: r.text }).catch(function () {});
+      toast('sent ' + r.emoji);
+      if (navigator.vibrate) navigator.vibrate(24);
+      if (window.parvritiNotify) window.parvritiNotify(other, r.text, '', 'https://parvriti.github.io/open-when.html');
+    };
+
     var pingFirst = true;
     cdb.collection('pings').doc(me).onSnapshot(function (snap) {
       if (pingFirst) { pingFirst = false; return; }   // ignore whatever is already there on load
       if (!snap.exists) return;
-      var d = snap.data();
-      pulseHeart(d && d.from);
+      pulseHeart(snap.data());
     }, function () {});
     if (inner) buildPingButton();
   }
@@ -372,19 +390,100 @@
     if (document.getElementById('loveFab')) return;
     var b = document.createElement('button');
     b.type = 'button'; b.id = 'loveFab'; b.className = 'love-fab';
-    b.setAttribute('aria-label', 'Send a heartbeat');
-    b.innerHTML = '<span>💗</span>';
-    b.addEventListener('click', function () {
-      b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap');
-      if (window.parvritiSendLove) window.parvritiSendLove();
-    });
+    b.setAttribute('aria-label', 'Send a heartbeat — hold for more');
+    b.innerHTML =
+      '<svg class="lf-prog" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="25"/></svg>' +
+      '<span class="lf-heart">💗</span>';
     body.appendChild(b);
+
+    /* the reaction ring (built once, revealed on a long hold) */
+    var reactions = window.parvritiReactions || [];
+    var ring = document.createElement('div');
+    ring.id = 'loveRing'; ring.className = 'love-ring';
+    var scrim = document.createElement('div'); scrim.className = 'lr-scrim'; ring.appendChild(scrim);
+    var label = document.createElement('div'); label.className = 'lr-label'; ring.appendChild(label);
+    var chips = [];
+    var n = reactions.length;
+    reactions.forEach(function (r, i) {
+      var c = document.createElement('div');
+      c.className = 'lr-chip'; c.textContent = r.emoji;
+      var ang = (180 + (n > 1 ? i / (n - 1) : 0) * 90) * Math.PI / 180;   // arc opening up-and-left
+      var R = 122;
+      c.style.setProperty('--dx', (Math.cos(ang) * R).toFixed(1) + 'px');
+      c.style.setProperty('--dy', (Math.sin(ang) * R).toFixed(1) + 'px');
+      c.style.setProperty('--d', (i * 0.028) + 's');
+      ring.appendChild(c); chips.push(c);
+    });
+    body.appendChild(ring);
+
+    var HOLD_MS = 480;
+    var holdTimer = null, opened = false, hovered = -1;
+
+    function openRing() {
+      opened = true; hovered = -1;
+      b.classList.remove('charging'); b.classList.add('holding');
+      ring.classList.add('show');
+      label.classList.remove('show');
+      if (navigator.vibrate) navigator.vibrate(16);
+    }
+    function closeRing() {
+      opened = false;
+      b.classList.remove('charging', 'holding');
+      ring.classList.remove('show');
+      label.classList.remove('show');
+      for (var i = 0; i < chips.length; i++) chips[i].classList.remove('hot');
+      hovered = -1;
+    }
+    function updateHover(x, y) {
+      var best = -1, bestD = 1e9;
+      for (var i = 0; i < chips.length; i++) {
+        var r = chips[i].getBoundingClientRect();
+        var d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      var h = bestD < 48 ? best : -1;
+      if (h === hovered) return;
+      hovered = h;
+      for (var j = 0; j < chips.length; j++) chips[j].classList.toggle('hot', j === hovered);
+      if (hovered >= 0) { label.textContent = reactions[hovered].text; label.classList.add('show'); if (navigator.vibrate) navigator.vibrate(6); }
+      else label.classList.remove('show');
+    }
+
+    b.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      try { b.setPointerCapture(e.pointerId); } catch (er) {}
+      opened = false; hovered = -1;
+      b.classList.add('charging');
+      if (navigator.vibrate) navigator.vibrate(7);
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(openRing, HOLD_MS);
+    });
+    b.addEventListener('pointermove', function (e) { if (opened) updateHover(e.clientX, e.clientY); });
+    function finish() {
+      clearTimeout(holdTimer); holdTimer = null;
+      if (opened) {
+        if (hovered >= 0) {
+          chips[hovered].classList.add('picked');
+          if (window.parvritiSendReaction) window.parvritiSendReaction(hovered);
+          setTimeout(closeRing, 200);
+        } else { closeRing(); }
+      } else {
+        b.classList.remove('charging');
+        b.classList.remove('tap'); void b.offsetWidth; b.classList.add('tap');
+        if (window.parvritiSendLove) window.parvritiSendLove();
+      }
+    }
+    b.addEventListener('pointerup', finish);
+    b.addEventListener('pointercancel', function () { clearTimeout(holdTimer); closeRing(); });
   }
-  function pulseHeart(from) {
+  function pulseHeart(data) {
+    var from = data && data.from;
     var name = from === 'parv' ? 'Parv' : (from === 'riti' ? 'Riti' : 'Someone');
+    var emoji = (data && data.emoji) || '💗';
+    var text = (data && data.text) || (name + ' is thinking of you');
     var ov = document.createElement('div');
     ov.className = 'love-pulse';
-    ov.innerHTML = '<div class="love-heart">💗</div><div class="love-text">' + name + ' is thinking of you</div>';
+    ov.innerHTML = '<div class="love-heart">' + escHtml(emoji) + '</div><div class="love-text">' + escHtml(text) + '</div>';
     body.appendChild(ov);
     requestAnimationFrame(function () { ov.classList.add('go'); });
     if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
