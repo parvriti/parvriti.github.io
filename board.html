@@ -7,23 +7,23 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="For Toti 🌸">
 <meta name="theme-color" content="#0a0406">
-<title>Our Room 🌸</title>
+<title>Our Board 🌸</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=24">
+<link rel="stylesheet" href="css/styles.css?v=25">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 </head>
-<body data-page="room">
+<body data-page="board">
 
 <div class="page">
   <nav class="tabbar" id="nav"></nav>
 
   <main class="col page-fade">
     <div class="room-head">
-      <div class="room-title">Our Room</div>
+      <div class="room-title">Our Board</div>
       <div class="room-sub">a little corner that's just ours</div>
     </div>
 
@@ -41,51 +41,12 @@
       <div class="wall-tools">
         <button class="wtool" id="addReason" type="button">＋ reason</button>
         <button class="wtool" id="addPhoto" type="button">＋ photo</button>
+        <button class="wtool edit" id="editBoard" type="button">✎ edit</button>
       </div>
       <div class="board" id="board"></div>
-      <div class="board-empty" id="boardEmpty" style="display:none">pin the first little thing 🌸</div>
+      <div class="board-empty" id="boardEmpty" style="display:none">tap ＋ to pin your first little thing 🌸</div>
     </section>
 
-    <div class="zone-label">doodle together</div>
-    <div class="pad-wrap">
-      <div class="pad">
-        <div class="clip" aria-hidden="true"></div>
-        <canvas id="pad" width="820" height="470"></canvas>
-        <div class="tools">
-          <span class="swatch sel" style="background:#c0425a" data-c="#c0425a"></span>
-          <span class="swatch" style="background:#2942c0" data-c="#2942c0"></span>
-          <span class="swatch" style="background:#1d9e75" data-c="#1d9e75"></span>
-          <span class="swatch" style="background:#e0a020" data-c="#e0a020"></span>
-          <span class="swatch" style="background:#2f2a26" data-c="#2f2a26"></span>
-          <button class="clear" id="clearPad" type="button">clear</button>
-        </div>
-        <div class="by" id="padBy">draw something silly together</div>
-      </div>
-    </div>
-
-    <div class="zone-label">the little shelf</div>
-    <div class="shelf">
-      <div class="plank" aria-hidden="true"></div>
-      <div class="obj">
-        <div class="jar" id="jar" role="button" tabindex="0" aria-label="open the jar">
-          <div class="lid"></div><div class="glass" id="jarGlass"></div>
-        </div>
-        <div class="cap">our jar</div>
-      </div>
-      <div class="obj">
-        <div class="scratch-stack" id="scratchStack" role="button" tabindex="0" aria-label="scratch cards">
-          <div class="tackp" aria-hidden="true"></div>
-          <div class="scard"><div class="scard-face">nothing to scratch yet</div></div>
-          <div class="scount" id="scratchCount" style="display:none">0</div>
-        </div>
-        <div class="cap">scratch surprises</div>
-      </div>
-      <div class="obj candle-obj" id="candle" role="button" tabindex="0" aria-label="light the candle">
-        <div class="halo"></div>
-        <div class="candle"><div class="flame"></div><div class="wick"></div><div class="body"></div></div>
-        <div class="cap">light it</div>
-      </div>
-    </div>
     <div class="room-foot">made with love, for us 🌸</div>
   </main>
 </div>
@@ -97,7 +58,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=24"></script>
-<script src="js/room.js?v=24"></script>
+<script src="js/common.js?v=25"></script>
+<script src="js/board.js?v=25"></script>
 </body>
 </html>

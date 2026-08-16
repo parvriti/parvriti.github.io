@@ -7,11 +7,11 @@
    Cross-origin things (fonts, Firebase SDK) are cache-first so they're
    there offline once they've loaded at least once.
    ===================================================================== */
-var CACHE = 'parvriti-v24';
+var CACHE = 'parvriti-v25';
 var CORE = [
-  'index.html', 'letter.html', 'open-when.html', 'wedding.html', 'room.html',
-  'css/styles.css?v=24',
-  'js/common.js?v=24', 'js/locks.js?v=24', 'js/open-when.js?v=24', 'js/room.js?v=24',
+  'index.html', 'open-when.html', 'wedding.html', 'board.html', 'doodles.html',
+  'css/styles.css?v=25',
+  'js/common.js?v=25', 'js/locks.js?v=25', 'js/open-when.js?v=25', 'js/board.js?v=25', 'js/doodle.js?v=25',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.json'
 ];
 

@@ -16,3 +16,6 @@ riti-letters-ocr.txt
 # personal room photos — never public; they live in Firestore instead
 our_pics/
 room-thumbs/
+
+# local dev (Claude Code launch config)
+.claude/
