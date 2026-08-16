@@ -1,6 +1,6 @@
 /* =====================================================================
    locks.js — the entry ritual on index.html
-     Intro → Lock 1 (dial) → Lock 2 (flower) → Vows → letter.html
+     Intro → Lock 1 (dial) → Lock 2 (flower) → Vows → the app (open-when)
    On a correct signature we mark the session unlocked and hand off to
    the letter page (common.js's guard checks that flag).
    ===================================================================== */
@@ -331,7 +331,7 @@ function initFlower() {
 }
 
 /* ─────────────────────────────────
-   VOWS / SIGN → unlock → letter.html
+   VOWS / SIGN → unlock → the app (open-when.html; letter retired)
 ───────────────────────────────── */
 function checkSign() {
   const v = document.getElementById('signInput').value.trim();

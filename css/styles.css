@@ -1062,22 +1062,6 @@ body.side-parv .ow-cancel { border-color: rgba(40,60,120,.3); color: #274a8c; }
   .wed-curtain-l, .wed-curtain-r, .wed-card, .wed-soon, .wed-lights i { animation: none; }
 }
 
-/* ─── 11. DEV SKIP ─── (temporary; injected by common.js — see the DEV SKIP block there) */
-.dev-skip {
-  position: fixed; bottom: 12px; right: 12px; z-index: 400;
-  background: rgba(255,255,255,.06);
-  border: 1px dashed rgba(245,198,198,.4);
-  color: #c0728a;
-  font-family: 'DM Sans', monospace, sans-serif;
-  font-size: 11px; letter-spacing: .12em;
-  padding: 6px 13px; border-radius: 20px;
-  cursor: pointer; opacity: .5;
-  -webkit-appearance: none; touch-action: manipulation;
-  transition: opacity .2s, transform .1s;
-}
-.dev-skip:hover { opacity: 1; }
-.dev-skip:active { transform: scale(.94); }
-
 /* =====================================================================
    Our Board (board.html) + Doodles (doodles.html)
    ===================================================================== */
