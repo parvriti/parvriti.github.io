@@ -12,3 +12,7 @@ riti-letters-ocr.txt
 .dev.vars
 *firebase-adminsdk*.json
 *service-account*.json
+
+# personal room photos — never public; they live in Firestore instead
+our_pics/
+room-thumbs/

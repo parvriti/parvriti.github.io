@@ -83,8 +83,9 @@
       ].forEach(function (s) { var p = document.createElement('div'); p.className = 'bgp'; p.setAttribute('style', s); body.insertBefore(p, base.nextSibling); });
     }
     var NAV = [
-      { href: 'letter.html', label: 'The Letter', page: 'letter' },
+      { href: 'letter.html', label: 'Letter', page: 'letter' },
       { href: 'open-when.html', label: 'Open When…', page: 'open-when' },
+      { href: 'room.html', label: 'Our Room', page: 'room' },
       { href: 'wedding.html', label: 'Wedding', page: 'wedding' }
     ];
     var navEl = document.getElementById('nav');
