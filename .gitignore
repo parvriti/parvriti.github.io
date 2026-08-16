@@ -19,3 +19,6 @@ room-thumbs/
 
 # local dev (Claude Code launch config)
 .claude/
+
+# archived older implementations — local reference only, never deployed
+old_ideas/

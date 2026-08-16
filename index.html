@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=29">
+<link rel="stylesheet" href="css/styles.css?v=30">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -41,87 +41,6 @@
     <div class="day-counter" data-daycounter></div>
     <div class="last-seen" data-lastseen style="display:none"></div>
   </div>
-
-  <!-- LOCKS + VOWS RITUAL — PAUSED (kept for a future version, hidden from
-       prod). While paused, the intro's "Open it ✦" goes straight into the
-       app via enterApp(). To bring the ritual back: remove the wrapper's
-       hidden/display:none, and restore the intro button to goTo('s-lock1'). -->
-  <div id="pausedRitual" hidden style="display:none" aria-hidden="true">
-
-  <!-- ══ LOCK 1 | RITI'S DIAL ══ -->
-  <div class="screen" id="s-lock1">
-    <div class="lock-icon">🔐</div>
-    <div class="lock-label">Lock One</div>
-    <div class="lock-sub">COMBINATION DIAL</div>
-    <div class="lock-owner-tag">🎀 This is Riti's locker , only she knows this PIN</div>
-    <div class="combo-progress" id="cSlots">
-      <div class="combo-slot" id="cs0">—</div>
-      <div class="combo-slot" id="cs1">—</div>
-      <div class="combo-slot" id="cs2">—</div>
-      <div class="combo-slot" id="cs3">—</div>
-    </div>
-    <div class="dial-wrap" id="dialWrap">
-      <canvas id="dialCanvas" width="220" height="220" style="width:220px;height:220px;"></canvas>
-      <div class="dial-center-num" id="dialNum">0<span id="dialStep">digit 1 / 4</span></div>
-    </div>
-    <div class="dial-btns">
-      <button class="dial-btn" onclick="rotateDial(-1)" aria-label="counter-clockwise">↺</button>
-      <button class="dial-confirm" onclick="confirmDigit()">Set ✦</button>
-      <button class="dial-btn" onclick="rotateDial(1)" aria-label="clockwise">↻</button>
-    </div>
-    <div class="hint">← spin to your digit, confirm each one →</div>
-  </div>
-
-  <!-- ══ LOCK 2 | PARV'S LOCKER ══ -->
-  <div class="screen" id="s-lock2">
-    <div class="lock-icon">🌺</div>
-    <div class="lock-label">Lock Two</div>
-    <div class="lock-sub">FLOWER PETAL PLUCK</div>
-    <div class="lock-owner-tag">💙 This is Parv's lock , only he could've set this</div>
-    <div class="pluck-progress" id="pluckPips"></div>
-    <div class="flower-status" id="flowerStatus">Tap the petals in the right order to pluck them ✦</div>
-    <div class="flower-wrap">
-      <canvas id="flowerCanvas" width="270" height="270" style="width:270px;height:270px;"></canvas>
-    </div>
-    <div class="hint">Wrong petal? They all grow back 🌱</div>
-  </div>
-
-  <!-- ══ VOWS ══ -->
-  <div class="screen" id="s-vows">
-    <div style="font-size:42px;margin-bottom:14px;">🖊️</div>
-    <div class="vow-title">Before You Enter...</div>
-    <div class="vow-intro">A few little promises — pinky swear level. Read carefully, then sign below.</div>
-    <div class="vow-list">
-      <div class="vow-item">
-        <div class="vow-num">I.</div>
-        <div class="vow-text">I promise to always tell you when something is bothering me.</div>
-      </div>
-      <div class="vow-item">
-        <div class="vow-num">II.</div>
-        <div class="vow-text"> I promise to always be a little whore for my husband.</div>
-      </div>
-      <div class="vow-item">
-        <div class="vow-num">III.</div>
-        <div class="vow-text">I promise to watch every reel you send me before the day ends.</div>
-      </div>
-      <div class="vow-item">
-        <div class="vow-num">IV.</div>
-        <div class="vow-text">I promise that no matter how annoyed I get, I will always come back to you. Always.</div>
-      </div>
-      <div class="vow-item">
-        <div class="vow-num">V.</div>
-        <div class="vow-text">I promise to love you unconditionally, chaotically, and with my whole heart. Forever.</div>
-      </div>
-    </div>
-    <div class="vow-note">"I, Ritika Bajaj, solemnly swear to all of the above, now and always, in every universe."</div>
-    <input class="sign-input" id="signInput" type="text" placeholder="Sign your full name..." autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text"/>
-    <div class="sign-err" id="signErr"></div>
-    <button class="btn-rose" onclick="checkSign()">I swear it, open the letter ✦</button>
-    <div class="sign-hint-text">"Only Ritika Bajaj may pass this gate."</div>
-  </div>
-
-  </div><!-- /#pausedRitual -->
-
 </div><!-- /canvas -->
 
 <!-- Bloom overlay (screen transitions) -->
@@ -141,7 +60,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=29"></script>
-<script src="js/locks.js?v=29"></script>
+<script src="js/common.js?v=30"></script>
+<script>
+  /* the entry ritual is archived (see old_ideas/). "Open it" now hands
+     straight into the app, keeping the petal-bloom transition. */
+  function enterApp(){
+    try { sessionStorage.setItem('riti_open','1'); } catch(e){}
+    var o = document.getElementById('bloomOv');
+    if(o){ o.classList.add('go'); setTimeout(function(){ o.classList.remove('go'); }, 1100); }
+    setTimeout(function(){ location.href = 'open-when.html'; }, 620);
+  }
+</script>
 </body>
 </html>
