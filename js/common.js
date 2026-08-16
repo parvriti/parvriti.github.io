@@ -85,8 +85,9 @@
     var NAV = [
       { href: 'open-when.html', label: 'Open When…', page: 'open-when' },
       { href: 'board.html', label: 'Our Board', page: 'board' },
-      { href: 'doodles.html', label: 'Doodles', page: 'doodles' },
-      { href: 'wedding.html', label: 'Wedding', page: 'wedding' }
+      { href: 'doodles.html', label: 'Doodles', page: 'doodles' }
+      // Wedding tab paused for now — re-add this entry to bring it back:
+      // , { href: 'wedding.html', label: 'Wedding', page: 'wedding' }
     ];
     var navEl = document.getElementById('nav');
     if (navEl && !navEl.children.length) {
