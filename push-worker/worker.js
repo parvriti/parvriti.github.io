@@ -66,8 +66,59 @@ export default {
       else if (res.dead) await deleteDoc(d.name, accessToken);
     }
     return json({ ok: true, sent });
+  },
+
+  /* Cron Trigger (set to "30 18 * * *" = 00:00 IST). Sends the birthday /
+     anniversary wish to BOTH phones at midnight, even with the apps closed. */
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runCelebration(event, env));
   }
 };
+
+/* ══════════════ midnight birthday / anniversary push ══════════════ */
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+function celebrationTitle(event) {
+  var when = (event && event.scheduledTime) ? event.scheduledTime : Date.now();
+  var ist = new Date(when + 5.5 * 3600 * 1000);   // shift so UTC getters read IST wall-clock
+  var y = ist.getUTCFullYear();
+  var md = pad2(ist.getUTCMonth() + 1) + '-' + pad2(ist.getUTCDate());
+  if (md === '04-20') return { id: 'riti-' + y, title: 'Happy Riti Day 🎂❤️' };
+  if (md === '12-10') return { id: 'parv-' + y, title: 'Happy Pavu Day 🎂❤️' };
+  if (md === '07-29') return { id: 'anniv-' + y, title: 'Happy ' + (y - 2019) + ' years, my love 🐣' };
+  return null;
+}
+
+async function runCelebration(event, env) {
+  const occ = celebrationTitle(event);
+  if (!occ) return;                                 // nothing to celebrate today
+  let sa;
+  try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
+  const accessToken = await getAccessToken(sa);
+  if (!accessToken) return;
+  if (await celebrationDone(occ.id, accessToken)) return;   // never send the same one twice
+  const devices = (await getTokens('parv', accessToken)).concat(await getTokens('riti', accessToken));
+  for (const d of devices) {
+    const res = await sendPush(accessToken, d.token, occ.title, '', SITE + '/open-when.html');
+    if (!res.ok && res.dead) await deleteDoc(d.name, accessToken);
+  }
+  await celebrationMark(occ.id, accessToken);
+}
+
+async function celebrationDone(id, accessToken) {
+  try {
+    const r = await fetch(DOCS + '/celebrations/' + id, { headers: { Authorization: 'Bearer ' + accessToken } });
+    return r.ok;   // 200 = the doc exists = already sent today
+  } catch (e) { return false; }   // on error, better to allow the wish than skip it
+}
+async function celebrationMark(id, accessToken) {
+  try {
+    await fetch(DOCS + '/celebrations?documentId=' + encodeURIComponent(id), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { at: { integerValue: String(Date.now()) } } })
+    });
+  } catch (e) {}
+}
 
 function json(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) });
