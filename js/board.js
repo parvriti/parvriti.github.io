@@ -2,10 +2,11 @@
    board.js — "Our Board" (board.html)
 
    A cork wall the two of you fill together with reason-notes and photos.
-   Nothing here is auto-placed: when you add something you DRAG it onto the
-   grid and tap ✓ to pin it exactly where you want (or ✕ to throw it away).
-   An edit mode lets you move or take down anything later. Everything syncs
-   live between the two phones. NOTHING here sends a notification.
+   You DRAG each thing onto the grid and tap ✓ to pin it exactly where you
+   want. Drop one tile ONTO another and they STACK into a little pile you can
+   swipe through. The board grows forever, so the reasons never run out. An
+   edit mode moves / stacks / takes things down. Everything syncs live between
+   the two phones. NOTHING here sends a notification.
    ===================================================================== */
 
 /* ── Firebase (compat, initialised by common.js) ── */
@@ -73,39 +74,38 @@ var COLS = 4;                 // columns across the wall
 var items = [];               // live items from Firestore
 var editing = false;          // edit-mode toggle
 var pending = null;           // { type, text?, color?, img?, by, rot, slot }
+var bonusRows = 0;            // extra rows added by the "＋ more room" button
 
 function boardEl() { return document.getElementById('board'); }
 function cellSize() { var w = (boardEl() && boardEl().clientWidth) || 300; return Math.floor(w / COLS); }
 function gap() { return Math.max(6, Math.round(cellSize() * 0.1)); }
 function slotOf(it) { return (typeof it.slot === 'number') ? it.slot : 0; }
+
+/* group every item by its slot — a slot with more than one item is a STACK */
+function cellsBySlot() {
+  var m = {};
+  items.forEach(function (it) { var s = slotOf(it); (m[s] = m[s] || []).push(it); });
+  Object.keys(m).forEach(function (s) { m[s].sort(function (a, b) { return millis(a.createdAt) - millis(b.createdAt); }); });
+  return m;
+}
 function maxRow() {
   var m = -1;
   items.forEach(function (it) { var r = Math.floor(slotOf(it) / COLS); if (r > m) m = r; });
   if (pending && pending.slot != null) { var pr = Math.floor(pending.slot / COLS); if (pr > m) m = pr; }
   return m;
 }
-function rowCount() { return Math.max(5, maxRow() + 2); }             // always keep a spare row to drop into
+function rowCount() { return Math.max(6, maxRow() + 2) + bonusRows; }   // always a spare row + any manual "more room"
 function cellXY(slot) { var cs = cellSize(); return { c: slot % COLS, r: Math.floor(slot / COLS), x: (slot % COLS) * cs, y: Math.floor(slot / COLS) * cs, cs: cs }; }
-function occupiedSet(excludeId) {
-  var o = {};
-  items.forEach(function (it) { if (excludeId && it.id === excludeId) return; o[slotOf(it)] = true; });
-  if (pending && pending.slot != null && !(pending._committing)) o[pending.slot] = true;
-  return o;
-}
 function firstEmpty() {
-  var o = occupiedSet(), total = rowCount() * COLS;
-  for (var s = 0; s < total; s++) if (!o[s]) return s;
+  var cells = cellsBySlot(), total = rowCount() * COLS;
+  for (var s = 0; s < total; s++) if (!(cells[s] && cells[s].length)) return s;
   return total;
 }
-function nearestEmpty(px, py, excludeId) {
-  var o = occupiedSet(excludeId), cs = cellSize(), total = rowCount() * COLS, best = firstEmpty(), bd = Infinity;
-  for (var s = 0; s < total; s++) {
-    if (o[s]) continue;
-    var c = s % COLS, r = Math.floor(s / COLS), cx = c * cs + cs / 2, cy = r * cs + cs / 2;
-    var d = (px - cx) * (px - cx) + (py - cy) * (py - cy);
-    if (d < bd) { bd = d; best = s; }
-  }
-  return best;
+function dropCell(cx, cy) {   // the exact grid cell a point lands in (clamped)
+  var cs = cellSize(), R = rowCount();
+  var c = Math.max(0, Math.min(COLS - 1, Math.floor(cx / cs)));
+  var r = Math.max(0, Math.min(R - 1, Math.floor(cy / cs)));
+  return r * COLS + c;
 }
 
 /* ── live feed ── */
@@ -141,6 +141,39 @@ function placeEl(el, slot) {
   el.style.width = size + 'px';
   el.style.height = size + 'px';
 }
+function singleTileEl(slot, it, num) {
+  var el = document.createElement(editing ? 'div' : 'button');
+  if (!editing) el.type = 'button';
+  el.className = 'tile ' + (it.type === 'photo' ? 'photo' : 'note');
+  el.dataset.slot = slot;
+  el.style.setProperty('--r', (it.rot != null ? it.rot : 0) + 'deg');
+  if (it.type !== 'photo') { var color = it.color || '#fff2a8'; el.style.background = 'linear-gradient(158deg,' + color + ',' + shade(color) + ')'; }
+  el.innerHTML = tileInner(it, num[it.id]);
+  return el;
+}
+function coverDiv(it, no) {   // the visible face of a stack (visual only, no events)
+  var el = document.createElement('div');
+  el.className = 'tile cover ' + (it.type === 'photo' ? 'photo' : 'note');
+  if (it.type !== 'photo') { var c = it.color || '#fff2a8'; el.style.background = 'linear-gradient(158deg,' + c + ',' + shade(c) + ')'; }
+  el.innerHTML = tileInner(it, no);
+  return el;
+}
+function stackTileEl(slot, stack, num) {
+  var cover = stack[stack.length - 1];   // newest sits on top of the pile
+  var el = document.createElement(editing ? 'div' : 'button');
+  if (!editing) el.type = 'button';
+  el.className = 'stackwrap';
+  el.dataset.slot = slot;
+  el.style.setProperty('--r', (cover.rot != null ? cover.rot : 0) + 'deg');
+  el.setAttribute('aria-label', 'a stack of ' + stack.length);
+  var p2 = document.createElement('span'); p2.className = 'peek p2';
+  var p1 = document.createElement('span'); p1.className = 'peek p1';
+  var cnt = document.createElement('span'); cnt.className = 'scount'; cnt.textContent = stack.length;
+  el.appendChild(p2); el.appendChild(p1);
+  el.appendChild(coverDiv(cover, num[cover.id]));
+  el.appendChild(cnt);
+  return el;
+}
 function renderBoard() {
   var b = boardEl(); if (!b) return;
   var cs = cellSize(), R = rowCount();
@@ -149,36 +182,39 @@ function renderBoard() {
   document.body.classList.toggle('placing', !!pending);
   document.body.classList.toggle('editing', editing);
 
-  // faint grid cells while placing or editing
+  var cells = cellsBySlot();
+
+  // faint grid cells for the empty squares while placing or editing
   if (pending || editing) {
-    var occ = occupiedSet(), g = gap();
     for (var s = 0; s < R * COLS; s++) {
-      if (occ[s]) continue;
+      if (cells[s] && cells[s].length) continue;
+      if (pending && !pending._committing && pending.slot === s) continue;
       var gh = document.createElement('div'); gh.className = 'cellghost'; gh.dataset.slot = s;
       placeEl(gh, s); b.appendChild(gh);
     }
   }
 
   var num = noteNumbers();
-  items.forEach(function (it) {
-    var el = document.createElement(editing ? 'div' : 'button');
-    if (!editing) el.type = 'button';
-    el.className = 'tile ' + (it.type === 'photo' ? 'photo' : 'note');
-    el.style.setProperty('--r', (it.rot != null ? it.rot : 0) + 'deg');
-    if (it.type !== 'photo') { var color = it.color || '#fff2a8'; el.style.background = 'linear-gradient(158deg,' + color + ',' + shade(color) + ')'; }
-    el.innerHTML = tileInner(it, num[it.id]);
-    placeEl(el, slotOf(it));
+  Object.keys(cells).forEach(function (sk) {
+    var slot = +sk, stack = cells[slot], isStack = stack.length > 1;
+    var el = isStack ? stackTileEl(slot, stack, num) : singleTileEl(slot, stack[0], num);
+    placeEl(el, slot);
     if (editing) {
       el.classList.add('editing');
       var x = document.createElement('button'); x.type = 'button'; x.className = 'tdel'; x.innerHTML = '✕';
-      x.addEventListener('click', function (ev) { ev.stopPropagation(); askRemove(it); });
+      x.addEventListener('click', function (ev) { ev.stopPropagation(); isStack ? askRemoveStack(stack) : askRemove(stack[0]); });
       el.appendChild(x);
-      makeDraggable(el, it.id, function (slot) {
-        if (slot === slotOf(it)) return;
-        if (rdb) rdb.collection('roomItems').doc(it.id).update({ slot: slot }).catch(function () {});
+      makeDraggable(el, function (cx, cy) {
+        var target = dropCell(cx, cy);
+        if (target === slot) { renderBoard(); return; }
+        batchSetSlot(stack.map(function (i) { return i.id; }), target);   // move, or stack/merge if target is taken
       });
     } else {
-      el.addEventListener('click', function () { it.type === 'photo' ? openPhoto(it) : openNote(it, num[it.id]); });
+      el.addEventListener('click', function () {
+        if (isStack) openStack(stack);
+        else if (stack[0].type === 'photo') openPhoto(stack[0]);
+        else openNote(stack[0], num[stack[0].id]);
+      });
     }
     b.appendChild(el);
   });
@@ -188,17 +224,19 @@ function renderBoard() {
   if (empty) empty.style.display = (items.length || pending) ? 'none' : '';
 }
 
-/* ── dragging (shared by placement + edit-move) ── */
-function highlightGhost(px, py, excludeId) {
-  var slot = nearestEmpty(px, py, excludeId);
+/* ── dragging (placement + edit-move); drop resolves to the cell under the tile ── */
+function clearHighlights() { document.querySelectorAll('.hot, .stack-target').forEach(function (e) { e.classList.remove('hot', 'stack-target'); }); }
+function highlightDrop(cx, cy, dragEl) {
+  var slot = dropCell(cx, cy);
   document.querySelectorAll('.cellghost').forEach(function (g) { g.classList.toggle('hot', +g.dataset.slot === slot); });
-  return slot;
+  document.querySelectorAll('.tile[data-slot], .stackwrap[data-slot]').forEach(function (t) {
+    t.classList.toggle('stack-target', +t.dataset.slot === slot && t !== dragEl && !t.classList.contains('dragging'));
+  });
 }
-function makeDraggable(el, excludeId, onDrop) {
+function makeDraggable(el, onDrop) {
   var sx, sy, ox, oy, moved, dragging = false;
-  el._excludeId = excludeId;
   el.addEventListener('pointerdown', function (e) {
-    if (e.target.classList && e.target.classList.contains('tdel')) return;
+    if (e.target.closest && e.target.closest('.tdel')) return;
     e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {}
     dragging = true; moved = false; el.classList.add('dragging');
     sx = e.clientX; sy = e.clientY; ox = parseFloat(el.style.left); oy = parseFloat(el.style.top);
@@ -209,21 +247,27 @@ function makeDraggable(el, excludeId, onDrop) {
     if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 4) moved = true;
     el.style.left = nx + 'px'; el.style.top = ny + 'px';
     var cs = cellSize(), g = gap(), sz = cs - g;
-    highlightGhost(nx + sz / 2, ny + sz / 2, excludeId);
+    highlightDrop(nx + sz / 2, ny + sz / 2, el);
   });
-  function end(e) {
+  function end() {
     if (!dragging) return; dragging = false; el.classList.remove('dragging');
+    clearHighlights();
+    if (!moved) { renderBoard(); return; }
     var cs = cellSize(), g = gap(), sz = cs - g;
     var nx = parseFloat(el.style.left), ny = parseFloat(el.style.top);
-    var slot = moved ? nearestEmpty(nx + sz / 2, ny + sz / 2, excludeId) : (excludeId ? slotForId(excludeId) : pending.slot);
-    onDrop(slot);
+    onDrop(nx + sz / 2, ny + sz / 2);
   }
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
 }
-function slotForId(id) { for (var i = 0; i < items.length; i++) if (items[i].id === id) return slotOf(items[i]); return 0; }
+function batchSetSlot(ids, slot) {
+  if (!rdb) return;
+  var batch = rdb.batch();
+  ids.forEach(function (id) { batch.update(rdb.collection('roomItems').doc(id), { slot: slot }); });
+  batch.commit().catch(function (e) { console.warn('move', e); });
+}
 
-/* ── placement: the pending tile with ✓ / ✕ ── */
+/* ── placement: the pending tile with ✓ / ✕ (drop it on a spot, or onto a tile to stack) ── */
 function startPlacing(obj) {
   pending = obj;
   pending.rot = (pending.rot != null) ? pending.rot : rndRot();
@@ -235,21 +279,28 @@ function startPlacing(obj) {
 }
 function renderPending() {
   var b = boardEl();
+  var cells = cellsBySlot();
+  var stacking = !!(cells[pending.slot] && cells[pending.slot].length);
   var el = document.createElement('div');
-  el.className = 'tile pending ' + (pending.type === 'photo' ? 'photo' : 'note');
+  el.className = 'tile pending ' + (pending.type === 'photo' ? 'photo' : 'note') + (stacking ? ' will-stack' : '');
   el.style.setProperty('--r', pending.rot + 'deg');
   if (pending.type !== 'photo') { var color = pending.color || '#fff2a8'; el.style.background = 'linear-gradient(158deg,' + color + ',' + shade(color) + ')'; }
   el.innerHTML = tileInner({ type: pending.type, text: pending.text, img: pending.img, by: pending.by }, '');
   placeEl(el, pending.slot);
-  makeDraggable(el, null, function (slot) { pending.slot = slot; renderBoard(); });
+  makeDraggable(el, function (cx, cy) { pending.slot = dropCell(cx, cy); renderBoard(); });
   b.appendChild(el);
+  if (stacking) { var t = b.querySelector('.tile[data-slot="' + pending.slot + '"], .stackwrap[data-slot="' + pending.slot + '"]'); if (t) t.classList.add('stack-target'); }
 
-  // ✓ / ✕ pinned just under the tile
   var xy = cellXY(pending.slot), g = gap();
+  var hint = document.createElement('div'); hint.className = 'place-hint';
+  hint.style.left = (xy.x + xy.cs / 2) + 'px'; hint.style.top = (xy.y - 12) + 'px';
+  hint.textContent = stacking ? 'drop here to stack ✦' : 'drag me anywhere';
+  b.appendChild(hint);
+
   var conf = document.createElement('div'); conf.className = 'place-confirm';
   conf.style.left = (xy.x + xy.cs / 2) + 'px';
   conf.style.top = (xy.y + xy.cs + 2) + 'px';
-  conf.innerHTML = '<button type="button" class="pc-no" aria-label="discard">✕</button><button type="button" class="pc-yes" aria-label="pin it">✓</button>';
+  conf.innerHTML = '<button type="button" class="pc-no" aria-label="discard">✕</button><button type="button" class="pc-yes" aria-label="' + (stacking ? 'stack it' : 'pin it') + '">✓</button>';
   conf.querySelector('.pc-yes').addEventListener('click', commitPending);
   conf.querySelector('.pc-no').addEventListener('click', cancelPending);
   b.appendChild(conf);
@@ -257,36 +308,89 @@ function renderPending() {
 function commitPending() {
   if (!pending) return;
   if (!rdb) { toast('no connection'); return; }
+  var cells = cellsBySlot(), stacking = !!(cells[pending.slot] && cells[pending.slot].length);
+  var isPhoto = pending.type === 'photo';
   var doc = { type: pending.type, by: pending.by, rot: pending.rot, slot: pending.slot, createdAt: serverTime() };
-  if (pending.type === 'photo') doc.img = pending.img; else { doc.text = pending.text; doc.color = pending.color; }
+  if (isPhoto) doc.img = pending.img; else { doc.text = pending.text; doc.color = pending.color; }
   pending._committing = true;
   rdb.collection('roomItems').add(doc)
-    .then(function () { toast(pending && pending.type === 'photo' ? 'pinned a moment 📷' : 'pinned 🌸'); })
+    .then(function () { toast(stacking ? 'stacked 🌸' : (isPhoto ? 'pinned a moment 📷' : 'pinned 🌸')); })
     .catch(function () { toast('could not pin'); });
   pending = null; renderBoard();
 }
 function cancelPending() { pending = null; renderBoard(); toast('threw it away'); }
 
-/* ── readers (tap to enlarge) ── */
-function openNote(it, no) {
+/* ── readers ── */
+function bigNoteInner(it, no) {
   var color = it.color || '#fff2a8';
   var who = it.by === 'parv' ? 'Pavu' : 'Riti';
-  var body = '<div class="big-note" style="background:linear-gradient(158deg,' + color + ',' + shade(color) + ')">' +
+  return '<div class="big-note" style="background:linear-gradient(158deg,' + color + ',' + shade(color) + ')">' +
     '<div class="bn-kick">reason i love you · #' + (no || '') + '</div>' +
     '<div class="bn-txt">' + esc(it.text) + '</div>' +
     '<div class="bn-sig">yours, ' + who + '</div>' +
     '<div class="bn-date">pinned ' + fmtWhen(it.createdAt) + '</div></div>';
-  overlay(body, 'note-ov');
 }
-function openPhoto(it) {
+function bigPhotoInner(it) {
   var who = it.by === 'parv' ? 'Pavu' : 'Riti';
-  var body = '<div class="big-photo"><img src="' + esc(it.img) + '" alt="a moment of us"/>' +
+  return '<div class="big-photo"><img src="' + esc(it.img) + '" alt="a moment of us"/>' +
     '<div class="bp-cap">pinned ' + fmtWhen(it.createdAt) + ' by ' + who + '</div></div>';
-  overlay(body, 'photo-ov');
 }
+function openNote(it, no) { overlay(bigNoteInner(it, no), 'note-ov'); }
+function openPhoto(it) { overlay(bigPhotoInner(it), 'photo-ov'); }
+
+/* ── the stack viewer: swipe through the pile ── */
+function openStack(stack) {
+  var num = noteNumbers();
+  stack = stack.slice().reverse();   // newest (the face of the pile) first
+  var cards = stack.map(function (it) {
+    var inner = it.type === 'photo' ? bigPhotoInner(it) : bigNoteInner(it, num[it.id]);
+    var acts = '<div class="sv-acts">' +
+      '<button type="button" class="sv-act sv-unstack" data-id="' + it.id + '">↗ take out of stack</button>' +
+      (it.by === me() ? '<button type="button" class="sv-act sv-del" data-id="' + it.id + '">take it down</button>' : '') +
+      '</div>';
+    return '<div class="sv-card">' + inner + acts + '</div>';
+  }).join('');
+  var dots = stack.map(function (_, i) { return '<span class="sv-dot' + (i === 0 ? ' on' : '') + '"></span>'; }).join('');
+  var body = '<div class="stack-view">' +
+    '<div class="sv-head">a little stack · <span id="svPos">1</span> / ' + stack.length + '</div>' +
+    '<div class="sv-track" id="svTrack">' + cards + '</div>' +
+    '<div class="sv-dots">' + dots + '</div></div>';
+  var ov = overlay(body, 'stack-ov');
+  var track = ov.querySelector('#svTrack'), dotsEl = ov.querySelectorAll('.sv-dot'), posEl = ov.querySelector('#svPos');
+  function upd() {
+    var i = track.clientWidth ? Math.round(track.scrollLeft / track.clientWidth) : 0;
+    i = Math.max(0, Math.min(stack.length - 1, i));
+    posEl.textContent = i + 1;
+    dotsEl.forEach(function (d, j) { d.classList.toggle('on', j === i); });
+  }
+  track.addEventListener('scroll', function () { requestAnimationFrame(upd); }, { passive: true });
+  ov.querySelectorAll('.sv-unstack').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var slot = firstEmpty();
+      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).update({ slot: slot }).then(function () { toast('pulled it out'); }).catch(function () {});
+      ov._close();
+    });
+  });
+  ov.querySelectorAll('.sv-del').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!window.confirm('Take this down for good?')) return;
+      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).delete().catch(function () {});
+      ov._close();
+    });
+  });
+}
+
+/* ── removals ── */
 function askRemove(it) {
   if (!window.confirm(it.type === 'photo' ? 'Take this photo down?' : 'Take this note down?')) return;
   if (rdb) rdb.collection('roomItems').doc(it.id).delete().catch(function () {});
+}
+function askRemoveStack(stack) {
+  if (!window.confirm('Take down all ' + stack.length + ' in this stack?')) return;
+  if (!rdb) return;
+  var batch = rdb.batch();
+  stack.forEach(function (it) { batch.delete(rdb.collection('roomItems').doc(it.id)); });
+  batch.commit().catch(function () {});
 }
 
 /* ── compose a reason ── */
@@ -331,7 +435,15 @@ function toggleEdit() {
   var btn = document.getElementById('editBoard');
   if (btn) { btn.classList.toggle('on', editing); btn.textContent = editing ? '✓ done' : '✎ edit'; }
   renderBoard();
-  if (editing) toast('drag to move · ✕ to take down');
+  if (editing) toast('drag to move · drop onto another to stack · ✕ to take down');
+}
+
+/* ── grow the board on demand ── */
+function addMoreRoom() {
+  bonusRows += 2;
+  renderBoard();
+  toast('more room to love ✦');
+  var b = boardEl(); if (b && b.scrollIntoView) b.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
 /* ── ambient (fairy lights only) ── */
@@ -349,6 +461,7 @@ function startBoard() {
   var ar = document.getElementById('addReason'); if (ar) ar.addEventListener('click', pinReasonUI);
   var ap = document.getElementById('addPhoto'); if (ap) ap.addEventListener('click', pinPhotoUI);
   var ed = document.getElementById('editBoard'); if (ed) ed.addEventListener('click', toggleEdit);
+  var mr = document.getElementById('moreRoom'); if (mr) mr.addEventListener('click', addMoreRoom);
   var pi = document.getElementById('photoInput'); if (pi) pi.addEventListener('change', function () { if (this.files && this.files[0]) handlePhoto(this.files[0]); this.value = ''; });
   window.addEventListener('resize', function () { clearTimeout(_rezT); _rezT = setTimeout(renderBoard, 160); });
   startItems();

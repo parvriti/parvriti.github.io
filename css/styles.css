@@ -1147,6 +1147,44 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 @keyframes wob { from { transform: rotate(calc(var(--r,0deg) - 1.6deg)); } to { transform: rotate(calc(var(--r,0deg) + 1.6deg)); } }
 .tile.editing.dragging { animation: none; transform: rotate(0deg) scale(1.08); }
 .tdel { position: absolute; right: -8px; top: -8px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; background: #d63a3a; color: #fff; font-size: 11px; line-height: 1; cursor: pointer; z-index: 10; box-shadow: 0 3px 7px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 0; -webkit-appearance: none; }
+.place-hint { position: absolute; transform: translate(-50%,-100%); z-index: 30; white-space: nowrap; font-family: 'DM Sans', sans-serif; font-size: 10.5px; letter-spacing: .04em; color: #ffe4d6; background: rgba(20,8,12,.9); border: 1px solid rgba(255,180,150,.28); padding: 5px 11px; border-radius: 30px; pointer-events: none; }
+
+/* a stack = several things dropped on one square */
+.stack-target { outline: 3px solid rgba(255,214,150,.95); outline-offset: 3px; border-radius: 5px; }
+.tile.pending.will-stack { box-shadow: 0 16px 32px rgba(0,0,0,.5), 0 0 0 3px rgba(255,214,150,.9); }
+.stackwrap { position: absolute; box-sizing: border-box; border: none; padding: 0; margin: 0; background: transparent; cursor: pointer; -webkit-appearance: none;
+  transform: rotate(var(--r,0deg)); transition: transform .16s; z-index: 2; }
+.stackwrap:not(.dragging):not(.editing):hover { transform: rotate(0deg) scale(1.06); z-index: 6; }
+.stackwrap.dragging { z-index: 24; transform: rotate(0deg) scale(1.08); cursor: grabbing; }
+.stackwrap .peek { position: absolute; inset: 0; border-radius: 3px; background: linear-gradient(160deg,#fdfaf2,#efe7d5); box-shadow: 0 6px 12px rgba(0,0,0,.32); pointer-events: none; }
+.stackwrap .peek.p1 { transform: rotate(5deg) translate(3px,2px); z-index: 1; }
+.stackwrap .peek.p2 { transform: rotate(-6deg) translate(-3px,3px); z-index: 0; }
+.stackwrap .cover { position: absolute; inset: 0; transform: none; pointer-events: none; z-index: 2; animation: none; }
+.stackwrap .scount { position: absolute; top: -9px; right: -9px; z-index: 6; min-width: 21px; height: 21px; padding: 0 5px; border-radius: 20px;
+  background: linear-gradient(135deg,#ff7d9c,#c0425a); color: #fff; border: 2px solid #fff2e8; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 7px rgba(0,0,0,.4); }
+.stackwrap.editing { animation: wob .42s ease-in-out infinite alternate; }
+.stackwrap.editing.dragging { animation: none; transform: rotate(0deg) scale(1.08); }
+
+/* ＋ more room */
+.more-room { position: relative; z-index: 2; display: block; width: 100%; margin: 14px auto 2px; max-width: 220px;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; letter-spacing: .04em; color: #5a3a1e;
+  background: rgba(255,250,235,.28); border: 1.5px dashed rgba(74,44,20,.4); border-radius: 40px; padding: 11px 16px; cursor: pointer; -webkit-appearance: none; transition: .16s; }
+.more-room:hover { background: rgba(255,250,235,.5); }
+
+/* the stack viewer (swipe through the pile) */
+.stack-ov .room-ov-in { max-width: 340px; }
+.stack-view { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.sv-head { font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: rgba(245,220,200,.6); margin-bottom: 12px; }
+.sv-track { display: flex; width: 100%; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.sv-track::-webkit-scrollbar { display: none; }
+.sv-card { flex: 0 0 100%; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; padding: 2px 2px 0; }
+.sv-acts { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+.sv-act { font-family: 'DM Sans', sans-serif; font-size: 12px; border-radius: 40px; padding: 8px 14px; cursor: pointer; -webkit-appearance: none; border: 1px solid rgba(255,200,150,.28); background: rgba(255,255,255,.06); color: rgba(245,220,200,.75); }
+.sv-act.sv-del { color: rgba(255,180,190,.8); border-color: rgba(192,66,90,.35); background: rgba(192,66,90,.14); }
+.sv-dots { display: flex; gap: 7px; justify-content: center; margin-top: 16px; }
+.sv-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,220,200,.3); transition: .2s; }
+.sv-dot.on { background: #ff8aa0; transform: scale(1.3); }
 
 .room-foot { text-align: center; font-family: 'Caveat', cursive; font-size: 15px; color: rgba(245,220,200,.4); margin-top: 30px; }
 body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px rgba(0,0,0,.6); }
