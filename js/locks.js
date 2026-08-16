@@ -340,7 +340,7 @@ function checkSign() {
     err.textContent = '';
     sfx('chime');
     try { sessionStorage.setItem('riti_open', '1'); } catch (e) {}
-    bloom(function () { location.href = 'letter.html'; });
+    bloom(function () { location.href = 'open-when.html'; });
   } else {
     err.textContent = v.length === 0 ? 'Please sign your name ✦' : 'That doesn\'t look right, try again 🌸';
     const inp = document.getElementById('signInput');
@@ -348,6 +348,16 @@ function checkSign() {
     setTimeout(function () { inp.style.borderColor = ''; }, 900);
   }
 }
-document.getElementById('signInput').addEventListener('keydown', function (e) {
+var _signInput = document.getElementById('signInput');
+if (_signInput) _signInput.addEventListener('keydown', function (e) {
   if (e.key === 'Enter') { e.preventDefault(); checkSign(); }
 });
+
+/* The locks + vows are paused for now (kept in the HTML, commented out) and
+   the letter has been retired. While the ritual is off, "Open it ✦" hands
+   straight into the app. When the ritual comes back, point the intro button
+   at goTo('s-lock1') again. */
+function enterApp() {
+  try { sessionStorage.setItem('riti_open', '1'); } catch (e) {}
+  bloom(function () { location.href = 'open-when.html'; });
+}

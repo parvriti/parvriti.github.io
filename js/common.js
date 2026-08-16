@@ -97,14 +97,6 @@
       });
     }
     renderDayCounter();
-    /* dev skip (home) — TEMPORARY, remove before this is the finished gift */
-    if (page === 'home' && !document.querySelector('.dev-skip')) {
-      var skip = document.createElement('button');
-      skip.type = 'button'; skip.className = 'dev-skip'; skip.textContent = 'skip ›››';
-      skip.title = 'dev — skip locks straight to the letter';
-      skip.addEventListener('click', function () { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} location.href = 'letter.html'; });
-      document.body.appendChild(skip);
-    }
   }
 
   /* ── the sign-in gate ── */
@@ -320,7 +312,9 @@
       if (!snap.exists) return;
       pulseHeart(snap.data());
     }, function () {});
-    if (inner) buildPingButton();
+    // heartbeat button everywhere (incl. home, after sign-in) except the
+    // wedding invite, which stays full-screen.
+    if (page !== 'wedding') buildPingButton();
   }
 
   function renderPresence(data, other) {
