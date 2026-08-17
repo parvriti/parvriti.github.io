@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="For Toti 🌸">
+<meta name="theme-color" content="#0a0406">
+<title>Periods 🌸</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;700&family=Great+Vibes&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+<script>try{if(localStorage.getItem('parvritiTheme')==='light'){document.documentElement.dataset.theme='light';var _m=document.querySelector('meta[name="theme-color"]');if(_m)_m.content='#f7ece4';}}catch(e){}</script>
+<link rel="stylesheet" href="css/styles.css?v=32">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+</head>
+<body data-page="periods">
+
+<div class="cy-wash" id="cyWashA"></div>
+<div class="cy-wash" id="cyWashB"></div>
+
+<div class="page">
+  <nav class="tabbar" id="nav"></nav>
+
+  <main class="col page-fade">
+    <div class="cy-app">
+
+      <div class="cy-rise" data-r="0">
+        <div class="cy-hrow">
+          <div>
+            <div class="cy-date" id="cyDate"></div>
+            <div class="cy-sub" id="cySub"></div>
+          </div>
+          <div class="cy-hbtns">
+            <button class="cy-iconbtn" id="cyCalBtn" type="button" aria-label="Phase calendar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="3"/>
+                <path d="M8 3v4M16 3v4M3 10h18"/>
+              </svg>
+            </button>
+            <button class="cy-iconbtn" id="cyHistBtn" type="button" aria-label="Her logged history">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5" cy="7" r="1.4" fill="currentColor" stroke="none"/>
+                <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+                <circle cx="5" cy="17" r="1.4" fill="currentColor" stroke="none"/>
+                <path d="M10 7h10M10 12h10M10 17h6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="cy-week" id="cyWeek"></div>
+      </div>
+
+      <div class="cy-rise" data-r="1">
+        <div class="cy-ringwrap">
+          <svg viewBox="0 0 300 300" aria-hidden="true">
+            <defs>
+              <linearGradient id="cyGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%"   id="cyGA" stop-color="#ffa2ab"/>
+                <stop offset="100%" id="cyGB" stop-color="#f4525f"/>
+              </linearGradient>
+            </defs>
+            <g class="cy-rot">
+              <circle class="cy-ring cy-track" cx="150" cy="150" r="122" pathLength="100"/>
+              <circle class="cy-ring cy-prog" id="cyProg" cx="150" cy="150" r="122"
+                      pathLength="100" style="stroke-dasharray:0 100"/>
+            </g>
+            <g class="cy-knob" id="cyKnob"><circle cx="150" cy="28" r="11"/></g>
+          </svg>
+          <div class="cy-disc">
+            <div class="cy-phic" id="cyPhIcon"></div>
+            <div class="cy-cap">current phase</div>
+            <div class="cy-phname" id="cyPhName"></div>
+            <div class="cy-cap" id="cyDayCap">cycle day</div>
+            <div class="cy-dnum" id="cyDayNum">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cy-card cy-next cy-rise" data-r="2">
+        <div>
+          <div class="cy-lbl">next period</div>
+          <div class="cy-rng" id="cyRange"></div>
+          <div class="cy-away" id="cyAway"></div>
+        </div>
+        <div class="cy-pill"><b id="cyIn">-</b><span id="cyInLbl">days</span></div>
+      </div>
+
+      <div class="cy-metrics cy-rise" data-r="3" id="cyMetrics"></div>
+
+      <p class="cy-hint cy-rise" data-r="4" id="cyHint"></p>
+      <p class="cy-foot cy-rise" data-r="5">
+        How cycles usually go, not how she is. Ask her.
+        If her pattern changes, heavier or more painful than usual, or her days stop being her days,
+        that is worth a doctor. Nothing here is medical advice.
+      </p>
+    </div>
+  </main>
+</div>
+
+<!-- the log button. Sits exactly where the heartbeat heart sits on every other
+     tab, so moving between tabs reads as the same button changing its mind. -->
+<button class="love-fab cy-fab" id="cyFab" type="button" aria-label="Log that her period started">
+  <svg class="cy-fabring" viewBox="0 0 100 100" aria-hidden="true">
+    <circle class="cy-frtrack" cx="50" cy="50" r="47" pathLength="100"/>
+    <circle class="cy-frprog" id="cyFrProg" cx="50" cy="50" r="47" pathLength="100"
+            style="stroke-dasharray:0 100"/>
+  </svg>
+  <span class="cy-rip" id="cyRip"></span>
+  <span class="cy-drop" aria-hidden="true"><svg viewBox="0 0 24 28">
+    <path d="M12 1 C17.5 10 20 14.4 20 18.6 a8 8 0 0 1-16 0 C4 14.4 6.5 10 12 1Z" fill="#fff"/>
+  </svg></span>
+</button>
+
+<!-- pick a start date -->
+<div class="cy-sheet" id="cyPick">
+  <div class="cy-sheet-in">
+    <div class="cy-slbl">which day did it start?</div>
+    <div class="cy-calhead">
+      <div class="cy-calmo" id="cyPickMo"></div>
+      <div class="cy-calnav">
+        <button type="button" id="cyPickPrev" aria-label="Previous month">‹</button>
+        <button type="button" id="cyPickNext" aria-label="Next month">›</button>
+      </div>
+    </div>
+    <div class="cy-dow" id="cyPickDow"></div>
+    <div class="cy-pickgrid" id="cyPickGrid"></div>
+    <div class="cy-picked" id="cyPicked"></div>
+    <div class="cy-leg2">dotted days are already logged. future days are off.</div>
+    <div class="cy-row2">
+      <button type="button" class="cy-act" id="cyPickSave" disabled>Save</button>
+      <button type="button" class="cy-ghost" id="cyPickCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- phase calendar -->
+<div class="cy-sheet" id="cyCal">
+  <div class="cy-sheet-in cy-wide">
+    <div class="cy-calhead">
+      <div class="cy-calmo" id="cyCalMo"></div>
+      <div class="cy-calnav">
+        <button type="button" id="cyCalPrev" aria-label="Previous month">‹</button>
+        <button type="button" id="cyCalNow" aria-label="This month">•</button>
+        <button type="button" id="cyCalNext" aria-label="Next month">›</button>
+      </div>
+    </div>
+    <div class="cy-dow" id="cyCalDow"></div>
+    <div class="cy-calgrid" id="cyCalGrid"></div>
+    <div class="cy-caldet" id="cyCalDet"></div>
+    <div class="cy-callegend" id="cyCalLegend"></div>
+    <div class="cy-calnote" id="cyCalNote"></div>
+    <div class="cy-row2"><button type="button" class="cy-ghost" id="cyCalClose">Close</button></div>
+  </div>
+</div>
+
+<!-- edit one logged period -->
+<div class="cy-sheet" id="cyEdit">
+  <div class="cy-sheet-in">
+    <div class="cy-eddate" id="cyEdDate"></div>
+    <div class="cy-edmeta" id="cyEdMeta"></div>
+    <div class="cy-edsec">
+      <div class="cy-edlab">started</div>
+      <div class="cy-edline">
+        <span class="v" id="cyEdStart"></span>
+        <button type="button" id="cyEdChange">change</button>
+      </div>
+    </div>
+    <div class="cy-edsec">
+      <div class="cy-edlab">lasted how many days</div>
+      <div class="cy-seg" id="cyEdSeg"></div>
+    </div>
+    <div class="cy-edsec" id="cyEdFlagWrap" style="display:none">
+      <div class="cy-edflag">
+        <p id="cyEdFlagText"></p>
+        <div class="fb">
+          <button type="button" class="solid" id="cyEdInsert"></button>
+          <button type="button" id="cyEdKeep">No, that cycle really was that long</button>
+        </div>
+      </div>
+    </div>
+    <div class="cy-edsec"><button class="cy-eddel" type="button" id="cyEdDel">Remove this period</button></div>
+    <button class="cy-eddone" type="button" id="cyEdDone">Done</button>
+  </div>
+</div>
+
+<!-- history drawer -->
+<div class="cy-scrim" id="cyScrim"></div>
+<aside class="cy-drawer" id="cyDrawer" aria-label="Period history">
+  <div class="cy-drtop">
+    <div class="cy-drttl">
+      <h3>Her history</h3>
+      <div class="cy-dracts">
+        <button class="cy-drx" id="cyCsv" type="button" aria-label="Export as CSV" title="Export as CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12M7 11l5 5 5-5M4 20h16"/>
+          </svg>
+        </button>
+        <button class="cy-drx" id="cyDrX" type="button" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="cy-drsub" id="cyDrSub"></div>
+    <div class="cy-drstats" id="cyDrStats"></div>
+    <div class="cy-drsearch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 L21 21"/>
+      </svg>
+      <input type="search" id="cyDrQ" placeholder="try sept 2026, or august, or 2025" autocomplete="off">
+    </div>
+    <div class="cy-drcols"><i class="l">started</i><i>ended</i><i>days</i><i>cycle</i></div>
+  </div>
+  <div class="cy-drlist" id="cyDrList"></div>
+</aside>
+
+<div class="cy-toast" id="cyToast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="js/common.js?v=32"></script>
+<script src="js/periods.js?v=32"></script>
+</body>
+</html>

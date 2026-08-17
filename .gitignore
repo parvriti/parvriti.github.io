@@ -22,3 +22,7 @@ room-thumbs/
 
 # archived older implementations — local reference only, never deployed
 old_ideas/
+
+# handoff archives contain personal data (seed-cycle.mjs) — never commit
+parvriti-handoff*
+*.tar.gz

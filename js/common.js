@@ -89,6 +89,13 @@
       // Wedding tab paused for now — re-add this entry to bring it back:
       // , { href: 'wedding.html', label: 'Wedding', page: 'wedding' }
     ];
+    /* Periods is Parv's own tab, so it only appears for him. periods.js checks
+       this a second time and bounces her if she ever lands on the URL. Note it
+       is a curtain, not a wall: the static file is public and the Firestore
+       rules let any of the three accounts read. That is fine, it is her data,
+       but do not mistake it for a lock. */
+    var me = (window.__parvritiUser && window.__parvritiUser.person) || null;
+    if (me === 'parv') NAV.push({ href: 'periods.html', label: 'Periods', page: 'periods' });
     var navEl = document.getElementById('nav');
     if (navEl && !navEl.children.length) {
       NAV.forEach(function (item) {
@@ -98,6 +105,28 @@
       });
     }
     renderDayCounter();
+    if (page === 'home') buildThemeToggle();
+  }
+
+  /* ── light / dark toggle (home only; the choice applies app-wide) ── */
+  function buildThemeToggle() {
+    if (document.getElementById('themeToggle')) return;
+    var b = document.createElement('button');
+    b.id = 'themeToggle'; b.className = 'theme-toggle'; b.type = 'button';
+    b.setAttribute('aria-label', 'Switch between light and dark');
+    b.innerHTML = '<span class="tt-track"><span class="tt-sun">☀</span><span class="tt-moon">☾</span><span class="tt-thumb"></span></span>';
+    function paint() { b.classList.toggle('light', document.documentElement.getAttribute('data-theme') === 'light'); }
+    paint();
+    b.addEventListener('click', function () {
+      var toLight = document.documentElement.getAttribute('data-theme') !== 'light';
+      if (toLight) document.documentElement.setAttribute('data-theme', 'light');
+      else document.documentElement.removeAttribute('data-theme');
+      try { localStorage.setItem('parvritiTheme', toLight ? 'light' : 'dark'); } catch (e) {}
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m) m.content = toLight ? '#f7ece4' : '#0a0406';
+      paint();
+    });
+    body.appendChild(b);
   }
 
   /* ── the sign-in gate ── */
@@ -314,8 +343,10 @@
       pulseHeart(snap.data());
     }, function () {});
     // heartbeat button everywhere (incl. home, after sign-in) except the
-    // wedding invite, which stays full-screen.
-    if (page !== 'wedding') buildPingButton();
+    // wedding invite, which stays full-screen, and Periods, where the log
+    // drop takes the same slot on purpose so switching tabs reads as one
+    // button changing its mind rather than two buttons fighting.
+    if (page !== 'wedding' && page !== 'periods') buildPingButton();
   }
 
   function renderPresence(data, other) {
