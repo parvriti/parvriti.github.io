@@ -26,3 +26,6 @@ old_ideas/
 # handoff archives contain personal data (seed-cycle.mjs) — never commit
 parvriti-handoff*
 *.tar.gz
+
+# never commit PDFs (personal exports, health data, etc.)
+*.pdf
