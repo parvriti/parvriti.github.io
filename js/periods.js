@@ -142,17 +142,19 @@
     none: 'Nothing logged yet. Tap the drop when her period begins.'
   };
 
-  /* ── colour per phase: [accent, soft, deep, wash top, wash bottom] ─── */
+  /* ── colour per phase: [accent, softTint, deep, washTop, washBottom].
+        LIGHT theme: softTint is the pale fill (ring track, "days away" pill,
+        logged days), deep is the dark text that sits ON that pale fill. ─── */
   var LOOK = {
-    menstrual: ['#f4525f', '#5a1c26', '#ffb3ba', 'rgba(244,82,95,.30)', 'rgba(244,82,95,.10)'],
-    follicular: ['#ef6f9b', '#54202f', '#ffc2d6', 'rgba(239,111,155,.26)', 'rgba(239,111,155,.09)'],
-    fertile: ['#ef9a3a', '#4e3416', '#ffd79b', 'rgba(239,154,58,.26)', 'rgba(239,154,58,.09)'],
-    luteal: ['#b07de0', '#33224a', '#dcc4f5', 'rgba(176,125,224,.24)', 'rgba(176,125,224,.08)'],
-    pms: ['#8b7ff0', '#241f4d', '#c9c2fb', 'rgba(139,127,240,.24)', 'rgba(139,127,240,.08)'],
-    due: ['#f43c62', '#521321', '#ffb0c0', 'rgba(244,60,98,.32)', 'rgba(244,60,98,.11)'],
-    late: ['#a294d8', '#2c2745', '#d6cfef', 'rgba(162,148,216,.20)', 'rgba(162,148,216,.07)'],
-    overdue: ['#a9a2b8', '#2b2833', '#ddd8e6', 'rgba(169,162,184,.18)', 'rgba(169,162,184,.06)'],
-    none: ['#8d8593', '#26232a', '#cfc9d4', 'rgba(141,133,147,.12)', 'rgba(141,133,147,.05)']
+    menstrual: ['#f4525f', '#ffe0e3', '#b82d39', 'rgba(244,82,95,.16)', 'rgba(244,82,95,.05)'],
+    follicular: ['#ef6f9b', '#ffe2ec', '#b23a68', 'rgba(239,111,155,.15)', 'rgba(239,111,155,.05)'],
+    fertile: ['#ef9a3a', '#ffeeda', '#a55f0c', 'rgba(239,154,58,.16)', 'rgba(239,154,58,.05)'],
+    luteal: ['#9d63d4', '#f0e4fb', '#6a2fa0', 'rgba(157,99,212,.15)', 'rgba(157,99,212,.05)'],
+    pms: ['#7268e8', '#e6e4fd', '#4038a8', 'rgba(114,104,232,.15)', 'rgba(114,104,232,.05)'],
+    due: ['#f43c62', '#ffdde3', '#b3163a', 'rgba(244,60,98,.18)', 'rgba(244,60,98,.06)'],
+    late: ['#8f86c4', '#eceaf7', '#5d548f', 'rgba(143,134,196,.14)', 'rgba(143,134,196,.05)'],
+    overdue: ['#98a0b5', '#eceef3', '#5c6478', 'rgba(152,160,181,.14)', 'rgba(152,160,181,.05)'],
+    none: ['#b0b6c6', '#f1f3f7', '#6f7686', 'rgba(176,182,198,.1)', 'rgba(176,182,198,.04)']
   };
 
   /* ── one animated icon per phase ─────────────────────────────────────── */

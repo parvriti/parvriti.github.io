@@ -105,28 +105,6 @@
       });
     }
     renderDayCounter();
-    if (page === 'home') buildThemeToggle();
-  }
-
-  /* ── light / dark toggle (home only; the choice applies app-wide) ── */
-  function buildThemeToggle() {
-    if (document.getElementById('themeToggle')) return;
-    var b = document.createElement('button');
-    b.id = 'themeToggle'; b.className = 'theme-toggle'; b.type = 'button';
-    b.setAttribute('aria-label', 'Switch between light and dark');
-    b.innerHTML = '<span class="tt-track"><span class="tt-sun">☀</span><span class="tt-moon">☾</span><span class="tt-thumb"></span></span>';
-    function paint() { b.classList.toggle('light', document.documentElement.getAttribute('data-theme') === 'light'); }
-    paint();
-    b.addEventListener('click', function () {
-      var toLight = document.documentElement.getAttribute('data-theme') !== 'light';
-      if (toLight) document.documentElement.setAttribute('data-theme', 'light');
-      else document.documentElement.removeAttribute('data-theme');
-      try { localStorage.setItem('parvritiTheme', toLight ? 'light' : 'dark'); } catch (e) {}
-      var m = document.querySelector('meta[name="theme-color"]');
-      if (m) m.content = toLight ? '#f7ece4' : '#0a0406';
-      paint();
-    });
-    body.appendChild(b);
   }
 
   /* ── the sign-in gate ── */
