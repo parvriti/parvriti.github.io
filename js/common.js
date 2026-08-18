@@ -369,7 +369,7 @@
     var msg;
     if (data.activity === 'reading') msg = '💌 ' + name + ' is reading ' + (data.activityLabel ? '“' + escHtml(data.activityLabel) + '”' : 'your notes');
     else if (data.activity === 'drawing') msg = '✏️ ' + name + ' is doodling…';
-    else msg = name + ' is here right now 🌸';
+    else msg = '💌 ' + name + ' is here right now';
     pill.innerHTML = '<span class="pres-dot"></span>' + msg;
   }
   function buildPresencePill() {
@@ -395,16 +395,16 @@
     var ms = data.atMs || 0;
     var online = !data.gone && !data.hidden && ms && (Date.now() - ms < 70000);
     if (online) {
-      var now;
-      if (data.typing) now = name + ' is writing you something… ✍️';
-      else if (data.activity === 'reading') now = name + ' is reading ' + (data.activityLabel ? '“' + escHtml(data.activityLabel) + '” 💌' : 'your notes 💌');
-      else if (data.activity === 'drawing') now = name + ' is doodling… ✏️';
-      else now = name + ' is here right now';
-      el.style.display = ''; el.innerHTML = '<span class="ls-flower">🌸</span>' + now;
+      var icon = '💌', txt;   // 💌 is the base (reading + just-here); drawing/writing swap it. Never a flower here.
+      if (data.typing) { icon = '✍️'; txt = name + ' is writing you something…'; }
+      else if (data.activity === 'reading') txt = name + ' is reading ' + (data.activityLabel ? '“' + escHtml(data.activityLabel) + '”' : 'your notes');
+      else if (data.activity === 'drawing') { icon = '✏️'; txt = name + ' is doodling…'; }
+      else txt = name + ' is here right now';
+      el.style.display = ''; el.innerHTML = '<span class="ls-flower">' + icon + '</span>' + txt;
       return;
     }
     if (!ms) { el.style.display = 'none'; return; }
-    var line = '<span class="ls-flower">🌸</span>' + name + ' was here ' + timeAgoShort(ms);
+    var line = '<span class="ls-flower">💌</span>' + name + ' was here ' + timeAgoShort(ms);
     if (data.lastOpenedTitle) line += ' <span class="ls-note">· last opened “' + escHtml(data.lastOpenedTitle) + '”</span>';
     el.style.display = ''; el.innerHTML = line;
   }
