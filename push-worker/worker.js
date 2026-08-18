@@ -143,7 +143,7 @@ async function getHomeCfg(accessToken) {
     if ('hsEnabled' in f) d.enabled = fval(f.hsEnabled) !== false;
     if ('hsRule' in f) d.rule = fval(f.hsRule) || d.rule;
     if ('hsOnePerDay' in f) d.onePerDay = fval(f.hsOnePerDay) !== false;
-    if ('hsAfterHour' in f) d.afterHour = fval(f.hsAfterHour) || d.afterHour;
+    if ('hsAfterHour' in f) { const v = fval(f.hsAfterHour); if (typeof v === 'number' && v >= 0 && v <= 23) d.afterHour = v; }
     if ('hsTogetherHrs' in f) d.togetherHrs = fval(f.hsTogetherHrs) || d.togetherHrs;
     const map = { hsHomeRitiNoida: 'riti-noida', hsHomeRitiGurugram: 'riti-gurugram', hsHomeParvRohtak: 'parv-rohtak', hsHomeParvGurugram: 'parv-gurugram' };
     for (const k in map) if (k in f) d.homes[map[k]] = fval(f[k]) !== false;
@@ -216,7 +216,9 @@ async function handleHomeArrival(request, env) {
   if (cfg.rule === 'apart' && home === SHARED_HOME) {
     const partner = await getArrival(recipient, accessToken);
     const freshMs = (cfg.togetherHrs || 6) * 3600 * 1000;
-    if (partner.home === SHARED_HOME && partner.at && (now - partner.at) < freshMs) {
+    // partner is at the shared home only if they arrived MORE recently than they
+    // left (leftAt from the Leave automations), and recently enough to trust.
+    if (partner.home === SHARED_HOME && partner.at > (partner.leftAt || 0) && (now - partner.at) < freshMs) {
       console.log('home: together at ' + SHARED_HOME + ' (partner arrived ' + Math.round((now - partner.at) / 3600000) + 'h ago), silent');
       return json({ ok: true, muted: 'together' });
     }
@@ -249,9 +251,10 @@ async function getArrival(person, accessToken) {
     return {
       at: f.at && f.at.integerValue ? parseInt(f.at.integerValue, 10) : 0,
       home: f.home && f.home.stringValue ? f.home.stringValue : '',
-      sentDay: f.sentDay && f.sentDay.stringValue ? f.sentDay.stringValue : ''
+      sentDay: f.sentDay && f.sentDay.stringValue ? f.sentDay.stringValue : '',
+      leftAt: f.leftAt && f.leftAt.integerValue ? parseInt(f.leftAt.integerValue, 10) : 0
     };
-  } catch (e) { return { at: 0, home: '', sentDay: '' }; }
+  } catch (e) { return { at: 0, home: '', sentDay: '', leftAt: 0 }; }
 }
 async function setArrival(person, obj, accessToken) {
   try {
