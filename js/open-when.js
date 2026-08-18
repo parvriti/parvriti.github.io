@@ -196,7 +196,7 @@ function maybeNotifyOpen(e, env) {
   if (e.readAt || openNotified[e.id]) return;
   openNotified[e.id] = true;
   if (db) db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: 'riti' }).catch(function (err) { console.warn(err); });
-  if (window.parvritiNotify) window.parvritiNotify('parv', 'Riti opened your letter - ' + env.title + ' 💌', '', 'https://parvriti.github.io/open-when.html');
+  if (window.parvritiNotify) window.parvritiNotify('parv', 'Riti opened your letter - ' + env.title + ' 💌', '', 'https://parvriti.github.io/open-when.html', 'openwhen');
 }
 
 /* "on this day, a year ago…" - surfaces past notes sharing today's month + day */
