@@ -104,6 +104,18 @@
         a.href = item.href; a.textContent = item.label; navEl.appendChild(a);
       });
     }
+    /* the admin gear, home screen only, Parv only. A curtain like the Periods
+       tab: settings.js re-checks and bounces anyone who is not Parv. */
+    if (me === 'parv' && page === 'home' && !document.getElementById('homeGear')) {
+      var gear = document.createElement('a');
+      gear.id = 'homeGear'; gear.className = 'home-gear'; gear.href = 'settings.html';
+      gear.setAttribute('aria-label', 'Settings');
+      gear.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+      // the inner pages are gated behind "entered through the front door"; the
+      // gear is a legit door too, so mark it before we leave.
+      gear.addEventListener('click', function () { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} });
+      body.appendChild(gear);
+    }
     renderDayCounter();
   }
 

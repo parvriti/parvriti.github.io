@@ -202,6 +202,19 @@
     if (!u || u.person !== 'parv') { location.replace('index.html'); return; }
     try { db = firebase.firestore(); } catch (e) { fail('Firestore did not load.'); return; }
 
+    /* pull the admin-tunable cycle numbers (Settings page) before the first
+       render, falling back to the built-in defaults. Bounds-checked so a bad
+       hand-edit can't poison the predictions. */
+    db.collection('settings').doc('app').get().then(function (s) {
+      if (s.exists) {
+        var v = s.data() || {};
+        if (typeof v.cyLen === 'number' && v.cyLen >= 18 && v.cyLen <= 45) EXPECT = Math.round(v.cyLen);
+        if (typeof v.cyFlagAt === 'number' && v.cyFlagAt >= 35 && v.cyFlagAt <= 90) FLAG_AT = Math.round(v.cyFlagAt);
+        if (typeof v.cyDefaultLen === 'number' && v.cyDefaultLen >= 1 && v.cyDefaultLen <= 12) DEFAULT_LEN = Math.round(v.cyDefaultLen);
+      }
+    }).catch(function () {}).then(watchCycle);
+  }
+  function watchCycle() {
     db.collection('cycle').orderBy('start').onSnapshot(function (snap) {
       LOGS = [];
       snap.forEach(function (doc) {

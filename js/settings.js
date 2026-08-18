@@ -1,0 +1,177 @@
+/* =====================================================================
+   settings.js — the admin control panel (Parv only).
+
+   Reads and writes a single flat doc, settings/app. The push-worker reads
+   the hs* keys live to decide "got home safe" behaviour; periods.js reads
+   the cy* keys. Everything here is a curtain, not a wall: the page is only
+   reachable via the gear on the home screen (which common.js shows to Parv
+   only) and this file bounces anyone who is not Parv, but the real trust
+   boundary is the Firestore rules + the Worker's service account.
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  var VERSION = 'v38';
+  var DEFAULTS = {
+    hsEnabled: true, hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
+    hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
+    cyLen: 31, cyFlagAt: 50, cyDefaultLen: 4
+  };
+  var SWITCHES = {
+    stEnabled: 'hsEnabled', stOnePerDay: 'hsOnePerDay',
+    stHomeRitiNoida: 'hsHomeRitiNoida', stHomeRitiGurugram: 'hsHomeRitiGurugram',
+    stHomeParvRohtak: 'hsHomeParvRohtak', stHomeParvGurugram: 'hsHomeParvGurugram'
+  };
+  var STEPPERS = { stTogether: 'hsTogetherHrs', stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen' };
+
+  var db = null, DOC = null, cfg = {}, saveTimer = null;
+
+  function $(id) { return document.getElementById(id); }
+
+  function boot() {
+    if (boot._on) return; boot._on = true;
+    var u = window.__parvritiUser;
+    if (!u || u.person !== 'parv') { location.replace('index.html'); return; }   // Parv only
+    var em = $('stEmail'); if (em) em.textContent = u.email || '';
+    var ve = $('stVer'); if (ve) ve.textContent = VERSION;
+    try { db = firebase.firestore(); } catch (e) { toast('Firestore did not load'); return; }
+    DOC = db.collection('settings').doc('app');
+    DOC.get().then(function (s) {
+      cfg = merge(DEFAULTS, s.exists ? s.data() : {});
+      bind();
+    }).catch(function () { cfg = merge(DEFAULTS, {}); bind(); });
+  }
+
+  function merge(base, over) {
+    var out = {}; for (var k in base) out[k] = (over && k in over) ? over[k] : base[k]; return out;
+  }
+
+  /* ── persist (debounced, and batched so a flurry of taps is one write) ── */
+  function save(patch) {
+    for (var k in patch) cfg[k] = patch[k];
+    save._pending = Object.assign(save._pending || {}, patch);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      if (!DOC) return;
+      var p = save._pending; save._pending = null;
+      DOC.set(p, { merge: true }).then(function () { toast('saved'); }).catch(function () { toast('could not save'); });
+    }, 260);
+  }
+
+  /* ── render current values into the controls ── */
+  function bind() {
+    var id;
+    for (id in SWITCHES) setSwitch($(id), cfg[SWITCHES[id]] !== false);
+    for (id in STEPPERS) drawStep($(id), cfg[STEPPERS[id]]);
+    setSeg(cfg.hsRule);
+    conditional();
+    wire();
+  }
+
+  function setSwitch(el, on) { if (el) el.setAttribute('aria-checked', on ? 'true' : 'false'); }
+  function isOn(el) { return el.getAttribute('aria-checked') === 'true'; }
+
+  function setSeg(val) {
+    var seg = $('stRule'); if (!seg) return;
+    var b = seg.getElementsByTagName('button');
+    for (var i = 0; i < b.length; i++) b[i].classList.toggle('on', b[i].getAttribute('data-v') === val);
+  }
+
+  function fmt(unit, v) {
+    if (unit === 'hour') {
+      var h = ((v % 12) === 0) ? 12 : (v % 12), ap = v < 12 ? 'AM' : 'PM';
+      if (v === 0) return '12 AM'; if (v === 12) return '12 noon';
+      return h + ' ' + ap;
+    }
+    if (unit === 'hrs') return v + 'h';
+    return v + ' ' + unit;   // "31 days"
+  }
+  function drawStep(el, v) {
+    if (!el) return;
+    var min = +el.getAttribute('data-min'), max = +el.getAttribute('data-max');
+    v = Math.max(min, Math.min(max, v | 0));
+    el.querySelector('.ss-val').textContent = fmt(el.getAttribute('data-unit'), v);
+    el.dataset.val = v;
+  }
+
+  /* ── conditional rows: together-window only for "apart", cutoff only for "evening" ── */
+  function conditional() {
+    var r = cfg.hsRule;
+    $('rowTogether').classList.toggle('hide', r !== 'apart');
+    $('rowAfter').classList.toggle('hide', r !== 'evening');
+  }
+
+  /* ── attach listeners once ── */
+  function wire() {
+    if (wire._on) return; wire._on = true;
+
+    Object.keys(SWITCHES).forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.addEventListener('click', function () {
+        var on = !isOn(el); setSwitch(el, on); tick(); save(kv(SWITCHES[id], on));
+        if (id === 'stEnabled') conditional();
+      });
+    });
+
+    var seg = $('stRule');
+    seg.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-v]'); if (!b) return;
+      var v = b.getAttribute('data-v'); setSeg(v); tick(); save({ hsRule: v }); cfg.hsRule = v; conditional();
+    });
+
+    Object.keys(STEPPERS).forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.addEventListener('click', function (e) {
+        var up = e.target.closest('.ss-up'), dn = e.target.closest('.ss-dn');
+        if (!up && !dn) return;
+        var step = +el.getAttribute('data-step') || 1;
+        var v = (+el.dataset.val || 0) + (up ? step : -step);
+        drawStep(el, v); tick(); save(kv(STEPPERS[id], +el.dataset.val));
+      });
+    });
+
+    $('stTestRiti').addEventListener('click', function () { testPing('riti'); });
+    $('stTestMe').addEventListener('click', function () { testPing('parv'); });
+    $('stRefresh').addEventListener('click', forceRefresh);
+    $('stSignout').addEventListener('click', signOut);
+  }
+
+  function kv(k, v) { var o = {}; o[k] = v; return o; }
+  function tick() { if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} } }
+
+  function testPing(to) {
+    if (!window.parvritiNotify) { toast('push not ready'); return; }
+    var who = to === 'riti' ? 'Riti' : 'you';
+    window.parvritiNotify(to, 'Test ping 🌸', 'from Settings — everything works', 'https://parvriti.github.io/index.html');
+    toast('sent a test to ' + who);
+  }
+
+  function forceRefresh() {
+    toast('refreshing…');
+    var done = function () { location.reload(); };
+    try {
+      var jobs = [];
+      if ('serviceWorker' in navigator) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+      if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+      Promise.all(jobs).then(done, done);
+      setTimeout(done, 1500);
+    } catch (e) { done(); }
+  }
+
+  function signOut() {
+    try {
+      sessionStorage.removeItem('riti_open');
+      firebase.auth().signOut().then(function () { location.replace('index.html'); }).catch(function () { location.replace('index.html'); });
+    } catch (e) { location.replace('index.html'); }
+  }
+
+  var toastT = null;
+  function toast(m) {
+    var t = $('setToast'); if (!t) return;
+    t.textContent = m; t.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 1600);
+  }
+
+  if (window.__parvritiAuthed) boot();
+  else window.addEventListener('parvriti-authed', boot);
+})();

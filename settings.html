@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="For Toti 🌸">
+<meta name="theme-color" content="#0a0406">
+<title>Settings 🌸</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=38">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+</head>
+<body data-page="settings">
+
+<div class="page">
+  <header class="set-top">
+    <a class="set-back" href="index.html" aria-label="Back home">‹</a>
+    <div class="set-h1">Settings</div>
+  </header>
+
+  <main class="col set-main">
+
+    <!-- ══ A · Got home safe ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">🏡</span> Got home safe</div>
+
+      <div class="set-row">
+        <div class="set-lbl"><b>Home-safe pings</b><i>the master switch</i></div>
+        <button class="set-sw" id="stEnabled" role="switch" aria-checked="true"><span class="set-sw-dot"></span></button>
+      </div>
+
+      <div class="set-row col">
+        <div class="set-lbl"><b>When to ping</b><i>how an arrival decides to notify</i></div>
+        <div class="set-seg" id="stRule" role="tablist">
+          <button type="button" data-v="apart">Apart</button>
+          <button type="button" data-v="always">Always</button>
+          <button type="button" data-v="evening">Evening</button>
+          <button type="button" data-v="off">Off</button>
+        </div>
+      </div>
+
+      <div class="set-row set-when" id="rowTogether">
+        <div class="set-lbl"><b>Together window</b><i>silent if both hit Gurugram within</i></div>
+        <div class="set-step" id="stTogether" data-min="1" data-max="24" data-step="1" data-unit="hrs">
+          <button type="button" class="ss-dn" aria-label="less">–</button><span class="ss-val"></span><button type="button" class="ss-up" aria-label="more">+</button>
+        </div>
+      </div>
+
+      <div class="set-row set-when" id="rowAfter">
+        <div class="set-lbl"><b>Only after</b><i>evening cutoff</i></div>
+        <div class="set-step" id="stAfterHour" data-min="0" data-max="23" data-step="1" data-unit="hour">
+          <button type="button" class="ss-dn" aria-label="earlier">–</button><span class="ss-val"></span><button type="button" class="ss-up" aria-label="later">+</button>
+        </div>
+      </div>
+
+      <div class="set-row">
+        <div class="set-lbl"><b>One ping per day</b><i>only the first arrival counts</i></div>
+        <button class="set-sw" id="stOnePerDay" role="switch" aria-checked="true"><span class="set-sw-dot"></span></button>
+      </div>
+
+      <div class="set-sub">Which homes may ping</div>
+      <div class="set-row"><div class="set-lbl"><b>Riti · Noida</b></div><button class="set-sw" id="stHomeRitiNoida" role="switch" aria-checked="true"><span class="set-sw-dot"></span></button></div>
+      <div class="set-row"><div class="set-lbl"><b>Riti · Gurugram</b></div><button class="set-sw" id="stHomeRitiGurugram" role="switch" aria-checked="true"><span class="set-sw-dot"></span></button></div>
+      <div class="set-row"><div class="set-lbl"><b>Parv · Rohtak</b></div><button class="set-sw" id="stHomeParvRohtak" role="switch" aria-checked="true"><span class="set-sw-dot"></span></button></div>
+      <div class="set-row"><div class="set-lbl"><b>Parv · Gurugram</b></div><button class="set-sw" id="stHomeParvGurugram" role="switch" aria-checked="true"><span class="set-sw-dot"></span></button></div>
+
+      <div class="set-actions">
+        <button type="button" class="set-btn" id="stTestRiti">Test → Riti</button>
+        <button type="button" class="set-btn" id="stTestMe">Test → me</button>
+      </div>
+    </section>
+
+    <!-- ══ B · Cycle ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">🌸</span> Cycle</div>
+
+      <div class="set-row">
+        <div class="set-lbl"><b>Typical cycle length</b><i>drives every prediction</i></div>
+        <div class="set-step" id="stCyLen" data-min="18" data-max="45" data-step="1" data-unit="days">
+          <button type="button" class="ss-dn" aria-label="less">–</button><span class="ss-val"></span><button type="button" class="ss-up" aria-label="more">+</button>
+        </div>
+      </div>
+
+      <div class="set-row">
+        <div class="set-lbl"><b>Flag a gap after</b><i>a longer gap reads as a missed period</i></div>
+        <div class="set-step" id="stCyFlag" data-min="35" data-max="90" data-step="1" data-unit="days">
+          <button type="button" class="ss-dn" aria-label="less">–</button><span class="ss-val"></span><button type="button" class="ss-up" aria-label="more">+</button>
+        </div>
+      </div>
+
+      <div class="set-row">
+        <div class="set-lbl"><b>Default period length</b><i>pre-filled when logging</i></div>
+        <div class="set-step" id="stCyDef" data-min="1" data-max="12" data-step="1" data-unit="days">
+          <button type="button" class="ss-dn" aria-label="less">–</button><span class="ss-val"></span><button type="button" class="ss-up" aria-label="more">+</button>
+        </div>
+      </div>
+
+      <div class="set-note">A heads-up reminder before her period is coming in the next update.</div>
+    </section>
+
+    <!-- ══ C · Account ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">✦</span> Account</div>
+      <div class="set-row"><div class="set-lbl"><b>Signed in</b><i id="stEmail">…</i></div></div>
+      <div class="set-row"><div class="set-lbl"><b>App version</b><i id="stVer">…</i></div><button type="button" class="set-btn sm" id="stRefresh">Refresh</button></div>
+      <div class="set-actions"><button type="button" class="set-btn danger" id="stSignout">Sign out</button></div>
+    </section>
+
+    <div class="set-foot">made with love, just for us 🌸</div>
+  </main>
+</div>
+
+<div class="room-toast" id="setToast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="js/common.js?v=38"></script>
+<script src="js/settings.js?v=38"></script>
+</body>
+</html>
