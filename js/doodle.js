@@ -1,9 +1,9 @@
 /* =====================================================================
-   doodle.js — "Doodles" (doodles.html)
+   doodle.js - "Doodles" (doodles.html)
 
    A shared sketch pad. Whatever one of you draws appears on the other's
    screen, live. A clear button wipes it for both. NO notification is ever
-   sent — it's just for fun.
+   sent - it's just for fun.
    ===================================================================== */
 
 var firebaseConfig = {

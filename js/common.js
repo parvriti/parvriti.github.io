@@ -1,5 +1,5 @@
 /* =====================================================================
-   common.js — shared chrome loaded by every page
+   common.js - shared chrome loaded by every page
 
      · Google sign-in GATE: nobody sees anything until they sign in with
        one of the three allowed accounts. Persists per device (forever
@@ -86,7 +86,7 @@
       { href: 'open-when.html', label: 'Open When…', page: 'open-when' },
       { href: 'board.html', label: 'Our Board', page: 'board' },
       { href: 'doodles.html', label: 'Doodles', page: 'doodles' }
-      // Wedding tab paused for now — re-add this entry to bring it back:
+      // Wedding tab paused for now - re-add this entry to bring it back:
       // , { href: 'wedding.html', label: 'Wedding', page: 'wedding' }
     ];
     /* Periods is Parv's own tab, so it only appears for him. periods.js checks

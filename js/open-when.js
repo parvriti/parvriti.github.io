@@ -183,7 +183,7 @@ function timeAgo(ms) {
 }
 /* Read receipt is one-directional by request: only Riti opening a letter Parv
    wrote FOR her notifies him ("Riti opened your letter…"). Parv reading Riti's
-   notes tells her nothing — she wants it that way. */
+   notes tells her nothing - she wants it that way. */
 function receiptFor(e) {
   if (e.seed || !e.id || !e.readAt) return '';
   const when = e.readAt.seconds ? ' · ' + timeAgo(e.readAt.seconds * 1000) : '';
@@ -199,7 +199,7 @@ function maybeNotifyOpen(e, env) {
   if (window.parvritiNotify) window.parvritiNotify('parv', 'Riti opened your letter - ' + env.title + ' 💌', '', 'https://parvriti.github.io/open-when.html');
 }
 
-/* "on this day, a year ago…" — surfaces past notes sharing today's month + day */
+/* "on this day, a year ago…" - surfaces past notes sharing today's month + day */
 function renderOnThisDay() {
   const host = document.getElementById('owOnThisDay'); if (!host) return;
   const t = todayStr().split('-'), md = t[1] + '-' + t[2], y = parseInt(t[0], 10);

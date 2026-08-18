@@ -1,5 +1,5 @@
 /* =====================================================================
-   sw.js — service worker for the "For Toti" app
+   sw.js - service worker for the "For Toti" app
 
    Strategy: network-first for our own files (so a fresh deploy always
    wins and the ?v= cache-busting keeps working), with the cached copy
@@ -7,12 +7,12 @@
    Cross-origin things (fonts, Firebase SDK) are cache-first so they're
    there offline once they've loaded at least once.
    ===================================================================== */
-var CACHE = 'parvriti-v34';
+var CACHE = 'parvriti-v35';
 var CORE = [
   'index.html', 'open-when.html', 'board.html', 'doodles.html', 'periods.html',
-  'css/styles.css?v=34',
-  'js/common.js?v=34', 'js/open-when.js?v=34', 'js/board.js?v=34', 'js/doodle.js?v=34',
-  'js/periods.js?v=34',
+  'css/styles.css?v=35',
+  'js/common.js?v=35', 'js/open-when.js?v=35', 'js/board.js?v=35', 'js/doodle.js?v=35',
+  'js/periods.js?v=35',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.json'
 ];
 
@@ -39,7 +39,7 @@ self.addEventListener('fetch', function (e) {
   var url = new URL(req.url);
   var host = url.host;
 
-  // Never touch Firebase auth / Firestore traffic — it must always be live and uncached.
+  // Never touch Firebase auth / Firestore traffic - it must always be live and uncached.
   var isFirebaseApi = (/googleapis\.com$/.test(host) && host.indexOf('fonts.') !== 0) ||
     /firebaseio\.com$/.test(host) || host === 'accounts.google.com' ||
     host === 'apis.google.com' || host === 'www.google.com';

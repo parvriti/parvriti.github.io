@@ -1,5 +1,5 @@
 /* =====================================================================
-   board.js — "Our Board" (board.html)
+   board.js - "Our Board" (board.html)
 
    A cork wall the two of you fill together with reason-notes and photos.
    You DRAG each thing onto the grid and tap ✓ to pin it exactly where you
@@ -81,7 +81,7 @@ function cellSize() { var w = (boardEl() && boardEl().clientWidth) || 300; retur
 function gap() { return Math.max(6, Math.round(cellSize() * 0.1)); }
 function slotOf(it) { return (typeof it.slot === 'number') ? it.slot : 0; }
 
-/* group every item by its slot — a slot with more than one item is a STACK */
+/* group every item by its slot - a slot with more than one item is a STACK */
 function cellsBySlot() {
   var m = {};
   items.forEach(function (it) { var s = slotOf(it); (m[s] = m[s] || []).push(it); });
