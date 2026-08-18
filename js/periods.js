@@ -470,8 +470,11 @@
       rip.classList.remove('go'); void rip.offsetWidth; rip.classList.add('go');
       var t = today();
       for (var i = 0; i < LOGS.length; i++) if (iso(LOGS[i].start) === iso(t)) { toast('today is already logged'); return; }
-      saveLog(t, DEFAULT_LEN, false).then(function () { toast('logged, day 1 🌸'); })
-        .catch(function () { toast('could not save'); });
+      saveLog(t, DEFAULT_LEN, false).then(function () {
+        toastUndo('Period logged 🌸', function () {
+          deleteLog(iso(t)).then(function () { toast('undone'); }).catch(function () { toast('could not undo'); });
+        });
+      }).catch(function () { toast('could not save'); });
     });
     fab.addEventListener('pointerleave', function () { if (!held) { clearBtn(); resetRing(); } });
     fab.addEventListener('pointercancel', function () { clearBtn(); resetRing(); });
@@ -704,13 +707,10 @@
         + '<div class="cy ' + cls + '">' + (p.running ? ('d' + p.cyc) : (p.cyc + 'd')) + '</div></div>';
       n++;
     });
-    var lens = {}; P.forEach(function (p) { lens[p.days] = (lens[p.days] || 0) + 1; });
-    var lenTxt = Object.keys(lens).sort().map(function (k) { return lens[k] + ' ran ' + k + ' days'; }).join(', ');
     html += '<div class="cy-drfoot"><b>Press and hold any row to edit it</b>, to fix the start date, '
       + 'change how many days it lasted, or tell it a long gap was real.<br><br>'
       + 'Cycle is the gap to the next start, so the newest row counts from today. '
-      + 'Anything ' + FLAG_AT + ' days or more is flagged as a possible missed period, since her '
-      + 'longest confirmed cycle is ' + LONGEST_EVER + '. Period length: ' + lenTxt + '.</div>';
+      + 'Anything ' + FLAG_AT + ' days or more is flagged as a possible missed period.</div>';
     el.innerHTML = html;
   }
   (function () {
@@ -808,7 +808,7 @@
       var snap = { start: L.start, len: L.len, longOk: L.longOk };   // keep it to restore on Undo
       deleteLog(id).then(function () {
         closeEdit();
-        toastUndo('period removed', function () {
+        toastUndo('Period removed', function () {
           saveLog(snap.start, snap.len, snap.longOk).then(function () { toast('brought it back'); }).catch(function () { toast('could not undo'); });
         });
       }).catch(function () { toast('could not remove'); });
