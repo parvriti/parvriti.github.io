@@ -71,6 +71,12 @@ async function handlePush(request, env) {
   const accessToken = await getAccessToken(sa);
   if (!accessToken) return json({ error: 'auth failed' }, 500);
 
+  // 2b) respect the recipient's per-type toggle + the master mute (Settings matrix)
+  const type = body && body.type;
+  const gate = await getNotif(accessToken);
+  if (gate.muteAll) { console.log('push: muted-all'); return json({ ok: true, muted: 'all' }); }
+  if (type && gate.n['n_' + type + '_' + to] === false) { console.log('push: ' + type + '->' + to + ' opted out'); return json({ ok: true, muted: type }); }
+
   // 3) recipient device tokens
   const devices = await getTokens(to, accessToken);
   if (!devices.length) return json({ ok: true, sent: 0 });
@@ -134,7 +140,8 @@ function fval(v) {
 async function getHomeCfg(accessToken) {
   const d = {
     enabled: true, rule: 'apart', onePerDay: true, afterHour: 18, togetherHrs: 6,
-    homes: { 'riti-noida': true, 'riti-gurugram': true, 'parv-rohtak': true, 'parv-gurugram': true }
+    homes: { 'riti-noida': true, 'riti-gurugram': true, 'parv-rohtak': true, 'parv-gurugram': true },
+    muteAll: false, nHome: { riti: true, parv: true }
   };
   try {
     const r = await fetch(DOCS + '/settings/app', { headers: { Authorization: 'Bearer ' + accessToken } });
@@ -147,6 +154,23 @@ async function getHomeCfg(accessToken) {
     if ('hsTogetherHrs' in f) d.togetherHrs = fval(f.hsTogetherHrs) || d.togetherHrs;
     const map = { hsHomeRitiNoida: 'riti-noida', hsHomeRitiGurugram: 'riti-gurugram', hsHomeParvRohtak: 'parv-rohtak', hsHomeParvGurugram: 'parv-gurugram' };
     for (const k in map) if (k in f) d.homes[map[k]] = fval(f[k]) !== false;
+    d.muteAll = fval(f.muteAll) === true;
+    if ('n_home_riti' in f) d.nHome.riti = fval(f.n_home_riti) !== false;
+    if ('n_home_parv' in f) d.nHome.parv = fval(f.n_home_parv) !== false;
+  } catch (e) {}
+  return d;
+}
+
+/* the site's per-type notification gate (Settings matrix). n_<type>_<recipient>
+   booleans + a master muteAll. Absent key = allowed (on by default). */
+async function getNotif(accessToken) {
+  const d = { muteAll: false, n: {} };
+  try {
+    const r = await fetch(DOCS + '/settings/app', { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) return d;
+    const f = (await r.json()).fields || {};
+    d.muteAll = fval(f.muteAll) === true;
+    for (const k in f) if (k.indexOf('n_') === 0) d.n[k] = fval(f[k]);
   } catch (e) {}
   return d;
 }
@@ -206,6 +230,9 @@ async function handleHomeArrival(request, env) {
   await setArrival(sender, home ? { at: now, home: home } : { at: now }, accessToken);
   await setHomeState(sender, true, now, accessToken);   // for the optional home/away line
 
+  // Settings matrix: master mute + this recipient's "got home safe" toggle
+  if (cfg.muteAll) { console.log('home: muted-all'); return json({ ok: true, muted: 'all' }); }
+  if (!cfg.nHome[recipient]) { console.log('home: ' + recipient + ' opted out'); return json({ ok: true, muted: 'recipient' }); }
   if (!cfg.enabled || cfg.rule === 'off') { console.log('home: off'); return json({ ok: true, muted: 'off' }); }
   if (home && cfg.homes[sender + '-' + home] === false) { console.log('home: ' + sender + '-' + home + ' muted'); return json({ ok: true, muted: 'home' }); }
 

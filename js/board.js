@@ -310,11 +310,15 @@ function commitPending() {
   if (!rdb) { toast('no connection'); return; }
   var cells = cellsBySlot(), stacking = !!(cells[pending.slot] && cells[pending.slot].length);
   var isPhoto = pending.type === 'photo';
+  var by = pending.by, other = by === 'parv' ? 'riti' : 'parv';   // the pin's author -> notify the other
   var doc = { type: pending.type, by: pending.by, rot: pending.rot, slot: pending.slot, createdAt: serverTime() };
   if (isPhoto) doc.img = pending.img; else { doc.text = pending.text; doc.color = pending.color; }
   pending._committing = true;
   rdb.collection('roomItems').add(doc)
-    .then(function () { toast(stacking ? 'stacked 🌸' : (isPhoto ? 'pinned a moment 📷' : 'pinned 🌸')); })
+    .then(function () {
+      toast(stacking ? 'stacked 🌸' : (isPhoto ? 'pinned a moment 📷' : 'pinned 🌸'));
+      if (window.parvritiNotify) window.parvritiNotify(other, (by === 'parv' ? 'Parv' : 'Riti') + (isPhoto ? ' pinned a photo 📌' : ' pinned a reason 📌'), '', 'https://parvriti.github.io/board.html', 'board');
+    })
     .catch(function () { toast('could not pin'); });
   pending = null; renderBoard();
 }

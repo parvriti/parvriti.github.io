@@ -82,40 +82,66 @@
         'width:85px;height:60px;background:#8b2040;bottom:15%;left:7%;opacity:.04;animation-duration:28s;animation-delay:-14s;'
       ].forEach(function (s) { var p = document.createElement('div'); p.className = 'bgp'; p.setAttribute('style', s); body.insertBefore(p, base.nextSibling); });
     }
-    var NAV = [
-      { href: 'open-when.html', label: 'Open When…', page: 'open-when' },
-      { href: 'board.html', label: 'Our Board', page: 'board' },
-      { href: 'doodles.html', label: 'Doodles', page: 'doodles' }
-      // Wedding tab paused for now - re-add this entry to bring it back:
-      // , { href: 'wedding.html', label: 'Wedding', page: 'wedding' }
-    ];
-    /* Periods is Parv's own tab, so it only appears for him. periods.js checks
-       this a second time and bounces her if she ever lands on the URL. Note it
-       is a curtain, not a wall: the static file is public and the Firestore
-       rules let any of the three accounts read. That is fine, it is her data,
-       but do not mistake it for a lock. */
     var me = (window.__parvritiUser && window.__parvritiUser.person) || null;
-    if (me === 'parv') NAV.push({ href: 'periods.html', label: 'Periods', page: 'periods' });
-    var navEl = document.getElementById('nav');
-    if (navEl && !navEl.children.length) {
-      NAV.forEach(function (item) {
-        var a = document.createElement('a');
-        a.className = 'tab' + (item.page === page ? ' active' : '');
-        a.href = item.href; a.textContent = item.label; navEl.appendChild(a);
-      });
+
+    /* Which tabs/pages each person sees (Settings → Visibility matrix). A
+       curtain, not a wall: the static files + most Firestore rules stay
+       readable, and each page's own JS re-checks. Defaults preserve today's
+       reality — Periods + Settings are Parv-only, Wedding is paused — and Parv
+       can never lock himself out of Settings. */
+    var VIS_DEFAULT = {
+      home: { riti: true, parv: true }, openwhen: { riti: true, parv: true },
+      board: { riti: true, parv: true }, doodles: { riti: true, parv: true },
+      wedding: { riti: false, parv: false }, periods: { riti: false, parv: true },
+      settings: { riti: false, parv: true }
+    };
+    function canSee(key, who, d) {
+      if (key === 'settings' && who === 'parv') return true;   // never lock Parv out of his own panel
+      var v = d && d['v_' + key + '_' + who];
+      if (typeof v === 'boolean') return v;
+      return !!(VIS_DEFAULT[key] && VIS_DEFAULT[key][who]);
     }
-    /* the admin gear, home screen only, Parv only. A curtain like the Periods
-       tab: settings.js re-checks and bounces anyone who is not Parv. */
-    if (me === 'parv' && page === 'home' && !document.getElementById('homeGear')) {
-      var gear = document.createElement('a');
-      gear.id = 'homeGear'; gear.className = 'home-gear'; gear.href = 'settings.html';
-      gear.setAttribute('aria-label', 'Settings');
-      gear.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
-      // the inner pages are gated behind "entered through the front door"; the
-      // gear is a legit door too, so mark it before we leave.
-      gear.addEventListener('click', function () { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} });
-      body.appendChild(gear);
+    var PAGES = [
+      { href: 'open-when.html', label: 'Open When…', page: 'open-when', vis: 'openwhen' },
+      { href: 'board.html', label: 'Our Board', page: 'board', vis: 'board' },
+      { href: 'doodles.html', label: 'Doodles', page: 'doodles', vis: 'doodles' },
+      { href: 'wedding.html', label: 'Wedding', page: 'wedding', vis: 'wedding' },
+      { href: 'periods.html', label: 'Periods', page: 'periods', vis: 'periods' }
+    ];
+    var GEAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+    var navSig = null;
+    function buildNavAndGear(d) {
+      if (!me) return;
+      var vis = PAGES.filter(function (p) { return canSee(p.vis, me, d); });
+      var wantGear = page === 'home' && canSee('settings', me, d);
+      var sig = vis.map(function (p) { return p.page; }).join(',') + (wantGear ? '|g' : '');
+      if (sig === navSig) return;   // nothing changed → no rebuild, no flash
+      navSig = sig;
+      var navEl = document.getElementById('nav');
+      if (navEl) {
+        navEl.innerHTML = '';
+        vis.forEach(function (item) {
+          var a = document.createElement('a');
+          a.className = 'tab' + (item.page === page ? ' active' : '');
+          a.href = item.href; a.textContent = item.label; navEl.appendChild(a);
+        });
+      }
+      var gear = document.getElementById('homeGear');
+      if (wantGear && !gear) {
+        gear = document.createElement('a');
+        gear.id = 'homeGear'; gear.className = 'home-gear'; gear.href = 'settings.html';
+        gear.setAttribute('aria-label', 'Settings');
+        gear.innerHTML = GEAR_SVG;
+        gear.addEventListener('click', function () { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} });
+        body.appendChild(gear);
+      } else if (!wantGear && gear && gear.parentNode) { gear.parentNode.removeChild(gear); }
     }
+    buildNavAndGear({});   // instant, from defaults (today's reality)
+    try {
+      var vdb = (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore() : null;
+      if (vdb) vdb.collection('settings').doc('app').get()
+        .then(function (s) { buildNavAndGear(s.exists ? (s.data() || {}) : {}); }).catch(function () {});
+    } catch (e) {}
     renderDayCounter();
   }
 
@@ -255,7 +281,7 @@
     setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 400);
   }
   /* open-when.js calls this when a note is saved; heartbeat calls it too */
-  window.parvritiNotify = function (to, title, text, url) {
+  window.parvritiNotify = function (to, title, text, url, type) {
     try {
       if (PUSH_ENDPOINT.indexOf('REPLACE') === 0) return;
       if (typeof firebase === 'undefined' || !firebase.auth) return;
@@ -265,7 +291,7 @@
         fetch(PUSH_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
-          body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html' })
+          body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html', type: type || '' })
         }).catch(function () {});
       }).catch(function () {});
     } catch (e) {}
@@ -326,7 +352,8 @@
     setInterval(function () { renderPresence(lastOther, other); renderLastSeen(lastOther, other); }, 15000);
 
     /* home page only: the optional "♡ Riti is home / away" line (line 3). Dormant
-       until turned on in Settings (homeStateOn) AND the Leave automations exist. */
+       shown per-person via the Notifications matrix (n_away) once the Leave
+       automations exist. */
     if (page === 'home') setupHomeState(other);
 
     /* heartbeat ping */
@@ -336,7 +363,7 @@
       toast('sent 💗');
       if (navigator.vibrate) navigator.vibrate(24);
       // also push, so it reaches them even if the app is closed
-      if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/open-when.html');
+      if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/open-when.html', 'heart');
     };
 
     var pingFirst = true;
@@ -411,15 +438,17 @@
   /* ── optional "home / away" ambient line (home page, line 3). Symmetric: each
      person sees the other's. Physical home state comes only from the geofence
      Shortcuts via the Worker (homeState/<person> = {atHome, since}); the app
-     never sees location. Shown only when Settings → homeStateOn is true. ── */
+     never sees location. Shown only when this viewer's n_away toggle is on
+     (Notifications matrix; default on). ── */
   var homeStateOff = null;   // cached last snapshot so the 15s tick can re-heal
   function setupHomeState(other) {
     var el = document.querySelector('[data-homestate]');
     if (!el || !cdb) return;
     el.style.display = 'none';
+    var me = (window.__parvritiUser && window.__parvritiUser.person) || null;
     cdb.collection('settings').doc('app').get().then(function (s) {
-      var on = s.exists && s.data() && s.data().homeStateOn === true;
-      if (!on) return;   // dormant by default
+      var d = s.exists ? (s.data() || {}) : {};
+      if (d['n_away_' + me] === false) return;   // this viewer turned their home/away line off (default on)
       cdb.collection('homeState').doc(other).onSnapshot(function (snap) {
         homeStateOff = snap.exists ? snap.data() : null;
         renderHomeState(el, homeStateOff, other);

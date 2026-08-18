@@ -531,9 +531,9 @@ function saveForm(ev) {
     const who = meP === 'parv' ? 'Parv' : 'Riti';
     const url = 'https://parvriti.github.io/open-when.html';
     if (openDate) {
-      window.parvritiNotify(currentSide, who + ' left you a time capsule ⏳', 'Sealed until ' + fmtDate(openDate) + '. Good things take time.', url);
+      window.parvritiNotify(currentSide, who + ' left you a time capsule ⏳', 'Sealed until ' + fmtDate(openDate) + '. Good things take time.', url, 'openwhen');
     } else {
-      window.parvritiNotify(currentSide, who + ' left you a note 💌', noteTitle || '', url);
+      window.parvritiNotify(currentSide, who + ' left you a note 💌', noteTitle || '', url, 'openwhen');
     }
   };
 

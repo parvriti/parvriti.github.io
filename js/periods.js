@@ -196,23 +196,26 @@
   function boot() {
     if (boot._on) return; boot._on = true;
     var u = window.__parvritiUser;
-    /* Parv only. common.js hides the tab, this is the second lock: a direct
-       URL must not open for her. Note this is a curtain, not a wall: the
-       static file is public and the rules let all three accounts read. */
-    if (!u || u.person !== 'parv') { location.replace('index.html'); return; }
+    if (!u) { location.replace('index.html'); return; }
     try { db = firebase.firestore(); } catch (e) { fail('Firestore did not load.'); return; }
 
-    /* pull the admin-tunable cycle numbers (Settings page) before the first
-       render, falling back to the built-in defaults. Bounds-checked so a bad
-       hand-edit can't poison the predictions. */
+    /* Visibility curtain (Settings → Visibility). Default: Parv sees it, Riti
+       does not. A URL must not open for anyone the matrix hides. Not a wall:
+       the file is public and the rules let all three read; the per-page JS is
+       the second lock. Also pulls the admin-tunable cycle numbers (bounds-
+       checked) before the first render, else the built-in defaults. */
     db.collection('settings').doc('app').get().then(function (s) {
-      if (s.exists) {
-        var v = s.data() || {};
-        if (typeof v.cyLen === 'number' && v.cyLen >= 18 && v.cyLen <= 45) EXPECT = Math.round(v.cyLen);
-        if (typeof v.cyFlagAt === 'number' && v.cyFlagAt >= 35 && v.cyFlagAt <= 90) FLAG_AT = Math.round(v.cyFlagAt);
-        if (typeof v.cyDefaultLen === 'number' && v.cyDefaultLen >= 1 && v.cyDefaultLen <= 12) DEFAULT_LEN = Math.round(v.cyDefaultLen);
-      }
-    }).catch(function () {}).then(watchCycle);
+      var v = s.exists ? (s.data() || {}) : {};
+      var canSee = u.person === 'parv' ? (v.v_periods_parv !== false) : (v.v_periods_riti === true);
+      if (!canSee) { location.replace('index.html'); return; }
+      if (typeof v.cyLen === 'number' && v.cyLen >= 18 && v.cyLen <= 45) EXPECT = Math.round(v.cyLen);
+      if (typeof v.cyFlagAt === 'number' && v.cyFlagAt >= 35 && v.cyFlagAt <= 90) FLAG_AT = Math.round(v.cyFlagAt);
+      if (typeof v.cyDefaultLen === 'number' && v.cyDefaultLen >= 1 && v.cyDefaultLen <= 12) DEFAULT_LEN = Math.round(v.cyDefaultLen);
+      watchCycle();
+    }).catch(function () {
+      if (u.person !== 'parv') { location.replace('index.html'); return; }   // safe default on read failure
+      watchCycle();
+    });
   }
   function watchCycle() {
     db.collection('cycle').orderBy('start').onSnapshot(function (snap) {

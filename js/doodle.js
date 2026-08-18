@@ -90,6 +90,14 @@ function dEnd() {
   curPts = null;
   // let the "drawing" presence linger briefly so pauses between strokes don't flicker
   if (window.parvritiActivity) { clearTimeout(dEnd._t); dEnd._t = setTimeout(function () { window.parvritiActivity(null); }, 6000); }
+  // one "left you a doodle" ping per session: fire ~40s after the LAST stroke
+  if (window.parvritiNotify) {
+    clearTimeout(dEnd._nt);
+    dEnd._nt = setTimeout(function () {
+      var meP = me(), other = meP === 'parv' ? 'riti' : 'parv';
+      window.parvritiNotify(other, (meP === 'parv' ? 'Parv' : 'Riti') + ' left you a doodle ✏️', '', 'https://parvriti.github.io/doodles.html', 'doodle');
+    }, 40000);
+  }
 }
 function clearDoodle() {
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }

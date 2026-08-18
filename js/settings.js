@@ -11,18 +11,26 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v42';
+  var VERSION = 'v43';
   var DEFAULTS = {
-    hsEnabled: true, hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
+    hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
-    homeStateOn: false,
+    // notifications matrix (n_<type>_<recipient>) + master mute
+    n_openwhen_riti: true, n_openwhen_parv: true, n_board_riti: true, n_board_parv: true,
+    n_doodle_riti: true, n_doodle_parv: true, n_heart_riti: true, n_heart_parv: true,
+    n_home_riti: true, n_home_parv: true, n_away_riti: true, n_away_parv: true,
+    muteAll: false,
+    // visibility matrix (v_<page>_<user>) — defaults mirror today's reality
+    v_home_riti: true, v_home_parv: true, v_openwhen_riti: true, v_openwhen_parv: true,
+    v_board_riti: true, v_board_parv: true, v_doodles_riti: true, v_doodles_parv: true,
+    v_wedding_riti: false, v_wedding_parv: false, v_periods_riti: false, v_periods_parv: true,
+    v_settings_riti: false, v_settings_parv: true,
     cyLen: 31, cyFlagAt: 50, cyDefaultLen: 4
   };
   var SWITCHES = {
-    stEnabled: 'hsEnabled', stOnePerDay: 'hsOnePerDay',
+    stOnePerDay: 'hsOnePerDay',
     stHomeRitiNoida: 'hsHomeRitiNoida', stHomeRitiGurugram: 'hsHomeRitiGurugram',
-    stHomeParvRohtak: 'hsHomeParvRohtak', stHomeParvGurugram: 'hsHomeParvGurugram',
-    stHomeState: 'homeStateOn'
+    stHomeParvRohtak: 'hsHomeParvRohtak', stHomeParvGurugram: 'hsHomeParvGurugram'
   };
   var STEPPERS = { stTogether: 'hsTogetherHrs', stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen' };
 
@@ -33,15 +41,23 @@
   function boot() {
     if (boot._on) return; boot._on = true;
     var u = window.__parvritiUser;
-    if (!u || u.person !== 'parv') { location.replace('index.html'); return; }   // Parv only
-    var em = $('stEmail'); if (em) em.textContent = u.email || '';
-    var ve = $('stVer'); if (ve) ve.textContent = VERSION;
+    if (!u) { location.replace('index.html'); return; }
     try { db = firebase.firestore(); } catch (e) { toast('Firestore did not load'); return; }
     DOC = db.collection('settings').doc('app');
-    DOC.get().then(function (s) {
-      cfg = merge(DEFAULTS, s.exists ? s.data() : {});
+    var start = function () {
+      // Visibility curtain: Parv always; Riti only if the matrix grants it.
+      var canSee = u.person === 'parv' ? true : (cfg.v_settings_riti === true);
+      if (!canSee) { location.replace('index.html'); return; }
+      var em = $('stEmail'); if (em) em.textContent = u.email || '';
+      var ve = $('stVer'); if (ve) ve.textContent = VERSION;
       bind();
-    }).catch(function () { cfg = merge(DEFAULTS, {}); bind(); });
+    };
+    DOC.get().then(function (s) {
+      cfg = merge(DEFAULTS, s.exists ? s.data() : {}); start();
+    }).catch(function () {
+      if (u.person !== 'parv') { location.replace('index.html'); return; }   // safe default on read failure
+      cfg = merge(DEFAULTS, {}); start();
+    });
   }
 
   function merge(base, over) {
@@ -66,8 +82,27 @@
     for (id in SWITCHES) setSwitch($(id), cfg[SWITCHES[id]] !== false);
     for (id in STEPPERS) drawStep($(id), cfg[STEPPERS[id]]);
     setSeg(cfg.hsRule);
+    bindMatrix();
     conditional();
     wire();
+  }
+
+  /* the two matrices (notifications + visibility) — plain aria-checked cells */
+  function bindMatrix() {
+    var cells = document.querySelectorAll('.mx-cell[data-key]');
+    for (var i = 0; i < cells.length; i++) {
+      if (cells[i].classList.contains('locked')) { cells[i].setAttribute('aria-checked', 'true'); continue; }
+      var k = cells[i].getAttribute('data-key');
+      cells[i].setAttribute('aria-checked', cfg[k] === true ? 'true' : 'false');
+    }
+    updateMute();
+  }
+  function updateMute() {
+    var mute = $('stMuteAll'); if (!mute) return;
+    var on = cfg.muteAll === true;
+    mute.setAttribute('aria-checked', on ? 'true' : 'false');
+    var card = document.getElementById('notifCard');
+    if (card) card.classList.toggle('muted', on);
   }
 
   function setSwitch(el, on) { if (el) el.setAttribute('aria-checked', on ? 'true' : 'false'); }
@@ -111,7 +146,6 @@
       var el = $(id); if (!el) return;
       el.addEventListener('click', function () {
         var on = !isOn(el); setSwitch(el, on); tick(); save(kv(SWITCHES[id], on));
-        if (id === 'stEnabled') conditional();
       });
     });
 
@@ -130,6 +164,20 @@
         var v = (+el.dataset.val || 0) + (up ? step : -step);
         drawStep(el, v); tick(); save(kv(STEPPERS[id], +el.dataset.val));
       });
+    });
+
+    document.querySelectorAll('.mx-cell[data-key]').forEach(function (cell) {
+      cell.addEventListener('click', function () {
+        if (cell.classList.contains('locked')) { toast('you can’t hide your own Settings'); return; }
+        var k = cell.getAttribute('data-key');
+        var on = cell.getAttribute('aria-checked') !== 'true';
+        cell.setAttribute('aria-checked', on ? 'true' : 'false');
+        cfg[k] = on; tick(); save(kv(k, on));
+      });
+    });
+    var mute = $('stMuteAll');
+    if (mute) mute.addEventListener('click', function () {
+      cfg.muteAll = !(cfg.muteAll === true); updateMute(); tick(); save(kv('muteAll', cfg.muteAll));
     });
 
     $('stTestRiti').addEventListener('click', function () { testPing('riti'); });

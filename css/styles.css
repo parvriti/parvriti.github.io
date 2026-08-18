@@ -1784,3 +1784,51 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
   .home-gear:hover, .home-gear:active { transform: none; }
   .set-sw-dot { transition: transform .12s ease, background .12s ease; }
 }
+
+/* ─── matrix: Notifications / Visibility grids ─── */
+.mx { padding: 4px 0 2px; }
+.mx-head, .mx-row { display: grid; grid-template-columns: 1fr 52px 52px; align-items: center; }
+.mx-head { padding: 2px 2px 9px; }
+.mx-head span { text-align: center; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 12.5px; color: #a0727b; }
+.mx-head span:first-child { text-align: left; }
+.mx-row { padding: 3px 2px; border-top: 1px solid rgba(255,255,255,.04); }
+.mx-row:first-of-type { border-top: 0; }
+.mx-lbl { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; min-width: 0; font-size: 13.5px; color: #f2e3e4; }
+.mx-ic { font-size: 15px; width: 20px; text-align: center; flex: 0 0 auto; }
+.mx-lbl .mx-sub { width: 100%; margin: -3px 0 0 29px; font-style: normal; font-size: 10.5px; color: #8a5a62; }
+
+/* the tap target is the full 52x46 cell so a thumb can't miss; the visible dot is centered */
+.mx-cell { height: 46px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer; -webkit-appearance: none; touch-action: manipulation; }
+.mx-dot {
+  width: 25px; height: 25px; border-radius: 50%;
+  border: 1.5px solid rgba(192,66,90,.42); background: transparent;
+  transition: transform .26s cubic-bezier(.34,1.56,.64,1), background .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+.mx-cell[aria-checked="true"] .mx-dot {
+  background: radial-gradient(circle at 34% 30%, #d95f77, #7a1f3a);
+  border-color: transparent; box-shadow: 0 3px 10px rgba(192,66,90,.42);
+}
+.mx-cell:active .mx-dot { transform: scale(.78); }
+.mx-cell.locked { cursor: default; }
+.mx-cell.locked .mx-dot { background: rgba(192,66,90,.26); border-color: transparent; box-shadow: none; }
+.mx-cell.locked:active .mx-dot { transform: none; }
+#notifCard.muted .mx { opacity: .36; pointer-events: none; transition: opacity .25s; }
+
+/* mute-everything button */
+.set-mute {
+  display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%;
+  margin-top: 15px; padding: 13px; min-height: 48px; border-radius: 999px; cursor: pointer;
+  -webkit-appearance: none; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 14px;
+  color: #d98a9a; background: rgba(192,66,90,.07); border: 1px solid rgba(192,66,90,.22);
+  transition: background .22s, color .22s, border-color .22s, transform .12s, box-shadow .22s;
+}
+.set-mute:active { transform: scale(.98); }
+.set-mute .mute-ic { font-size: 15px; font-style: normal; }
+.set-mute[aria-checked="true"] {
+  color: #fff; background: linear-gradient(135deg, #c0425a, #7a1f3a); border-color: transparent;
+  box-shadow: 0 6px 18px rgba(192,66,90,.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mx-dot { transition: background .15s ease, border-color .15s ease; }
+  .mx-cell:active .mx-dot { transform: none; }
+}
