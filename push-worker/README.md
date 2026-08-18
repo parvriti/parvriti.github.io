@@ -68,15 +68,53 @@ Notes:
 ## Got Home Safe (POST /automation/home)
 
 Called by the iPhone "Arrive" automations (Shortcuts), not the website. Auth is
-a per-person secret carried in the `Authorization: Bearer <secret>` header, and
-WHO arrived is decided only by which secret matched (never a body field), so it
-cannot be spoofed. Riti's secret notifies Parv; Parv's notifies Riti. No
-location or timestamp is put in the notification, and no precise location is
-stored (only `homeArrivals/<person>.at`, which is also the 10-minute dedup
-state). Add two secrets and redeploy:
+a per-person secret in the `Authorization: Bearer <secret>` header, and WHO
+arrived is decided only by which secret matched (never a body field), so it
+cannot be spoofed. Riti's secret notifies Parv; Parv's notifies Riti. The
+Shortcut also sends a coarse `{"home":"noida"|"gurugram"|"rohtak"}` label (never
+coordinates) used only for the together-check; it is never in the notification.
+
+**Behaviour (default: apart-aware, one per day).** Read live from `settings/app`
+so the admin Settings page can retune it with no redeploy:
+
+- `hsRule` — `apart` (default) · `always` · `evening` · `off`
+- `hsOnePerDay` (bool, default true) — at most the first arrival per IST day
+- `hsTogetherHrs` (int, default 6) — for `apart`, suppress only if BOTH are at
+  Gurugram and the partner arrived there within this many hours (a stale
+  Gurugram is treated as "unknown" and still pings — a redundant ping beats a
+  missed one). Solo-home arrivals (Noida/Rohtak) always ping.
+- `hsAfterHour` (int, default 18) — cutoff hour for the `evening` rule
+- `hsHomeRitiNoida` / `hsHomeRitiGurugram` / `hsHomeParvRohtak` /
+  `hsHomeParvGurugram` (bool) — per-home mutes
+
+State lives in `homeArrivals/<person>` = `{ at, home, sentDay }` — no
+coordinates, ever. 10-minute `DEDUP_MS` swallows geofence double-fires.
+
+Add two secrets and redeploy:
 
     wrangler secret put HOME_SECRET_RITI
     wrangler secret put HOME_SECRET_PARV
 
-(or Cloudflare dashboard -> Worker -> Settings -> Variables -> add as encrypted
-secrets, then Deploy.)
+(or Cloudflare dashboard -> Worker -> Settings -> Variables and Secrets -> add as
+encrypted Secrets, then Deploy.)
+
+### The 4 iPhone automations
+
+Settings app -> **Shortcuts** -> **Automation** -> **+** -> **Arrive**. Pick the
+address, **When Arriving**, **Run Immediately** (turn OFF "Notify When Run"),
+Next -> **New Blank Automation** -> add one action **Get Contents of URL**:
+
+- URL `https://parvriti-push.parvbajaj2000.workers.dev/automation/home`
+- (expand ▸) Method **POST**
+- Headers: **Authorization** = `Bearer <that person's secret>`
+- Request Body **JSON**: one field `home` (Text) = the home name below
+
+| # | Arrive at | secret | `home` |
+|---|-----------|--------|--------|
+| 1 | Riti → Noida    | `HOME_SECRET_RITI` | `noida` |
+| 2 | Riti → Gurugram | `HOME_SECRET_RITI` | `gurugram` |
+| 3 | Parv → Rohtak   | `HOME_SECRET_PARV` | `rohtak` |
+| 4 | Parv → Gurugram | `HOME_SECRET_PARV` | `gurugram` |
+
+The exact street addresses live only in each phone's Arrive trigger; the Worker
+never receives or stores them.

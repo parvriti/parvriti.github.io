@@ -88,12 +88,26 @@ async function handlePush(request, env) {
 /* ══════════════ "got home safe" (POST /automation/home) ══════════════
    An iPhone "Arrive" automation calls this when Riti or Parv reaches one of
    their homes. WHO arrived is decided ONLY by which secret matched, so a
-   client cannot spoof identity with a body field, and the two homes per
-   person share one secret (the Worker never learns which home, by design).
-   No location or timestamp is sent in the notification, and no precise
-   location is ever stored. Repeated geofence fires within DEDUP_MS are
-   swallowed so the other person is not pinged twice. */
+   client cannot spoof identity with a body field. The Shortcut also sends a
+   coarse { "home": "noida" | "gurugram" | "rohtak" } label — never coordinates
+   — used only to answer "are we together?" and never put in the notification.
+
+   Default rule is "apart, one per day":
+     • both RECENTLY at the shared home (Gurugram) -> stay silent (you can see
+       they're in). A stale "last home = Gurugram" (partner arrived long ago and
+       maybe left untracked, since there are no Leave automations) is treated as
+       unknown and DOES ping — a redundant ping beats a missed one;
+     • otherwise -> notify, but at most the FIRST arrival per IST day, so a
+       daytime travel arrival still pings while errand in/out doesn't spam.
+   The rule ('always'|'apart'|'evening'|'off'), the one-per-day flag, an evening
+   cutoff hour, the "together" freshness window, and per-home mutes are all read
+   live from settings/app, so the
+   admin Settings page can retune this with no redeploy. Repeated geofence fires
+   within DEDUP_MS are swallowed as bounces. Nothing is stored beyond the coarse
+   current-home label used for the together-check. */
 const DEDUP_MS = 10 * 60 * 1000;   // 10 minutes
+const SHARED_HOME = 'gurugram';    // the only home both people share
+const HOMES = { riti: ['noida', 'gurugram'], parv: ['rohtak', 'gurugram'] };
 
 function timingSafeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length || a.length === 0) return false;
@@ -102,13 +116,48 @@ function timingSafeEqual(a, b) {
   return r === 0;
 }
 
+/* everything in Asia/Kolkata (UTC+5:30); Workers run in UTC. */
+function istShift(ms) { return new Date(ms + 5.5 * 3600 * 1000); }
+function istDay(ms) { const d = istShift(ms); return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()); }
+function istHour(ms) { return istShift(ms).getUTCHours(); }
+function fval(v) {
+  if (!v) return undefined;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('integerValue' in v) return parseInt(v.integerValue, 10);
+  if ('stringValue' in v) return v.stringValue;
+  if ('doubleValue' in v) return v.doubleValue;
+  return undefined;
+}
+
+/* live home-safe config from settings/app (flat fields), with safe defaults so
+   the feature works fully before the Settings page ever writes the doc. */
+async function getHomeCfg(accessToken) {
+  const d = {
+    enabled: true, rule: 'apart', onePerDay: true, afterHour: 18, togetherHrs: 6,
+    homes: { 'riti-noida': true, 'riti-gurugram': true, 'parv-rohtak': true, 'parv-gurugram': true }
+  };
+  try {
+    const r = await fetch(DOCS + '/settings/app', { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) return d;
+    const f = (await r.json()).fields || {};
+    if ('hsEnabled' in f) d.enabled = fval(f.hsEnabled) !== false;
+    if ('hsRule' in f) d.rule = fval(f.hsRule) || d.rule;
+    if ('hsOnePerDay' in f) d.onePerDay = fval(f.hsOnePerDay) !== false;
+    if ('hsAfterHour' in f) d.afterHour = fval(f.hsAfterHour) || d.afterHour;
+    if ('hsTogetherHrs' in f) d.togetherHrs = fval(f.hsTogetherHrs) || d.togetherHrs;
+    const map = { hsHomeRitiNoida: 'riti-noida', hsHomeRitiGurugram: 'riti-gurugram', hsHomeParvRohtak: 'parv-rohtak', hsHomeParvGurugram: 'parv-gurugram' };
+    for (const k in map) if (k in f) d.homes[map[k]] = fval(f[k]) !== false;
+  } catch (e) {}
+  return d;
+}
+
 async function handleHomeArrival(request, env) {
   if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
 
   const secret = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
   if (!secret) { console.log('home: missing key'); return json({ error: 'unauthorized' }, 401); }
 
-  // identity is derived from the secret alone; any body is ignored
+  // identity is derived from the secret alone
   let sender = null;
   if (timingSafeEqual(secret, env.HOME_SECRET_RITI || '')) sender = 'riti';
   else if (timingSafeEqual(secret, env.HOME_SECRET_PARV || '')) sender = 'parv';
@@ -117,20 +166,49 @@ async function handleHomeArrival(request, env) {
   const recipient = sender === 'riti' ? 'parv' : 'riti';
   const title = (sender === 'riti' ? 'Riti' : 'Parv') + ' got home safe 🏡';
 
+  // coarse home label from the body. Optional: if absent/unknown we fail OPEN
+  // (notify) and just skip the together-check.
+  let home = '';
+  try { const b = await request.json(); if (b && typeof b.home === 'string') home = b.home.toLowerCase().trim(); } catch (e) {}
+  if (home && HOMES[sender].indexOf(home) === -1) home = '';
+
   let sa;
   try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { console.log('home: no service account'); return json({ error: 'server' }, 500); }
   const accessToken = await getAccessToken(sa);
   if (!accessToken) { console.log('home: no access token'); return json({ error: 'server' }, 500); }
 
-  // dedup: if this person already arrived within the window, do nothing
   const now = Date.now();
-  const last = await getArrivalAt(sender, accessToken);
-  if (last && (now - last) < DEDUP_MS) {
-    console.log('home: ' + sender + ' deduped (' + Math.round((now - last) / 1000) + 's since last)');
+  const cfg = await getHomeCfg(accessToken);
+  const state = await getArrival(sender, accessToken);
+
+  // swallow geofence double-fires; keep current-home fresh
+  if (state.at && (now - state.at) < DEDUP_MS) {
+    if (home && home !== state.home) await setArrival(sender, { at: now, home: home }, accessToken);
+    console.log('home: ' + sender + ' deduped bounce');
     return json({ ok: true, deduped: true });
   }
-  // record only THAT an arrival happened, plus the time for dedup. No location.
-  await setArrivalAt(sender, now, accessToken);
+  // record the arrival (time + current home) whether or not we notify
+  await setArrival(sender, home ? { at: now, home: home } : { at: now }, accessToken);
+
+  if (!cfg.enabled || cfg.rule === 'off') { console.log('home: off'); return json({ ok: true, muted: 'off' }); }
+  if (home && cfg.homes[sender + '-' + home] === false) { console.log('home: ' + sender + '-' + home + ' muted'); return json({ ok: true, muted: 'home' }); }
+
+  // "apart" — suppress ONLY on a recent, trustworthy sign we're both at the
+  // shared home. Without Leave automations a bare "last home = Gurugram" goes
+  // stale, so we require the partner's Gurugram arrival to be within
+  // togetherHrs; otherwise it's unknown and we send. Solo homes are always apart.
+  if (cfg.rule === 'apart' && home === SHARED_HOME) {
+    const partner = await getArrival(recipient, accessToken);
+    const freshMs = (cfg.togetherHrs || 6) * 3600 * 1000;
+    if (partner.home === SHARED_HOME && partner.at && (now - partner.at) < freshMs) {
+      console.log('home: together at ' + SHARED_HOME + ' (partner arrived ' + Math.round((now - partner.at) / 3600000) + 'h ago), silent');
+      return json({ ok: true, muted: 'together' });
+    }
+  }
+  // "evening" — only after the cutoff hour
+  if (cfg.rule === 'evening' && istHour(now) < cfg.afterHour) { console.log('home: before ' + cfg.afterHour + ':00 IST'); return json({ ok: true, muted: 'early' }); }
+  // at most one ping per IST day
+  if (cfg.onePerDay && state.sentDay === istDay(now)) { console.log('home: already sent today'); return json({ ok: true, muted: 'already-today' }); }
 
   const devices = await getTokens(recipient, accessToken);
   let sent = 0;
@@ -139,28 +217,37 @@ async function handleHomeArrival(request, env) {
     if (res.ok) sent++;
     else if (res.dead) await deleteDoc(d.name, accessToken);
   }
-  console.log('home: ' + sender + ' arrived -> pinged ' + recipient + ' (sent ' + sent + '/' + devices.length + ')');
+  if (sent > 0 && cfg.onePerDay) await setArrival(sender, { sentDay: istDay(now) }, accessToken);
+  console.log('home: ' + sender + '(' + (home || '?') + ') -> ' + recipient + ' sent ' + sent + '/' + devices.length);
   return json({ ok: true, sent });
 }
 
-/* homeArrivals/<person> stores just the last arrival time (ms). It is the
-   dedup state and the optional "an arrival occurred" record in one; there is
-   no location field, ever. Written by the service account, so no client rule
-   is needed (the app never touches this collection). */
-async function getArrivalAt(person, accessToken) {
+/* homeArrivals/<person>: { at (ms), home (coarse label), sentDay (IST date) }.
+   No coordinates, ever. Written by the service account, so no client rule is
+   needed (the app never touches this collection). */
+async function getArrival(person, accessToken) {
   try {
     const r = await fetch(DOCS + '/homeArrivals/' + person, { headers: { Authorization: 'Bearer ' + accessToken } });
-    if (!r.ok) return 0;
-    const d = await r.json();
-    const v = d.fields && d.fields.at && d.fields.at.integerValue;
-    return v ? parseInt(v, 10) : 0;
-  } catch (e) { return 0; }
+    if (!r.ok) return { at: 0, home: '', sentDay: '' };
+    const f = (await r.json()).fields || {};
+    return {
+      at: f.at && f.at.integerValue ? parseInt(f.at.integerValue, 10) : 0,
+      home: f.home && f.home.stringValue ? f.home.stringValue : '',
+      sentDay: f.sentDay && f.sentDay.stringValue ? f.sentDay.stringValue : ''
+    };
+  } catch (e) { return { at: 0, home: '', sentDay: '' }; }
 }
-async function setArrivalAt(person, ms, accessToken) {
+async function setArrival(person, obj, accessToken) {
   try {
-    await fetch(DOCS + '/homeArrivals/' + person + '?updateMask.fieldPaths=at', {
+    const fields = {}, mask = [];
+    if ('at' in obj) { fields.at = { integerValue: String(obj.at) }; mask.push('at'); }
+    if ('home' in obj) { fields.home = { stringValue: obj.home }; mask.push('home'); }
+    if ('sentDay' in obj) { fields.sentDay = { stringValue: obj.sentDay }; mask.push('sentDay'); }
+    if (!mask.length) return;
+    const q = mask.map(function (m) { return 'updateMask.fieldPaths=' + m; }).join('&');
+    await fetch(DOCS + '/homeArrivals/' + person + '?' + q, {
       method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: { at: { integerValue: String(ms) } } })
+      body: JSON.stringify({ fields: fields })
     });
   } catch (e) {}
 }
