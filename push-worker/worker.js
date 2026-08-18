@@ -166,10 +166,16 @@ async function handleHomeArrival(request, env) {
   const recipient = sender === 'riti' ? 'parv' : 'riti';
   const title = (sender === 'riti' ? 'Riti' : 'Parv') + ' got home safe 🏡';
 
-  // coarse home label from the body. Optional: if absent/unknown we fail OPEN
-  // (notify) and just skip the together-check.
-  let home = '';
-  try { const b = await request.json(); if (b && typeof b.home === 'string') home = b.home.toLowerCase().trim(); } catch (e) {}
+  // coarse home label from the body + optional event ('arrive' default, or
+  // 'leave' from the silent Leave automations). Read the body once.
+  let home = '', event = 'arrive';
+  try {
+    const b = await request.json();
+    if (b) {
+      if (typeof b.home === 'string') home = b.home.toLowerCase().trim();
+      if (typeof b.event === 'string') event = b.event.toLowerCase().trim();
+    }
+  } catch (e) {}
   if (home && HOMES[sender].indexOf(home) === -1) home = '';
 
   let sa;
@@ -178,6 +184,15 @@ async function handleHomeArrival(request, env) {
   if (!accessToken) { console.log('home: no access token'); return json({ error: 'server' }, 500); }
 
   const now = Date.now();
+
+  // "leave" is silent: it only flips the home/away state for the ambient line.
+  if (event === 'leave') {
+    await setHomeState(sender, false, now, accessToken);
+    await setArrival(sender, { leftAt: now }, accessToken);
+    console.log('home: ' + sender + ' left ' + (home || '?'));
+    return json({ ok: true, left: true });
+  }
+
   const cfg = await getHomeCfg(accessToken);
   const state = await getArrival(sender, accessToken);
 
@@ -189,6 +204,7 @@ async function handleHomeArrival(request, env) {
   }
   // record the arrival (time + current home) whether or not we notify
   await setArrival(sender, home ? { at: now, home: home } : { at: now }, accessToken);
+  await setHomeState(sender, true, now, accessToken);   // for the optional home/away line
 
   if (!cfg.enabled || cfg.rule === 'off') { console.log('home: off'); return json({ ok: true, muted: 'off' }); }
   if (home && cfg.homes[sender + '-' + home] === false) { console.log('home: ' + sender + '-' + home + ' muted'); return json({ ok: true, muted: 'home' }); }
@@ -243,11 +259,24 @@ async function setArrival(person, obj, accessToken) {
     if ('at' in obj) { fields.at = { integerValue: String(obj.at) }; mask.push('at'); }
     if ('home' in obj) { fields.home = { stringValue: obj.home }; mask.push('home'); }
     if ('sentDay' in obj) { fields.sentDay = { stringValue: obj.sentDay }; mask.push('sentDay'); }
+    if ('leftAt' in obj) { fields.leftAt = { integerValue: String(obj.leftAt) }; mask.push('leftAt'); }
     if (!mask.length) return;
     const q = mask.map(function (m) { return 'updateMask.fieldPaths=' + m; }).join('&');
     await fetch(DOCS + '/homeArrivals/' + person + '?' + q, {
       method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: fields })
+    });
+  } catch (e) {}
+}
+
+/* homeState/<person> = { atHome, since } — the ONLY home data the app reads (via
+   a read-only rule). Just a boolean + timestamp, never a location. Written here
+   on every arrive (true) and leave (false). */
+async function setHomeState(person, atHome, ms, accessToken) {
+  try {
+    await fetch(DOCS + '/homeState/' + person + '?updateMask.fieldPaths=atHome&updateMask.fieldPaths=since', {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { atHome: { booleanValue: !!atHome }, since: { integerValue: String(ms) } } })
     });
   } catch (e) {}
 }

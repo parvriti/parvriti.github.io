@@ -282,9 +282,10 @@
     var FV = firebase.firestore.FieldValue;
     var meRef = cdb.collection('presence').doc(me);
     var inner = page && page !== 'home';
+    var curAct = null, curActLabel = '';   // live "reading/drawing" activity, rewritten on every beat
 
     function beat(extra) {
-      var d = { at: FV.serverTimestamp(), atMs: Date.now(), page: page, hidden: !!document.hidden, gone: false };
+      var d = { at: FV.serverTimestamp(), atMs: Date.now(), page: page, hidden: !!document.hidden, gone: false, activity: curAct, activityLabel: curActLabel };
       if (extra) for (var k in extra) d[k] = extra[k];
       meRef.set(d, { merge: true }).catch(function () {});
     }
@@ -305,6 +306,14 @@
     window.parvritiSetLastOpened = function (title) {
       meRef.set({ lastOpenedTitle: String(title || '').slice(0, 60), atMs: Date.now(), at: FV.serverTimestamp(), gone: false, hidden: false }, { merge: true }).catch(function () {});
     };
+    /* open-when.js / doodle.js set a live activity ("reading X", "drawing"). It
+       rides the online window, and every beat rewrites it, so a fresh page load
+       (curAct = null) clears whatever the previous page had set. */
+    window.parvritiActivity = function (kind, label) {
+      curAct = kind || null;
+      curActLabel = String(label || '').slice(0, 60);
+      beat();
+    };
 
     /* watch the other person */
     var lastOther = null;
@@ -315,6 +324,10 @@
       renderLastSeen(lastOther, other);
     }, function () {});
     setInterval(function () { renderPresence(lastOther, other); renderLastSeen(lastOther, other); }, 15000);
+
+    /* home page only: the optional "♡ Riti is home / away" line (line 3). Dormant
+       until turned on in Settings (homeStateOn) AND the Leave automations exist. */
+    if (page === 'home') setupHomeState(other);
 
     /* heartbeat ping */
     window.parvritiSendLove = function () {
@@ -351,8 +364,13 @@
     }
     if (!online) { pill.classList.remove('show', 'typing'); return; }
     pill.classList.add('show');
-    if (typing) { pill.classList.add('typing'); pill.innerHTML = '<span class="pres-dot"></span>✍️ ' + name + ' is writing you something…'; }
-    else { pill.classList.remove('typing'); pill.innerHTML = '<span class="pres-dot"></span>' + name + ' is here right now 🌸'; }
+    if (typing) { pill.classList.add('typing'); pill.innerHTML = '<span class="pres-dot"></span>✍️ ' + name + ' is writing you something…'; return; }
+    pill.classList.remove('typing');
+    var msg;
+    if (data.activity === 'reading') msg = '💌 ' + name + ' is reading ' + (data.activityLabel ? '“' + escHtml(data.activityLabel) + '”' : 'your notes');
+    else if (data.activity === 'drawing') msg = '✏️ ' + name + ' is doodling…';
+    else msg = name + ' is here right now 🌸';
+    pill.innerHTML = '<span class="pres-dot"></span>' + msg;
   }
   function buildPresencePill() {
     if (document.getElementById('presPill')) return;
@@ -377,13 +395,47 @@
     var ms = data.atMs || 0;
     var online = !data.gone && !data.hidden && ms && (Date.now() - ms < 70000);
     if (online) {
-      el.style.display = ''; el.innerHTML = '<span class="ls-flower">🌸</span>' + name + ' is here right now';
+      var now;
+      if (data.typing) now = name + ' is writing you something… ✍️';
+      else if (data.activity === 'reading') now = name + ' is reading ' + (data.activityLabel ? '“' + escHtml(data.activityLabel) + '” 💌' : 'your notes 💌');
+      else if (data.activity === 'drawing') now = name + ' is doodling… ✏️';
+      else now = name + ' is here right now';
+      el.style.display = ''; el.innerHTML = '<span class="ls-flower">🌸</span>' + now;
       return;
     }
     if (!ms) { el.style.display = 'none'; return; }
     var line = '<span class="ls-flower">🌸</span>' + name + ' was here ' + timeAgoShort(ms);
     if (data.lastOpenedTitle) line += ' <span class="ls-note">· last opened “' + escHtml(data.lastOpenedTitle) + '”</span>';
     el.style.display = ''; el.innerHTML = line;
+  }
+  /* ── optional "home / away" ambient line (home page, line 3). Symmetric: each
+     person sees the other's. Physical home state comes only from the geofence
+     Shortcuts via the Worker (homeState/<person> = {atHome, since}); the app
+     never sees location. Shown only when Settings → homeStateOn is true. ── */
+  var homeStateOff = null;   // cached last snapshot so the 15s tick can re-heal
+  function setupHomeState(other) {
+    var el = document.querySelector('[data-homestate]');
+    if (!el || !cdb) return;
+    el.style.display = 'none';
+    cdb.collection('settings').doc('app').get().then(function (s) {
+      var on = s.exists && s.data() && s.data().homeStateOn === true;
+      if (!on) return;   // dormant by default
+      cdb.collection('homeState').doc(other).onSnapshot(function (snap) {
+        homeStateOff = snap.exists ? snap.data() : null;
+        renderHomeState(el, homeStateOff, other);
+      }, function () {});
+      setInterval(function () { renderHomeState(el, homeStateOff, other); }, 60000);   // re-heal a stale "home"
+    }).catch(function () {});
+  }
+  function renderHomeState(el, data, other) {
+    if (!el) return;
+    var name = other === 'parv' ? 'Parv' : 'Riti';
+    if (!data) { el.style.display = 'none'; return; }
+    var atHome = !!data.atHome, since = data.since || 0;
+    // self-heal: a "home" older than 12h is almost certainly a missed Leave
+    if (atHome && since && (Date.now() - since > 12 * 3600 * 1000)) atHome = false;
+    el.style.display = '';
+    el.innerHTML = '<span class="hs-heart">♡</span>' + name + (atHome ? ' is home' : ' is away');
   }
   function buildPingButton() {
     if (document.getElementById('loveFab')) return;

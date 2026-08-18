@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=38">
+<link rel="stylesheet" href="css/styles.css?v=39">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -104,6 +104,16 @@
       <div class="set-note">A heads-up reminder before her period is coming in the next update.</div>
     </section>
 
+    <!-- ══ Presence ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">♡</span> Presence</div>
+      <div class="set-row">
+        <div class="set-lbl"><b>Home / away line</b><i>a ♡ home/away line on the home screen, both ways</i></div>
+        <button class="set-sw" id="stHomeState" role="switch" aria-checked="false"><span class="set-sw-dot"></span></button>
+      </div>
+      <div class="set-note">Needs the four “Leave” Arrive-style automations to be added first — until then, leave this off. When on, you each see the other’s home/away; no location is ever shared.</div>
+    </section>
+
     <!-- ══ C · Account ══ -->
     <section class="set-card">
       <div class="set-card-h"><span class="set-ic">✦</span> Account</div>
@@ -122,7 +132,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=38"></script>
-<script src="js/settings.js?v=38"></script>
+<script src="js/common.js?v=39"></script>
+<script src="js/settings.js?v=39"></script>
 </body>
 </html>

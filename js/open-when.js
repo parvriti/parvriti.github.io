@@ -317,6 +317,7 @@ function openEnvelope(emotion) {
   }
   markSeen(currentSide, emotion);
   if (window.parvritiSetLastOpened) window.parvritiSetLastOpened(env.title);   // for the other's "last opened" line
+  if (window.parvritiActivity) window.parvritiActivity('reading', env.title);   // live "reading X" presence
   buildGrid();
   if (doUnseal) playUnseal(openReaderNow);   // the lock breaks into the heart, then the letter opens
   else openReaderNow();
@@ -415,6 +416,7 @@ function closeWhen() {
   document.getElementById('envStage').classList.remove('done');
   document.getElementById('owPaper').classList.remove('show');
   openEmotion = null;
+  if (window.parvritiActivity) window.parvritiActivity(null);   // stop showing "reading"
 }
 
 /* reader button actions (delegated) */

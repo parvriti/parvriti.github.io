@@ -11,16 +11,18 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v38';
+  var VERSION = 'v39';
   var DEFAULTS = {
     hsEnabled: true, hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
+    homeStateOn: false,
     cyLen: 31, cyFlagAt: 50, cyDefaultLen: 4
   };
   var SWITCHES = {
     stEnabled: 'hsEnabled', stOnePerDay: 'hsOnePerDay',
     stHomeRitiNoida: 'hsHomeRitiNoida', stHomeRitiGurugram: 'hsHomeRitiGurugram',
-    stHomeParvRohtak: 'hsHomeParvRohtak', stHomeParvGurugram: 'hsHomeParvGurugram'
+    stHomeParvRohtak: 'hsHomeParvRohtak', stHomeParvGurugram: 'hsHomeParvGurugram',
+    stHomeState: 'homeStateOn'
   };
   var STEPPERS = { stTogether: 'hsTogetherHrs', stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen' };
 

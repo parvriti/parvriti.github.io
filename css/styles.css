@@ -139,6 +139,12 @@ body {
 }
 .last-seen .ls-flower { margin-right: 6px; font-size: 10px; opacity: .85; }
 .last-seen .ls-note { color: rgba(232,208,208,.4); font-style: italic; }
+.home-state {
+  margin-top: 5px; font-family: 'DM Sans', sans-serif; font-size: 11.5px;
+  color: rgba(232,208,208,.5); text-align: center; line-height: 1.5;
+  animation: dcFade 1.6s ease .6s both;
+}
+.home-state .hs-heart { margin-right: 6px; font-size: 11px; color: #e07090; opacity: .9; }
 
 /* lock shared */
 .lock-icon { font-size: 38px; margin-bottom: 10px; }

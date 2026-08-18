@@ -79,7 +79,7 @@ function drawStroke(pts, color, size) {
   if (pts.length === 1) pctx.lineTo(pts[0].x + 0.1, pts[0].y + 0.1);
   pctx.stroke();
 }
-function dStart(e) { e.preventDefault(); try { pad.setPointerCapture(e.pointerId); } catch (er) {} drawing = true; var p = pxy(e); curPts = [p]; lastXY = p; pctx.strokeStyle = drawColor; pctx.lineWidth = drawSize; drawStroke(curPts, drawColor, drawSize); }
+function dStart(e) { e.preventDefault(); try { pad.setPointerCapture(e.pointerId); } catch (er) {} drawing = true; if (window.parvritiActivity) { clearTimeout(dEnd._t); window.parvritiActivity('drawing'); } var p = pxy(e); curPts = [p]; lastXY = p; pctx.strokeStyle = drawColor; pctx.lineWidth = drawSize; drawStroke(curPts, drawColor, drawSize); }
 function dMove(e) { if (!drawing) return; var p = pxy(e); if (curPts.length < 500) curPts.push(p); pctx.strokeStyle = drawColor; pctx.lineWidth = drawSize; pctx.beginPath(); pctx.moveTo(lastXY.x, lastXY.y); pctx.lineTo(p.x, p.y); pctx.stroke(); lastXY = p; }
 function dEnd() {
   if (!drawing) return; drawing = false;
@@ -88,6 +88,8 @@ function dEnd() {
     ddb.collection('canvasStrokes').add({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime() }).catch(function () {});
   }
   curPts = null;
+  // let the "drawing" presence linger briefly so pauses between strokes don't flicker
+  if (window.parvritiActivity) { clearTimeout(dEnd._t); dEnd._t = setTimeout(function () { window.parvritiActivity(null); }, 6000); }
 }
 function clearDoodle() {
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }
