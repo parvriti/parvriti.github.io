@@ -31,41 +31,12 @@ const CORS = {
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
-    if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
-
-    let body;
-    try { body = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
-    const to = body && body.to;
-    const title = body && body.title;
-    const text = (body && body.body) || '';
-    const link = (body && body.url) || (SITE + '/open-when.html');
-    if (!to || !title) return json({ error: 'missing to/title' }, 400);
-
-    // 1) the caller must be one of us
-    const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-    if (!idToken) return json({ error: 'no token' }, 401);
-    const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
-    if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
-    if (ALLOWED.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed', email: v.email }, 403);
-
-    // 2) service-account access token
-    let sa;
-    try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return json({ error: 'no service account' }, 500); }
-    const accessToken = await getAccessToken(sa);
-    if (!accessToken) return json({ error: 'auth failed' }, 500);
-
-    // 3) recipient device tokens
-    const devices = await getTokens(to, accessToken);
-    if (!devices.length) return json({ ok: true, sent: 0 });
-
-    // 4) send; prune ONLY tokens FCM says are dead (never on a transient error)
-    let sent = 0;
-    for (const d of devices) {
-      const res = await sendPush(accessToken, d.token, title, text, link);
-      if (res.ok) sent++;
-      else if (res.dead) await deleteDoc(d.name, accessToken);
-    }
-    return json({ ok: true, sent });
+    const path = new URL(request.url).pathname;
+    // "Arrive home" iPhone automations hit this; auth is a per-person secret,
+    // NOT a Firebase token, because a Shortcut cannot mint one.
+    if (path === '/automation/home') return handleHomeArrival(request, env);
+    // everything else is the site's own "send a push to the other person" call.
+    return handlePush(request, env);
   },
 
   /* Cron Trigger (set to "30 18 * * *" = 00:00 IST). Sends the birthday /
@@ -74,6 +45,125 @@ export default {
     ctx.waitUntil(runCelebration(event, env));
   }
 };
+
+/* ══════════════ the site's push (caller proven by their Firebase ID token) ══════════════ */
+async function handlePush(request, env) {
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
+  const to = body && body.to;
+  const title = body && body.title;
+  const text = (body && body.body) || '';
+  const link = (body && body.url) || (SITE + '/open-when.html');
+  if (!to || !title) return json({ error: 'missing to/title' }, 400);
+
+  // 1) the caller must be one of us
+  const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!idToken) return json({ error: 'no token' }, 401);
+  const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
+  if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
+  if (ALLOWED.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed', email: v.email }, 403);
+
+  // 2) service-account access token
+  let sa;
+  try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return json({ error: 'no service account' }, 500); }
+  const accessToken = await getAccessToken(sa);
+  if (!accessToken) return json({ error: 'auth failed' }, 500);
+
+  // 3) recipient device tokens
+  const devices = await getTokens(to, accessToken);
+  if (!devices.length) return json({ ok: true, sent: 0 });
+
+  // 4) send; prune ONLY tokens FCM says are dead (never on a transient error)
+  let sent = 0;
+  for (const d of devices) {
+    const res = await sendPush(accessToken, d.token, title, text, link);
+    if (res.ok) sent++;
+    else if (res.dead) await deleteDoc(d.name, accessToken);
+  }
+  return json({ ok: true, sent });
+}
+
+/* ══════════════ "got home safe" (POST /automation/home) ══════════════
+   An iPhone "Arrive" automation calls this when Riti or Parv reaches one of
+   their homes. WHO arrived is decided ONLY by which secret matched, so a
+   client cannot spoof identity with a body field, and the two homes per
+   person share one secret (the Worker never learns which home, by design).
+   No location or timestamp is sent in the notification, and no precise
+   location is ever stored. Repeated geofence fires within DEDUP_MS are
+   swallowed so the other person is not pinged twice. */
+const DEDUP_MS = 10 * 60 * 1000;   // 10 minutes
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length || a.length === 0) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+async function handleHomeArrival(request, env) {
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+
+  const secret = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!secret) { console.log('home: missing key'); return json({ error: 'unauthorized' }, 401); }
+
+  // identity is derived from the secret alone; any body is ignored
+  let sender = null;
+  if (timingSafeEqual(secret, env.HOME_SECRET_RITI || '')) sender = 'riti';
+  else if (timingSafeEqual(secret, env.HOME_SECRET_PARV || '')) sender = 'parv';
+  if (!sender) { console.log('home: bad key'); return json({ error: 'unauthorized' }, 401); }
+
+  const recipient = sender === 'riti' ? 'parv' : 'riti';
+  const title = (sender === 'riti' ? 'Riti' : 'Parv') + ' got home safe 🏡';
+
+  let sa;
+  try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { console.log('home: no service account'); return json({ error: 'server' }, 500); }
+  const accessToken = await getAccessToken(sa);
+  if (!accessToken) { console.log('home: no access token'); return json({ error: 'server' }, 500); }
+
+  // dedup: if this person already arrived within the window, do nothing
+  const now = Date.now();
+  const last = await getArrivalAt(sender, accessToken);
+  if (last && (now - last) < DEDUP_MS) {
+    console.log('home: ' + sender + ' deduped (' + Math.round((now - last) / 1000) + 's since last)');
+    return json({ ok: true, deduped: true });
+  }
+  // record only THAT an arrival happened, plus the time for dedup. No location.
+  await setArrivalAt(sender, now, accessToken);
+
+  const devices = await getTokens(recipient, accessToken);
+  let sent = 0;
+  for (const d of devices) {
+    const res = await sendPush(accessToken, d.token, title, '', SITE + '/open-when.html');
+    if (res.ok) sent++;
+    else if (res.dead) await deleteDoc(d.name, accessToken);
+  }
+  console.log('home: ' + sender + ' arrived -> pinged ' + recipient + ' (sent ' + sent + '/' + devices.length + ')');
+  return json({ ok: true, sent });
+}
+
+/* homeArrivals/<person> stores just the last arrival time (ms). It is the
+   dedup state and the optional "an arrival occurred" record in one; there is
+   no location field, ever. Written by the service account, so no client rule
+   is needed (the app never touches this collection). */
+async function getArrivalAt(person, accessToken) {
+  try {
+    const r = await fetch(DOCS + '/homeArrivals/' + person, { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) return 0;
+    const d = await r.json();
+    const v = d.fields && d.fields.at && d.fields.at.integerValue;
+    return v ? parseInt(v, 10) : 0;
+  } catch (e) { return 0; }
+}
+async function setArrivalAt(person, ms, accessToken) {
+  try {
+    await fetch(DOCS + '/homeArrivals/' + person + '?updateMask.fieldPaths=at', {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { at: { integerValue: String(ms) } } })
+    });
+  } catch (e) {}
+}
 
 /* ══════════════ midnight birthday / anniversary push ══════════════ */
 function pad2(n) { return (n < 10 ? '0' : '') + n; }

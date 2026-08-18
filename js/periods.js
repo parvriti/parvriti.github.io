@@ -262,8 +262,25 @@
   var $ = function (id) { return document.getElementById(id); };
   function toast(m) {
     var t = $('cyToast'); if (!t) return;
+    clearTimeout(toastUndo._t); t.classList.remove('has-undo');
     t.textContent = m; t.classList.add('show');
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+  /* like toast(), but with a 5-second Undo, so a mis-tap delete is recoverable */
+  function toastUndo(m, undoFn) {
+    var t = $('cyToast'); if (!t) return;
+    clearTimeout(toast._t); clearTimeout(toastUndo._t);
+    t.innerHTML = '<span class="cyt-msg"></span><button type="button" class="cyt-undo">Undo</button>';
+    t.querySelector('.cyt-msg').textContent = m;
+    t.classList.add('show', 'has-undo');
+    var used = false;
+    t.querySelector('.cyt-undo').onclick = function () {
+      if (used) return; used = true;
+      clearTimeout(toastUndo._t);
+      t.classList.remove('show', 'has-undo');
+      if (undoFn) undoFn();
+    };
+    toastUndo._t = setTimeout(function () { t.classList.remove('show', 'has-undo'); }, 5000);
   }
   function loggedDays() {
     var set = {};
@@ -787,10 +804,14 @@
       }).catch(function () { toast('could not save'); });
     });
     $('cyEdDel').addEventListener('click', function () {
-      var id = edId; if (!id || LOGS.length < 2) return;
-      if (!confirm('Remove this period from her history?')) return;
-      deleteLog(id).then(function () { closeEdit(); toast('removed'); })
-        .catch(function () { toast('could not remove'); });
+      var id = edId, L = findLog(id); if (!L || LOGS.length < 2) return;
+      var snap = { start: L.start, len: L.len, longOk: L.longOk };   // keep it to restore on Undo
+      deleteLog(id).then(function () {
+        closeEdit();
+        toastUndo('period removed', function () {
+          saveLog(snap.start, snap.len, snap.longOk).then(function () { toast('brought it back'); }).catch(function () { toast('could not undo'); });
+        });
+      }).catch(function () { toast('could not remove'); });
     });
 
     /* press and hold a row. Delegated so it survives every re-render. */

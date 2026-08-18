@@ -64,3 +64,19 @@ Notes:
   Install it first, open it from the icon, then turn on notifications.
 - Nothing here can be triggered by strangers: the Worker checks that the caller
   is one of the three signed-in accounts before it sends anything.
+
+## Got Home Safe (POST /automation/home)
+
+Called by the iPhone "Arrive" automations (Shortcuts), not the website. Auth is
+a per-person secret carried in the `Authorization: Bearer <secret>` header, and
+WHO arrived is decided only by which secret matched (never a body field), so it
+cannot be spoofed. Riti's secret notifies Parv; Parv's notifies Riti. No
+location or timestamp is put in the notification, and no precise location is
+stored (only `homeArrivals/<person>.at`, which is also the 10-minute dedup
+state). Add two secrets and redeploy:
+
+    wrangler secret put HOME_SECRET_RITI
+    wrangler secret put HOME_SECRET_PARV
+
+(or Cloudflare dashboard -> Worker -> Settings -> Variables -> add as encrypted
+secrets, then Deploy.)

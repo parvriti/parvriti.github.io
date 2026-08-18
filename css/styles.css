@@ -1570,13 +1570,30 @@ body.cy-locked { overflow: hidden; }
 .cy-drnone { text-align: center; color: var(--cy-ink3); font-size: 14px; padding: 40px 0; }
 .cy-drfoot { font-size: 10px; line-height: 1.6; color: var(--cy-ink3); padding: 12px 6px 0; }
 
+/* a dark snackbar, so it stays legible over the pink page AND the white sheets
+   and drawer (a plain white toast vanished on the white surfaces). */
 .cy-toast { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom,0px));
   transform: translateX(-50%) translateY(12px); z-index: 9990;
-  background: #ffffff; border: 1px solid var(--cy-line); color: var(--cy-ink);
+  background: var(--cy-ink); border: 0; color: #fff;
   padding: 11px 18px; border-radius: 22px; font-size: 13px; font-weight: 500;
-  opacity: 0; pointer-events: none; box-shadow: 0 10px 28px rgba(32,38,74,.16);
+  opacity: 0; pointer-events: none; box-shadow: 0 12px 30px rgba(32,38,74,.3);
   transition: opacity 300ms ease, transform 300ms var(--cy-ease); }
 .cy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* the Undo variant: message + a light pill, with a hairline in the phase
+   accent that drains over the 5-second window. */
+.cy-toast.has-undo { display: inline-flex; align-items: center; gap: 13px; padding: 9px 9px 12px 18px;
+  pointer-events: auto; overflow: hidden; }
+.cy-toast .cyt-msg { white-space: nowrap; }
+.cy-toast .cyt-undo { flex: 0 0 auto; border: 0; cursor: pointer; -webkit-appearance: none;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 700; letter-spacing: .02em;
+  color: #fff; background: rgba(255,255,255,.16); padding: 7px 15px; border-radius: 16px;
+  transition: transform .15s var(--cy-ease), background .2s; }
+.cy-toast .cyt-undo:active { transform: scale(.9); background: rgba(255,255,255,.28); }
+.cy-toast.has-undo::after { content: ''; position: absolute; left: 18px; right: 12px; bottom: 4px; height: 2px;
+  border-radius: 2px; background: var(--cy-accent); opacity: .9; transform-origin: left;
+  animation: cytDrain 5s linear forwards; }
+@keyframes cytDrain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .cy-toast.has-undo::after { animation: none; opacity: .6; } }
 
 /* the tab bar sits on the light page here, so it needs its own light styling
    (the base .tab is built for the dark pages). Scoped to this page only. */
