@@ -317,7 +317,7 @@ function commitPending() {
   rdb.collection('roomItems').add(doc)
     .then(function () {
       toast(stacking ? 'stacked 🌸' : (isPhoto ? 'pinned a moment 📷' : 'pinned 🌸'));
-      if (window.parvritiNotify) window.parvritiNotify(other, (by === 'parv' ? 'Parv' : 'Riti') + (isPhoto ? ' pinned a photo 📌' : ' pinned a reason 📌'), '', 'https://parvriti.github.io/board.html', 'board');
+      if (window.parvritiNotify) window.parvritiNotify(other, (by === 'parv' ? 'Parv' : 'Riti') + (isPhoto ? ' pinned a photo 📌' : ' pinned a reason 📌'), '', 'https://parvriti.github.io/board.html?n=1', 'board');
     })
     .catch(function () { toast('could not pin'); });
   pending = null; renderBoard();

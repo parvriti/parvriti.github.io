@@ -95,7 +95,7 @@ function dEnd() {
     clearTimeout(dEnd._nt);
     dEnd._nt = setTimeout(function () {
       var meP = me(), other = meP === 'parv' ? 'riti' : 'parv';
-      window.parvritiNotify(other, (meP === 'parv' ? 'Parv' : 'Riti') + ' left you a doodle ✏️', '', 'https://parvriti.github.io/doodles.html', 'doodle');
+      window.parvritiNotify(other, (meP === 'parv' ? 'Parv' : 'Riti') + ' left you a doodle ✏️', '', 'https://parvriti.github.io/doodles.html?n=1', 'doodle');
     }, 40000);
   }
 }

@@ -27,6 +27,7 @@
 
   var body = document.body;
   var page = body.dataset.page || '';
+  var INITIAL_SEARCH = (location.search || '');   // captured before any page strips it (for the deep-link gate)
   var auth = null;
   var cdb = null;
 
@@ -84,7 +85,17 @@
   /* ── everything below the gate ── */
   function proceed() {
     if (page && page !== 'home') {
-      try { if (sessionStorage.getItem('riti_open') !== '1') { location.replace('index.html'); return; } } catch (e) {}
+      try {
+        if (sessionStorage.getItem('riti_open') !== '1') {
+          // A notification tap is an authorized entry (sign-in already gated us in
+          // above). Its deep-link URL carries open= / moment= / n=, so enter
+          // straight to the page rather than bouncing to the front door — which on
+          // a cold (terminated-app) launch would drop the deep-link. A plain manual
+          // visit with no such marker still returns to Home.
+          if (/[?&](open|moment|n)=/.test(INITIAL_SEARCH)) sessionStorage.setItem('riti_open', '1');
+          else { location.replace('index.html'); return; }
+        }
+      } catch (e) {}
     }
     if (!document.querySelector('.bg-base')) {
       var base = document.createElement('div'); base.className = 'bg-base';
@@ -468,7 +479,7 @@
      Shortcuts via the Worker (homeState/<person> = {atHome, since}); the app
      never sees location. Shown only when this viewer's n_away toggle is on
      (Notifications matrix; default on). ── */
-  var homeStateOff = null;   // cached last snapshot so the 15s tick can re-heal
+  var homeStateOther = null, homeStateTog = null;   // cached snapshots so the tick can re-heal
   function setupHomeState(other) {
     var el = document.querySelector('[data-homestate]');
     if (!el || !cdb) return;
@@ -478,19 +489,32 @@
       var d = s.exists ? (s.data() || {}) : {};
       if (d['n_away_' + me] === false) return;   // this viewer turned their home/away line off (default on)
       cdb.collection('homeState').doc(other).onSnapshot(function (snap) {
-        homeStateOff = snap.exists ? snap.data() : null;
-        renderHomeState(el, homeStateOff, other);
+        homeStateOther = snap.exists ? snap.data() : null;
+        renderHomeState(el, other);
       }, function () {});
-      setInterval(function () { renderHomeState(el, homeStateOff, other); }, 60000);   // re-heal a stale "home"
+      // shared "together" flag (a boolean + time, never a location), written by
+      // the worker when an arrival puts you both at the same place.
+      cdb.collection('homeState').doc('together').onSnapshot(function (snap) {
+        homeStateTog = snap.exists ? snap.data() : null;
+        renderHomeState(el, other);
+      }, function () {});
+      setInterval(function () { renderHomeState(el, other); }, 60000);   // re-heal a stale "home"/"together"
     }).catch(function () {});
   }
-  function renderHomeState(el, data, other) {
+  function renderHomeState(el, other) {
     if (!el) return;
+    var STALE = 12 * 3600 * 1000;   // a missed Leave shouldn't strand either line "on" forever
+    // "Together right now" wins over the per-person line when you're both in.
+    var t = homeStateTog;
+    if (t && t.together && t.since && (Date.now() - t.since < STALE)) {
+      el.style.display = ''; el.innerHTML = '<span class="hs-heart">♡</span>Together right now';
+      return;
+    }
+    var data = homeStateOther;
     var name = other === 'parv' ? 'Parv' : 'Riti';
     if (!data) { el.style.display = 'none'; return; }
     var atHome = !!data.atHome, since = data.since || 0;
-    // self-heal: a "home" older than 12h is almost certainly a missed Leave
-    if (atHome && since && (Date.now() - since > 12 * 3600 * 1000)) atHome = false;
+    if (atHome && since && (Date.now() - since > STALE)) atHome = false;   // self-heal a missed Leave
     el.style.display = '';
     el.innerHTML = '<span class="hs-heart">♡</span>' + name + (atHome ? ' is home' : ' is away');
   }

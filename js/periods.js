@@ -35,7 +35,7 @@
 
   var LOGS = [];         // [{id, start:Date, len:int, longOk:bool}]
   var LONGEST = EXPECT, SHORTEST = EXPECT, LONGEST_EVER = EXPECT, lastStart = null;
-  var db = null, ready = false;
+  var db = null, ready = false, canEdit = false;   // canEdit: Parv only — Riti's view is read-only
 
   /* ── dates. All local, so the day never flips at 05:30 IST ─────────── */
   function d(s) { var p = String(s).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
@@ -208,12 +208,18 @@
       var v = s.exists ? (s.data() || {}) : {};
       var canSee = u.person === 'parv' ? (v.v_periods_parv !== false) : (v.v_periods_riti === true);
       if (!canSee) { location.replace('index.html'); return; }
+      // Only Parv logs/edits her cycle (the Firestore rules enforce it too). For
+      // Riti the page is read-only: hide the log button so she never taps a write
+      // that just errors. She still sees everything and can export the CSV.
+      canEdit = (u.person === 'parv');
+      if (!canEdit) { var fb = document.getElementById('cyFab'); if (fb) fb.style.display = 'none'; }
       if (typeof v.cyLen === 'number' && v.cyLen >= 18 && v.cyLen <= 45) EXPECT = Math.round(v.cyLen);
       if (typeof v.cyFlagAt === 'number' && v.cyFlagAt >= 35 && v.cyFlagAt <= 90) FLAG_AT = Math.round(v.cyFlagAt);
       if (typeof v.cyDefaultLen === 'number' && v.cyDefaultLen >= 1 && v.cyDefaultLen <= 12) DEFAULT_LEN = Math.round(v.cyDefaultLen);
       watchCycle();
     }).catch(function () {
       if (u.person !== 'parv') { location.replace('index.html'); return; }   // safe default on read failure
+      canEdit = true;   // only Parv reaches here
       watchCycle();
     });
   }
@@ -723,8 +729,8 @@
         + '<div class="cy ' + cls + '">' + (p.running ? ('d' + p.cyc) : (p.cyc + 'd')) + '</div></div>';
       n++;
     });
-    html += '<div class="cy-drfoot"><b>Press and hold any row to edit it</b>, to fix the start date, '
-      + 'change how many days it lasted, or tell it a long gap was real.<br><br>'
+    html += '<div class="cy-drfoot">'
+      + (canEdit ? '<b>Press and hold any row to edit it</b>, to fix the start date, change how many days it lasted, or tell it a long gap was real.<br><br>' : '')
       + 'Cycle is the gap to the next start, so the newest row counts from today. '
       + 'Anything ' + FLAG_AT + ' days or more is flagged as a possible missed period.</div>';
     el.innerHTML = html;
@@ -835,6 +841,7 @@
     function cancel() { clearTimeout(pT); if (pRow) { pRow.classList.remove('pressing'); pRow = null; } }
     var list = $('cyDrList');
     list.addEventListener('pointerdown', function (e) {
+      if (!canEdit) return;   // read-only for Riti — no press-and-hold edit
       var row = e.target.closest('.cy-prow'); if (!row) return;
       pRow = row; pY = e.clientY; row.classList.add('pressing');
       pT = setTimeout(function () { var id = row.dataset.id; cancel(); openEdit(id); }, 450);

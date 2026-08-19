@@ -95,14 +95,16 @@ async function handlePush(request, env) {
    An iPhone "Arrive" automation calls this when Riti or Parv reaches one of
    their homes. WHO arrived is decided ONLY by which secret matched, so a
    client cannot spoof identity with a body field. The Shortcut also sends a
-   coarse { "home": "noida" | "gurugram" | "rohtak" } label — never coordinates
-   — used only to answer "are we together?" and never put in the notification.
+   coarse { "home": "parv-gurugram" | "parv-rohtak" | "riti-noida" | "riti-gurugram" }
+   label (unique per place, so the two Gurugram homes never collide) — never
+   coordinates — used only to answer "are we together?" (same place, both
+   present) and never put in the notification.
 
    Default rule is "apart, one per day":
-     • both RECENTLY at the shared home (Gurugram) -> stay silent (you can see
-       they're in). A stale "last home = Gurugram" (partner arrived long ago and
-       maybe left untracked, since there are no Leave automations) is treated as
-       unknown and DOES ping — a redundant ping beats a missed one;
+     • this arrival puts you TOGETHER (partner's last arrival is the SAME place,
+       recent, and after their last leave) -> stay silent, you're in the same
+       room. A stale partner arrival is treated as unknown and DOES ping — a
+       redundant ping beats a missed one;
      • otherwise -> notify, but at most the FIRST arrival per IST day, so a
        daytime travel arrival still pings while errand in/out doesn't spam.
    The rule ('always'|'apart'|'evening'|'off'), the one-per-day flag, an evening
@@ -112,8 +114,16 @@ async function handlePush(request, env) {
    within DEDUP_MS are swallowed as bounces. Nothing is stored beyond the coarse
    current-home label used for the together-check. */
 const DEDUP_MS = 10 * 60 * 1000;   // 10 minutes
-const SHARED_HOME = 'gurugram';    // the only home both people share
-const HOMES = { riti: ['noida', 'gurugram'], parv: ['rohtak', 'gurugram'] };
+/* Unique per-place labels, so his Gurugram and her Gurugram never collide (both
+   sending bare "gurugram" used to read as "together" when they were actually
+   apart). Each phone's Arrive automation sends the label for the place it fires
+   at. The two shared spots — parv-gurugram and riti-noida — have an automation
+   on BOTH phones, which is the ONLY way the worker can ever know you're together
+   there. A place unknown to the sender is dropped. */
+const HOMES = {
+  parv: ['parv-gurugram', 'parv-rohtak', 'riti-noida'],
+  riti: ['riti-noida', 'riti-gurugram', 'parv-gurugram']
+};
 
 function timingSafeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length || a.length === 0) return false;
@@ -213,6 +223,7 @@ async function handleHomeArrival(request, env) {
   if (event === 'leave') {
     await setHomeState(sender, false, now, accessToken);
     await setArrival(sender, { leftAt: now }, accessToken);
+    await setTogether(false, now, accessToken);   // leaving anywhere ends "together"
     console.log('home: ' + sender + ' left ' + (home || '?'));
     return json({ ok: true, left: true });
   }
@@ -230,25 +241,30 @@ async function handleHomeArrival(request, env) {
   await setArrival(sender, home ? { at: now, home: home } : { at: now }, accessToken);
   await setHomeState(sender, true, now, accessToken);   // for the optional home/away line
 
+  // Are we together? True only when the partner's last arrival is the SAME place,
+  // they arrived MORE recently than they left, and recently enough to trust
+  // (iOS Leave automations are unreliable, so a stale arrival is not proof).
+  // Because a place label is globally unique, this can only ever be true at a
+  // spot BOTH phones have a geofence for (parv-gurugram, riti-noida).
+  let together = false;
+  if (home) {
+    const partner = await getArrival(recipient, accessToken);
+    const freshMs = (cfg.togetherHrs || 6) * 3600 * 1000;
+    if (partner.home === home && partner.at > (partner.leftAt || 0) && (now - partner.at) < freshMs) together = true;
+  }
+  await setTogether(together, now, accessToken);   // drives the "Together right now" line for both
+
   // Settings matrix: master mute + this recipient's "got home safe" toggle
   if (cfg.muteAll) { console.log('home: muted-all'); return json({ ok: true, muted: 'all' }); }
   if (!cfg.nHome[recipient]) { console.log('home: ' + recipient + ' opted out'); return json({ ok: true, muted: 'recipient' }); }
   if (!cfg.enabled || cfg.rule === 'off') { console.log('home: off'); return json({ ok: true, muted: 'off' }); }
-  if (home && cfg.homes[sender + '-' + home] === false) { console.log('home: ' + sender + '-' + home + ' muted'); return json({ ok: true, muted: 'home' }); }
+  if (home && cfg.homes[home] === false) { console.log('home: ' + home + ' muted'); return json({ ok: true, muted: 'home' }); }
 
-  // "apart" — suppress ONLY on a recent, trustworthy sign we're both at the
-  // shared home. Without Leave automations a bare "last home = Gurugram" goes
-  // stale, so we require the partner's Gurugram arrival to be within
-  // togetherHrs; otherwise it's unknown and we send. Solo homes are always apart.
-  if (cfg.rule === 'apart' && home === SHARED_HOME) {
-    const partner = await getArrival(recipient, accessToken);
-    const freshMs = (cfg.togetherHrs || 6) * 3600 * 1000;
-    // partner is at the shared home only if they arrived MORE recently than they
-    // left (leftAt from the Leave automations), and recently enough to trust.
-    if (partner.home === SHARED_HOME && partner.at > (partner.leftAt || 0) && (now - partner.at) < freshMs) {
-      console.log('home: together at ' + SHARED_HOME + ' (partner arrived ' + Math.round((now - partner.at) / 3600000) + 'h ago), silent');
-      return json({ ok: true, muted: 'together' });
-    }
+  // "apart" rule: if this arrival puts you together, stay silent — no point
+  // announcing "got home safe" to someone already in the same room.
+  if (cfg.rule === 'apart' && together) {
+    console.log('home: together at ' + home + ', silent');
+    return json({ ok: true, muted: 'together' });
   }
   // "evening" — only after the cutoff hour
   if (cfg.rule === 'evening' && istHour(now) < cfg.afterHour) { console.log('home: before ' + cfg.afterHour + ':00 IST'); return json({ ok: true, muted: 'early' }); }
@@ -308,6 +324,19 @@ async function setHomeState(person, atHome, ms, accessToken) {
     await fetch(DOCS + '/homeState/' + person + '?updateMask.fieldPaths=atHome&updateMask.fieldPaths=since', {
       method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: { atHome: { booleanValue: !!atHome }, since: { integerValue: String(ms) } } })
+    });
+  } catch (e) {}
+}
+
+/* homeState/together = { together, since } — a shared boolean (never a location)
+   that BOTH apps read to show the "Together right now" line. Written true on an
+   arrival that puts you at the same place as your partner, false on every leave
+   and on any arrival that does not. The same read-only /homeState rule covers it. */
+async function setTogether(on, ms, accessToken) {
+  try {
+    await fetch(DOCS + '/homeState/together?updateMask.fieldPaths=together&updateMask.fieldPaths=since', {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { together: { booleanValue: !!on }, since: { integerValue: String(ms) } } })
     });
   } catch (e) {}
 }
