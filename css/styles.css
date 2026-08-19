@@ -1812,6 +1812,10 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
 .mx-cell.locked { cursor: default; }
 .mx-cell.locked .mx-dot { background: rgba(192,66,90,.26); border-color: transparent; box-shadow: none; }
 .mx-cell.locked:active .mx-dot { transform: none; }
+/* Parv's columns, shown to Riti: the on/off state is visible but greyed + read-only */
+.mx-cell.ro { cursor: default; }
+.mx-cell.ro .mx-dot { opacity: .38; box-shadow: none; }
+.mx-cell.ro:active .mx-dot { transform: none; }
 #notifCard.muted .mx { opacity: .36; pointer-events: none; transition: opacity .25s; }
 
 /* mute-everything button */

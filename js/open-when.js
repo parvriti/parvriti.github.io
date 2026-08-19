@@ -38,6 +38,7 @@ function serverTime() {
    allowed account, so the Firestore read carries an auth token. */
 let liveNotes = [];   // notes from Firestore (both sides)
 let seedReads = {};   // openWhenReads/seeds: which hardcoded seed letters the recipient has opened
+let seedReadsLoaded = false;   // don't sparkle seeds until we actually know their read state
 let notesStarted = false;
 function startNotes() {
   if (notesStarted || !db) return;
@@ -49,8 +50,9 @@ function startNotes() {
     }, function (err) { console.warn('notes listen error', err); });
     db.collection('openWhenReads').doc('seeds').onSnapshot(function (snap) {
       seedReads = (snap.exists && snap.data()) ? snap.data() : {};
+      seedReadsLoaded = true;
       onLive();
-    }, function () {});
+    }, function () { seedReadsLoaded = true; onLive(); });
   } catch (e) { console.warn('subscribe failed', e); }
 }
 if (window.__parvritiAuthed) startNotes();
@@ -314,7 +316,7 @@ function buildGrid() {
        seedReads, or a live note with no readAt. */
     const isNew = env.entries.some(function (e) {
       if (isSealed(e)) return false;
-      if (e.seed) return !seedReads[currentSide + '_' + e.emotion];
+      if (e.seed) return seedReadsLoaded && !seedReads[currentSide + '_' + e.emotion];   // wait for read state → no false flash
       return !e.readAt;
     });
     const newB = isNew ? '<span class="ow-new">✨</span>' : '';

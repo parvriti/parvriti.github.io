@@ -1,17 +1,17 @@
 /* =====================================================================
-   settings.js — the admin control panel (Parv only).
+   settings.js — the control panel.
 
-   Reads and writes a single flat doc, settings/app. The push-worker reads
-   the hs* keys live to decide "got home safe" behaviour; periods.js reads
-   the cy* keys. Everything here is a curtain, not a wall: the page is only
-   reachable via the gear on the home screen (which common.js shows to Parv
-   only) and this file bounces anyone who is not Parv, but the real trust
-   boundary is the Firestore rules + the Worker's service account.
+   Reads/writes a single flat doc, settings/app. Parv (admin) edits everything;
+   Riti gets a restricted view — only HER own notification + visibility cells,
+   Parv's shown greyed + read-only, and the admin-only cards (got-home logic,
+   cycle, mute) hidden. The push-worker reads the hs and n_ keys; periods.js
+   reads the cy keys. This is a curtain; the real boundary is the Firestore rules
+   (settings write = parv() or Riti's own cells) + the Worker's service account.
    ===================================================================== */
 (function () {
   'use strict';
 
-  var VERSION = 'v47';
+  var VERSION = 'v48';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -33,7 +33,16 @@
   };
   var STEPPERS = { stTogether: 'hsTogetherHrs', stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen' };
 
-  var db = null, DOC = null, cfg = {}, saveTimer = null;
+  var db = null, DOC = null, cfg = {}, saveTimer = null, isAdmin = false;
+
+  /* Parv edits everything. Riti edits only HER own columns (n_*_riti / v_*_riti),
+     never Parv's, and not her own Settings-visibility (that would let her lock
+     herself out). Parv's cells show greyed + read-only for her. */
+  function editableByMe(key) {
+    if (isAdmin) return true;
+    if (key === 'v_settings_riti') return false;
+    return /_riti$/.test(key);
+  }
 
   function $(id) { return document.getElementById(id); }
 
@@ -44,9 +53,10 @@
     try { db = firebase.firestore(); } catch (e) { toast('Firestore did not load'); return; }
     DOC = db.collection('settings').doc('app');
     var start = function () {
+      isAdmin = (u.person === 'parv');
       // Visibility curtain: Parv always; Riti only if the matrix grants it.
-      var canSee = u.person === 'parv' ? true : (cfg.v_settings_riti === true);
-      if (!canSee) { location.replace('index.html'); return; }
+      if (!isAdmin && cfg.v_settings_riti !== true) { location.replace('index.html'); return; }
+      if (!isAdmin) document.querySelectorAll('.admin-only').forEach(function (el) { el.style.display = 'none'; });
       var em = $('stEmail'); if (em) em.textContent = u.email || '';
       var ve = $('stVer'); if (ve) ve.textContent = VERSION;
       bind();
@@ -90,9 +100,11 @@
   function bindMatrix() {
     var cells = document.querySelectorAll('.mx-cell[data-key]');
     for (var i = 0; i < cells.length; i++) {
-      if (cells[i].classList.contains('locked')) { cells[i].setAttribute('aria-checked', 'true'); continue; }
-      var k = cells[i].getAttribute('data-key');
-      cells[i].setAttribute('aria-checked', cfg[k] === true ? 'true' : 'false');
+      var c = cells[i];
+      if (c.classList.contains('locked')) { c.setAttribute('aria-checked', 'true'); continue; }
+      var k = c.getAttribute('data-key');
+      c.setAttribute('aria-checked', cfg[k] === true ? 'true' : 'false');
+      c.classList.toggle('ro', !editableByMe(k));   // Parv's columns show greyed + read-only for Riti
     }
     updateMute();
   }
@@ -168,6 +180,7 @@
     document.querySelectorAll('.mx-cell[data-key]').forEach(function (cell) {
       cell.addEventListener('click', function () {
         if (cell.classList.contains('locked')) { toast('you can’t hide your own Settings'); return; }
+        if (cell.classList.contains('ro')) { toast('only Parv can change this'); return; }
         var k = cell.getAttribute('data-key');
         var on = cell.getAttribute('aria-checked') !== 'true';
         cell.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -220,6 +233,19 @@
     t.textContent = m; t.classList.add('on');
     clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('on'); }, 1600);
   }
+
+  /* back arrow = native back, so it returns to wherever Settings was opened
+     from (the tab, or Home), not always Home. Falls back to Home if there is
+     no history to go back to. Wired on load, independent of sign-in. */
+  (function () {
+    var back = document.querySelector('.set-back');
+    if (!back) return;
+    back.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (history.length > 1) history.back();
+      else location.href = 'index.html';
+    });
+  })();
 
   if (window.__parvritiAuthed) boot();
   else window.addEventListener('parvriti-authed', boot);

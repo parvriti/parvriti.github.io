@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=47">
+<link rel="stylesheet" href="css/styles.css?v=48">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -39,12 +39,12 @@
         <div class="mx-row"><div class="mx-lbl"><span class="mx-ic">🏡</span>Got home safe</div><button class="mx-cell" data-key="n_home_riti" role="switch" aria-label="Got home safe to Riti"><span class="mx-dot"></span></button><button class="mx-cell" data-key="n_home_parv" role="switch" aria-label="Got home safe to Parv"><span class="mx-dot"></span></button></div>
         <div class="mx-row"><div class="mx-lbl"><span class="mx-ic">♡</span>Home / away<i class="mx-sub">on-screen line</i></div><button class="mx-cell" data-key="n_away_riti" role="switch" aria-label="Home/away line for Riti"><span class="mx-dot"></span></button><button class="mx-cell" data-key="n_away_parv" role="switch" aria-label="Home/away line for Parv"><span class="mx-dot"></span></button></div>
       </div>
-      <button type="button" class="set-mute" id="stMuteAll" role="switch" aria-checked="false"><span class="mute-ic">🔕</span><span class="mute-tx">Mute everything</span></button>
-      <div class="set-note">Mute everything silences pushes; the ♡ home/away line stays.</div>
+      <button type="button" class="set-mute admin-only" id="stMuteAll" role="switch" aria-checked="false"><span class="mute-ic">🔕</span><span class="mute-tx">Mute everything</span></button>
+      <div class="set-note admin-only">Mute everything silences pushes; the ♡ home/away line stays.</div>
     </section>
 
-    <!-- ══ Got home safe (how an arrival decides) ══ -->
-    <section class="set-card">
+    <!-- ══ Got home safe (how an arrival decides) — admin only ══ -->
+    <section class="set-card admin-only">
       <div class="set-card-h"><span class="set-ic">🏡</span> Got home safe</div>
 
       <div class="set-row col">
@@ -88,8 +88,8 @@
       </div>
     </section>
 
-    <!-- ══ B · Cycle ══ -->
-    <section class="set-card">
+    <!-- ══ B · Cycle — admin only ══ -->
+    <section class="set-card admin-only">
       <div class="set-card-h"><span class="set-ic">🌸</span> Cycle</div>
 
       <div class="set-row">
@@ -147,7 +147,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=47"></script>
-<script src="js/settings.js?v=47"></script>
+<script src="js/common.js?v=48"></script>
+<script src="js/settings.js?v=48"></script>
 </body>
 </html>
