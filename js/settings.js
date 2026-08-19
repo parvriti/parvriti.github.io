@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v45';
+  var VERSION = 'v46';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -21,10 +21,9 @@
     n_home_riti: true, n_home_parv: true, n_away_riti: true, n_away_parv: true,
     muteAll: false,
     // visibility matrix (v_<page>_<user>) — defaults mirror today's reality
-    v_home_riti: true, v_home_parv: true, v_openwhen_riti: true, v_openwhen_parv: true,
+    v_openwhen_riti: true, v_openwhen_parv: true,
     v_board_riti: true, v_board_parv: true, v_doodles_riti: true, v_doodles_parv: true,
-    v_wedding_riti: false, v_wedding_parv: false, v_periods_riti: false, v_periods_parv: true,
-    v_settings_riti: false, v_settings_parv: true,
+    v_periods_riti: false, v_periods_parv: true, v_settings_riti: false, v_settings_parv: true,
     cyLen: 31, cyFlagAt: 50, cyDefaultLen: 4
   };
   var SWITCHES = {
