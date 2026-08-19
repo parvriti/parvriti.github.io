@@ -519,8 +519,8 @@
     if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
     setTimeout(function () {
       ov.classList.remove('go');
-      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 700);
-    }, 2600);
+      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 300);
+    }, 1200);
   }
   function toast(msg) {
     var t = document.createElement('div');

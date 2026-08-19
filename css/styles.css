@@ -781,7 +781,7 @@ body.side-parv .ow-seal-field > label, body.side-parv .ow-seal-hint { color: #6f
 body.side-parv .love-fab { background: radial-gradient(circle at 32% 28%, #6f9bff, #2942c0); box-shadow: 0 6px 20px rgba(42,66,192,.55); }
 
 /* ══════════════ love pulse (received heartbeat) ══════════════ */
-.love-pulse { position: fixed; inset: 0; z-index: 9998; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .5s ease; background: radial-gradient(circle at 50% 44%, rgba(150,35,62,.5), rgba(10,4,6,.9) 72%); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.love-pulse { position: fixed; inset: 0; z-index: 9998; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .3s ease; background: radial-gradient(circle at 50% 44%, rgba(150,35,62,.5), rgba(10,4,6,.9) 72%); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
 .love-pulse.go { opacity: 1; }
 .love-heart { font-size: 90px; animation: heartThrob 1s ease-in-out infinite; filter: drop-shadow(0 0 24px rgba(255,110,145,.7)); }
 .love-text { margin-top: 12px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 22px; color: #ffd9e0; }
