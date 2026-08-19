@@ -11,12 +11,12 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v44';
+  var VERSION = 'v45';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
     // notifications matrix (n_<type>_<recipient>) + master mute
-    n_openwhen_riti: true, n_openwhen_parv: true, n_board_riti: true, n_board_parv: true,
+    n_openwhen_riti: true, n_openwhen_parv: true, n_read_riti: true, n_read_parv: true, n_board_riti: true, n_board_parv: true,
     n_doodle_riti: true, n_doodle_parv: true, n_heart_riti: true, n_heart_parv: true,
     n_home_riti: true, n_home_parv: true, n_away_riti: true, n_away_parv: true,
     muteAll: false,

@@ -181,22 +181,26 @@ function timeAgo(ms) {
   const d = Math.floor(h / 24); if (d < 7) return d + (d === 1 ? ' day ago' : ' days ago');
   return fmtDate(new Date(ms).toISOString().slice(0, 10));
 }
-/* Read receipt is one-directional by request: only Riti opening a letter Parv
-   wrote FOR her notifies him ("Riti opened your letter…"). Parv reading Riti's
-   notes tells her nothing - she wants it that way. */
+/* Read receipt: a note counts as "read" only when its RECIPIENT — the person
+   whose tab it lives on (e.side) — opens it, never its author. So a note Parv
+   wrote for Riti reads when Riti opens it; a note Riti wrote for Parv reads
+   when Parv opens it. The receipt names that recipient. */
 function receiptFor(e) {
   if (e.seed || !e.id || !e.readAt) return '';
+  var who = e.side === 'parv' ? 'Parv' : 'Riti';   // recipient of this side = the reader
   const when = e.readAt.seconds ? ' · ' + timeAgo(e.readAt.seconds * 1000) : '';
-  return '<div class="ow-receipt read">💗 Riti opened this' + when + '</div>';
+  return '<div class="ow-receipt read">💗 ' + who + ' opened this' + when + '</div>';
 }
 const openNotified = {};   // guard against firing twice before the snapshot lands
 function maybeNotifyOpen(e, env) {
   if (!e || e.seed || !e.id || isSealed(e)) return;
-  if (mePerson() !== 'riti' || e.side !== 'riti') return;   // only Riti, only Parv's letters
-  if (e.readAt || openNotified[e.id]) return;
+  if (mePerson() !== e.side) return;             // only the RECIPIENT (partner) of this side, never the author
+  if (e.readAt || openNotified[e.id]) return;    // first open only
   openNotified[e.id] = true;
-  if (db) db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: 'riti' }).catch(function (err) { console.warn(err); });
-  if (window.parvritiNotify) window.parvritiNotify('parv', 'Riti opened your letter - ' + env.title + ' 💌', '', 'https://parvriti.github.io/open-when.html', 'openwhen');
+  var reader = mePerson(), author = reader === 'parv' ? 'riti' : 'parv';
+  if (db) db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: reader }).catch(function (err) { console.warn(err); });
+  var name = reader === 'parv' ? 'Parv' : 'Riti';
+  if (window.parvritiNotify) window.parvritiNotify(author, name + ' opened your letter - ' + env.title + ' 💌', '', 'https://parvriti.github.io/open-when.html', 'read');
 }
 
 /* "on this day, a year ago…" - surfaces past notes sharing today's month + day */
@@ -365,7 +369,7 @@ function renderEntry() {
   if (entryIdx < 0) entryIdx = 0;
   const e = env.entries[entryIdx], total = env.entries.length;
   const sealed = isSealed(e);
-  maybeNotifyOpen(e, env);   // Riti opening Parv's letter → nudge Parv (once)
+  maybeNotifyOpen(e, env);   // recipient opening the other's letter → nudge its author (once)
   const pager = total > 1
     ? '<div class="ow-pager"><button type="button" class="ow-pg" data-act="prev"' + (entryIdx === 0 ? ' disabled' : '') + '>‹</button>' +
       '<span class="ow-pg-lbl">' + (entryIdx + 1) + ' of ' + total + '</span>' +
