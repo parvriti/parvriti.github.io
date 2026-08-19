@@ -36,10 +36,6 @@
   try {
     if (typeof firebase !== 'undefined' && firebase.auth) {
       if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      // Offline cache: onSnapshot then paints instantly from the last-known local
-      // data on repeat loads (no more "empty, then 2s later it fills in"), and
-      // refreshes from the server in the background. Must run before any read.
-      try { if (firebase.firestore) firebase.firestore().enablePersistence({ synchronizeTabs: true }).catch(function () {}); } catch (e) {}
       auth = firebase.auth();
       try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (e) {}
       auth.getRedirectResult().catch(function (e) { gateError(e); });
