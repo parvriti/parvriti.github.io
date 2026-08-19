@@ -139,7 +139,7 @@
     function buildNavAndGear(d) {
       if (!me) return;
       var vis = PAGES.filter(function (p) { return canSee(p.vis, me, d); });
-      var wantGear = canSee('settings', me, d);
+      var wantGear = page !== 'settings' && canSee('settings', me, d);   // not on the Settings page itself
       var sig = vis.map(function (p) { return p.page; }).join(',') + (wantGear ? '|g' : '');
       if (sig === navSig) return;   // nothing changed → no rebuild, no flash
       navSig = sig;
