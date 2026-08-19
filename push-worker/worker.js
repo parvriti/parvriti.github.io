@@ -256,9 +256,10 @@ async function handleHomeArrival(request, env) {
   if (cfg.onePerDay && state.sentDay === istDay(now)) { console.log('home: already sent today'); return json({ ok: true, muted: 'already-today' }); }
 
   const devices = await getTokens(recipient, accessToken);
+  const link = SITE + '/index.html?moment=home&who=' + sender;   // tap -> Home plays the "got home safe" animation
   let sent = 0;
   for (const d of devices) {
-    const res = await sendPush(accessToken, d.token, title, '', SITE + '/open-when.html');
+    const res = await sendPush(accessToken, d.token, title, '', link);
     if (res.ok) sent++;
     else if (res.dead) await deleteDoc(d.name, accessToken);
   }
@@ -335,7 +336,7 @@ async function runCelebration(event, env) {
   if (await celebrationDone(occ.id, accessToken)) return;   // never send the same one twice
   const devices = (await getTokens('parv', accessToken)).concat(await getTokens('riti', accessToken));
   for (const d of devices) {
-    const res = await sendPush(accessToken, d.token, occ.title, '', SITE + '/open-when.html');
+    const res = await sendPush(accessToken, d.token, occ.title, '', SITE + '/index.html?moment=celebrate');   // tap -> Home shows the takeover
     if (!res.ok && res.dead) await deleteDoc(d.name, accessToken);
   }
   await celebrationMark(occ.id, accessToken);

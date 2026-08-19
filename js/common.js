@@ -65,6 +65,20 @@
     try { startRealtime(); } catch (e) {}
     try { celebrate(); } catch (e) {}
     try { setupMessaging(); } catch (e) {}
+    try { handleMoment(); } catch (e) {}
+  }
+
+  /* a notification tap can land on Home with ?moment=… to replay the moment
+     it announced (heart / got-home). celebrate() already covers ?moment=celebrate
+     on the day, so nothing extra is needed for that. */
+  function handleMoment() {
+    var m, who;
+    try { var p = new URLSearchParams(location.search); m = p.get('moment'); who = p.get('who'); } catch (e) { return; }
+    if (!m) return;
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}   // don't replay on refresh
+    var name = who === 'parv' ? 'Parv' : 'Riti';
+    if (m === 'heart') pulseHeart({ from: who, emoji: '💗', text: name + ' is thinking of you 💗' });
+    else if (m === 'home') pulseHeart({ from: who, emoji: '🏡', text: name + ' got home safe 🏡' });
   }
 
   /* ── everything below the gate ── */
@@ -107,11 +121,25 @@
       { href: 'periods.html', label: 'Periods', page: 'periods', vis: 'periods' }
     ];
     var GEAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+    var BACK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+    /* inner pages get a slim top strip: ‹ home on the left, ⚙ on the right. */
+    function ensureTabTop() {
+      if (page === 'home') return null;
+      var existing = document.getElementById('tabTop'); if (existing) return existing;
+      var navEl = document.getElementById('nav'); if (!navEl || !navEl.parentNode) return null;
+      var top = document.createElement('div'); top.id = 'tabTop'; top.className = 'tabtop';
+      var back = document.createElement('a');
+      back.className = 'tt-btn tt-back'; back.href = 'index.html'; back.setAttribute('aria-label', 'Back to home');
+      back.innerHTML = BACK_SVG + '<span>home</span>';
+      top.appendChild(back);
+      navEl.parentNode.insertBefore(top, navEl);
+      return top;
+    }
     var navSig = null;
     function buildNavAndGear(d) {
       if (!me) return;
       var vis = PAGES.filter(function (p) { return canSee(p.vis, me, d); });
-      var wantGear = page === 'home' && canSee('settings', me, d);
+      var wantGear = canSee('settings', me, d);
       var sig = vis.map(function (p) { return p.page; }).join(',') + (wantGear ? '|g' : '');
       if (sig === navSig) return;   // nothing changed → no rebuild, no flash
       navSig = sig;
@@ -124,14 +152,16 @@
           a.href = item.href; a.textContent = item.label; navEl.appendChild(a);
         });
       }
+      var top = ensureTabTop();
       var gear = document.getElementById('homeGear');
       if (wantGear && !gear) {
         gear = document.createElement('a');
-        gear.id = 'homeGear'; gear.className = 'home-gear'; gear.href = 'settings.html';
-        gear.setAttribute('aria-label', 'Settings');
-        gear.innerHTML = GEAR_SVG;
+        gear.id = 'homeGear'; gear.href = 'settings.html';
+        gear.setAttribute('aria-label', 'Settings'); gear.innerHTML = GEAR_SVG;
         gear.addEventListener('click', function () { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} });
-        body.appendChild(gear);
+        if (page === 'home') { gear.className = 'home-gear'; body.appendChild(gear); }
+        else if (top) { gear.className = 'tt-btn tt-gear'; top.appendChild(gear); }
+        else { gear.className = 'home-gear'; body.appendChild(gear); }
       } else if (!wantGear && gear && gear.parentNode) { gear.parentNode.removeChild(gear); }
     }
     buildNavAndGear({});   // instant, from defaults (today's reality)
@@ -361,7 +391,7 @@
       toast('sent 💗');
       if (navigator.vibrate) navigator.vibrate(24);
       // also push, so it reaches them even if the app is closed
-      if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/open-when.html', 'heart');
+      if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/index.html?moment=heart&who=' + me, 'heart');
     };
 
     var pingFirst = true;

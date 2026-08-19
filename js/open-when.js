@@ -37,6 +37,7 @@ function serverTime() {
 /* We only start listening once the sign-in gate (common.js) has confirmed an
    allowed account, so the Firestore read carries an auth token. */
 let liveNotes = [];   // notes from Firestore (both sides)
+let seedReads = {};   // openWhenReads/seeds: which hardcoded seed letters the recipient has opened
 let notesStarted = false;
 function startNotes() {
   if (notesStarted || !db) return;
@@ -46,6 +47,10 @@ function startNotes() {
       liveNotes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       onLive();
     }, function (err) { console.warn('notes listen error', err); });
+    db.collection('openWhenReads').doc('seeds').onSnapshot(function (snap) {
+      seedReads = (snap.exists && snap.data()) ? snap.data() : {};
+      onLive();
+    }, function () {});
   } catch (e) { console.warn('subscribe failed', e); }
 }
 if (window.__parvritiAuthed) startNotes();
@@ -185,22 +190,36 @@ function timeAgo(ms) {
    whose tab it lives on (e.side) — opens it, never its author. So a note Parv
    wrote for Riti reads when Riti opens it; a note Riti wrote for Parv reads
    when Parv opens it. The receipt names that recipient. */
+function seedReadKey(e) { return e.side + '_' + e.emotion; }
 function receiptFor(e) {
-  if (e.seed || !e.id || !e.readAt) return '';
+  var at = null, read = false;
+  if (e.seed) { var rd = seedReads[seedReadKey(e)]; if (rd) { read = true; at = rd.at; } }
+  else if (e.id && e.readAt) { read = true; at = e.readAt; }
+  if (!read) return '';
   var who = e.side === 'parv' ? 'Parv' : 'Riti';   // recipient of this side = the reader
-  const when = e.readAt.seconds ? ' · ' + timeAgo(e.readAt.seconds * 1000) : '';
+  var atMs = at ? (at.seconds ? at.seconds * 1000 : (typeof at === 'number' ? at : 0)) : 0;
+  var when = atMs ? ' · ' + timeAgo(atMs) : '';   // we may not know when the pre-existing ones were read
   return '<div class="ow-receipt read">💗 ' + who + ' opened this' + when + '</div>';
 }
 const openNotified = {};   // guard against firing twice before the snapshot lands
 function maybeNotifyOpen(e, env) {
-  if (!e || e.seed || !e.id || isSealed(e)) return;
-  if (mePerson() !== e.side) return;             // only the RECIPIENT (partner) of this side, never the author
-  if (e.readAt || openNotified[e.id]) return;    // first open only
-  openNotified[e.id] = true;
+  if (!e || isSealed(e)) return;
+  if (mePerson() !== e.side) return;             // only the RECIPIENT of this side, never the author
   var reader = mePerson(), author = reader === 'parv' ? 'riti' : 'parv';
-  if (db) db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: reader }).catch(function (err) { console.warn(err); });
+  var guard = e.seed ? ('seed_' + seedReadKey(e)) : e.id;
+  if (!guard || openNotified[guard]) return;
+  if (e.seed) {
+    if (seedReads[seedReadKey(e)]) return;       // already opened
+    openNotified[guard] = true;
+    if (db) { var patch = {}; patch[seedReadKey(e)] = { by: reader, at: Date.now() }; db.collection('openWhenReads').doc('seeds').set(patch, { merge: true }).catch(function (err) { console.warn(err); }); }
+  } else {
+    if (e.readAt) return;                         // first open only
+    openNotified[guard] = true;
+    if (db) db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: reader }).catch(function (err) { console.warn(err); });
+  }
   var name = reader === 'parv' ? 'Parv' : 'Riti';
-  if (window.parvritiNotify) window.parvritiNotify(author, name + ' opened your letter - ' + env.title + ' 💌', '', 'https://parvriti.github.io/open-when.html', 'read');
+  var url = 'https://parvriti.github.io/open-when.html?open=' + encodeURIComponent(e.emotion || env.emotion || '') + '&side=' + e.side;
+  if (window.parvritiNotify) window.parvritiNotify(author, name + ' opened your letter - ' + env.title + ' 💌', '', url, 'read');
 }
 
 /* "on this day, a year ago…" - surfaces past notes sharing today's month + day */
@@ -231,6 +250,15 @@ function renderOnThisDay() {
 }
 
 let currentSide = 'riti';
+/* deep link from a notification tap: open-when.html?open=<emotion>&side=<side> */
+let deepOpen = null, deepSide = null;
+(function () {
+  try {
+    var p = new URLSearchParams(location.search);
+    var o = p.get('open'), s = p.get('side');
+    if (o) { deepOpen = o; deepSide = (s === 'parv' || s === 'riti') ? s : null; history.replaceState(null, '', location.pathname); }
+  } catch (e) {}
+})();
 function seedsFor(side) { return side === 'parv' ? SEED_PARV : SEED_RITI; }
 
 /* group seeds + live notes into ordered envelopes (one per emotion) */
@@ -240,7 +268,7 @@ function envelopesFor(side) {
     if (!map[emotion]) { map[emotion] = { emotion: emotion, emoji: emoji, title: title, entries: [] }; order.push(emotion); }
     return map[emotion];
   }
-  seedsFor(side).forEach(function (s) { ensure(s.emotion, s.emoji, s.title).entries.push(Object.assign({ seed: true }, s)); });
+  seedsFor(side).forEach(function (s) { ensure(s.emotion, s.emoji, s.title).entries.push(Object.assign({ seed: true, side: side }, s)); });
   liveNotes.filter(function (n) { return n.side === side; }).forEach(function (n) {
     ensure(n.emotion, n.emoji, n.title).entries.push(Object.assign({ seed: false }, n));
   });
@@ -275,7 +303,6 @@ function buildGrid() {
   if (!grid) return;
   grid.innerHTML = '';
   const seal = currentSide === 'parv' ? '💙' : '❤';
-  const seen = loadSeen();
   const unsealed = loadUnsealed();
   envelopesFor(currentSide).forEach(function (env, i) {
     const b = document.createElement('button');
@@ -283,8 +310,12 @@ function buildGrid() {
     b.className = 'ow-card';
     b.style.animationDelay = (i * 0.04) + 's';
     const count = env.entries.length > 1 ? '<span class="ow-count">' + env.entries.length + '</span>' : '';
+    /* ✨ = the recipient (this tab's side) hasn't opened it yet: a seed not in
+       seedReads, or a live note with no readAt. */
     const isNew = env.entries.some(function (e) {
-      return !e.seed && e.createdAt && (e.createdAt.seconds * 1000) > (seen[currentSide + '|' + env.emotion] || 0);
+      if (isSealed(e)) return false;
+      if (e.seed) return !seedReads[currentSide + '_' + e.emotion];
+      return !e.readAt;
     });
     const newB = isNew ? '<span class="ow-new">✨</span>' : '';
     const locked = envIsLocked(env, unsealed);
@@ -529,11 +560,11 @@ function saveForm(ev) {
   const openDate = (openRaw && openRaw > todayStr()) ? openRaw : null;   // only seal a future date
 
   // push the other person a nudge (never to yourself); a sealed capsule teases without spoiling
-  const notifyRecipient = function (noteTitle) {
+  const notifyRecipient = function (noteTitle, emotion) {
     const meP = mePerson();
     if (!meP || currentSide === meP || !window.parvritiNotify) return;
     const who = meP === 'parv' ? 'Parv' : 'Riti';
-    const url = 'https://parvriti.github.io/open-when.html';
+    const url = 'https://parvriti.github.io/open-when.html?open=' + encodeURIComponent(emotion || '') + '&side=' + currentSide;
     if (openDate) {
       window.parvritiNotify(currentSide, who + ' left you a time capsule ⏳', 'Sealed until ' + fmtDate(openDate) + '. Good things take time.', url, 'openwhen');
     } else {
@@ -548,7 +579,7 @@ function saveForm(ev) {
     db.collection('notes').add({
       side: currentSide, emotion: formEnv.emotion, emoji: formEnv.emoji, title: formEnv.title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(function () { notifyRecipient(formEnv.title); done(); }).catch(fail);
+    }).then(function () { notifyRecipient(formEnv.title, formEnv.emotion); done(); }).catch(fail);
   } else {
     const title = document.getElementById('owInTitle').value.trim();
     const emoji = document.getElementById('owInEmoji').value.trim() || (currentSide === 'parv' ? '💙' : '💌');
@@ -558,7 +589,7 @@ function saveForm(ev) {
     db.collection('notes').add({
       side: currentSide, emotion: key, emoji: emoji, title: title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(function () { notifyRecipient(title); done(); }).catch(fail);
+    }).then(function () { notifyRecipient(title, key); done(); }).catch(fail);
   }
   return false;
 }
@@ -573,6 +604,11 @@ function delEntry(entry) {
 function onLive() {
   buildGrid();
   renderOnThisDay();
+  if (!onLive._deep && deepOpen) {   // first load from a notification tap
+    onLive._deep = true;
+    if (deepSide && deepSide !== currentSide) setSide(deepSide);   // switch to the right tab
+    pendingOpen = deepOpen; deepOpen = null;
+  }
   if (pendingOpen) {
     const env = envelopesFor(currentSide).find(function (e) { return e.emotion === pendingOpen; });
     if (env) {

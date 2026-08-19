@@ -1832,3 +1832,25 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
   .mx-dot { transition: background .15s ease, border-color .15s ease; }
   .mx-cell:active .mx-dot { transform: none; }
 }
+
+/* ─── inner-page top strip: ‹ home · ⚙ ─── */
+.tabtop {
+  width: 100%; max-width: 600px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 4px 0;
+}
+.tt-btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: #ad6577; text-decoration: none;
+  font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 13px;
+  padding: 6px 9px; border-radius: 40px; min-height: 34px;
+  -webkit-tap-highlight-color: transparent; cursor: pointer;
+  transition: color .2s, background .2s, transform .12s;
+}
+.tt-btn svg { width: 15px; height: 15px; }
+.tt-btn:active { transform: scale(.93); color: #e8b6c1; background: rgba(192,66,90,.08); }
+.tt-gear { padding: 6px; }
+.tt-gear svg { width: 18px; height: 18px; }
+/* Periods is a light page, so tint the strip for contrast there */
+body[data-page="periods"] .tt-btn { color: #6a7189; }
+body[data-page="periods"] .tt-btn:active { color: #20264a; background: rgba(32,38,74,.06); }
