@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="For Toti 🌸">
+<meta name="theme-color" content="#0a0406">
+<title>Developer 🛠</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=55">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+</head>
+<body data-page="dev">
+
+<div class="page">
+  <header class="set-top">
+    <a class="set-back" href="settings.html" aria-label="Back to settings">‹</a>
+    <div class="set-h1">Developer</div>
+  </header>
+
+  <main class="col set-main">
+
+    <div class="dev-hint" id="devStatus">reading your app’s vitals…</div>
+
+    <!-- ══ Storage (measured) ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">📦</span> Storage <span class="dev-tag">measured</span></div>
+      <div class="dev-meter">
+        <div class="dev-meter-top"><span id="stoUsed">…</span><span id="stoPct" class="dev-num">…</span></div>
+        <div class="dev-bar"><i id="stoBar" style="width:0%"></i></div>
+        <div class="dev-cap">of 1 GiB stored</div>
+      </div>
+      <table class="dev-tbl"><tbody id="stoTable"></tbody></table>
+    </section>
+
+    <!-- ══ Egress (estimate) ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">📡</span> Egress <span class="dev-tag est">estimate</span></div>
+      <div class="set-row">
+        <div class="set-lbl"><b>Page loads / day</b><i>tweak to model your usage</i></div>
+        <div class="set-step" id="devLoads" data-min="1" data-max="200" data-step="5">
+          <button type="button" class="ss-dn" aria-label="fewer">–</button><span class="ss-val">20</span><button type="button" class="ss-up" aria-label="more">+</button>
+        </div>
+      </div>
+      <div class="dev-meter">
+        <div class="dev-meter-top"><span id="egrUsed">…</span><span id="egrPct" class="dev-num">…</span></div>
+        <div class="dev-bar"><i id="egrBar" style="width:0%"></i></div>
+        <div class="dev-cap">projected this month · of 10 GiB · resets in <span id="egrReset">…</span></div>
+      </div>
+      <div class="set-note">A rough model: blob-heavy pages re-download their collection on every open (no offline cache — that broke iOS here). ±20% vs the real wire size.</div>
+    </section>
+
+    <!-- ══ Daily ops (estimate) ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">🔁</span> Daily ops <span class="dev-tag est">estimate</span></div>
+      <div class="dev-op"><div class="dev-op-row"><span class="dev-op-l">Writes / day</span><span class="dev-op-r"><span class="dev-num" id="wrNum">…</span> / 20,000</span></div><div class="dev-bar sm"><i id="wrBar" style="width:0%"></i></div></div>
+      <div class="dev-op"><div class="dev-op-row"><span class="dev-op-l">Reads / day</span><span class="dev-op-r"><span class="dev-num" id="rdNum">…</span> / 50,000</span></div><div class="dev-bar sm"><i id="rdBar" style="width:0%"></i></div></div>
+      <div class="set-note">Mostly the presence heartbeat. Daily quotas reset ~midnight Pacific · in <span id="opReset">…</span>.</div>
+    </section>
+
+    <!-- ══ Limits & nudges ══ -->
+    <section class="set-card">
+      <div class="set-card-h"><span class="set-ic">🚦</span> Limits &amp; nudges</div>
+      <div id="devLimits"></div>
+    </section>
+
+    <div class="set-actions"><button type="button" class="set-btn" id="devRefresh">↻ Refresh</button></div>
+    <div class="set-foot" id="devFoot">just for the builder 🛠</div>
+  </main>
+</div>
+
+<div class="room-toast" id="setToast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="js/common.js?v=55"></script>
+<script src="js/dev.js?v=55"></script>
+</body>
+</html>
