@@ -219,6 +219,20 @@
     var rb = $('devRefresh'); if (rb) rb.addEventListener('click', crawl);
     crawl();
   }
+  /* back arrow → native back, so it returns to the Settings entry this was
+     opened from instead of PUSHING a new one. A plain href here pushed a fresh
+     settings entry, and settings' own back is history.back(), so the two
+     ping-ponged dev↔settings forever. Falls back to settings.html. */
+  (function () {
+    var back = document.querySelector('.set-back');
+    if (!back) return;
+    back.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (history.length > 1) history.back();
+      else location.href = 'settings.html';
+    });
+  })();
+
   if (window.__parvritiAuthed) boot();
   else window.addEventListener('parvriti-authed', boot);
 })();
