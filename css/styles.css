@@ -1314,6 +1314,15 @@ body.cy-locked { overflow: hidden; }
 .cy-phic.enter { animation: cyIcIn 900ms var(--cy-ease); }
 @keyframes cyIcIn { 0% { opacity: 0; transform: scale(.4) translateY(8px); }
   58% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: none; } }
+/* smooth phase change: the old icon dissolves outward while the new one blooms in,
+   as two stacked layers (a real cross-fade, not a hard innerHTML swap). */
+.cy-phic { position: relative; }
+.cy-phlayer { position: absolute; inset: 0; will-change: opacity, transform; }
+.cy-phlayer svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.cy-phlayer.cy-in  { animation: cyPhIn  780ms var(--cy-ease) both; }
+.cy-phlayer.cy-out { animation: cyPhOut 780ms var(--cy-ease) forwards; pointer-events: none; }
+@keyframes cyPhIn  { 0% { opacity: 0; transform: scale(.66); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes cyPhOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.22); } }
 .cy-cap { font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--cy-ink3); }
 .cy-phname { font-family: 'DM Sans', sans-serif; font-size: 14.5px; font-weight: 700;
   letter-spacing: .03em; text-transform: uppercase; color: var(--cy-accent);

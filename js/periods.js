@@ -208,11 +208,10 @@
       var v = s.exists ? (s.data() || {}) : {};
       var canSee = u.person === 'parv' ? (v.v_periods_parv !== false) : (v.v_periods_riti === true);
       if (!canSee) { location.replace('index.html'); return; }
-      // Only Parv logs/edits her cycle (the Firestore rules enforce it too). For
-      // Riti the page is read-only: hide the log button so she never taps a write
-      // that just errors. She still sees everything and can export the CSV.
-      canEdit = (u.person === 'parv');
-      if (!canEdit) { var fb = document.getElementById('cyFab'); if (fb) fb.style.display = 'none'; }
+      // Full control for whoever can see the tab: Parv always, and Riti once she turns
+      // Periods on for herself in Settings. The Firestore `cycle` rules allow either of
+      // them to write (ok()), so her log/edit/delete now work instead of just erroring.
+      canEdit = true;
       if (typeof v.cyLen === 'number' && v.cyLen >= 18 && v.cyLen <= 45) EXPECT = Math.round(v.cyLen);
       if (typeof v.cyFlagAt === 'number' && v.cyFlagAt >= 35 && v.cyFlagAt <= 90) FLAG_AT = Math.round(v.cyFlagAt);
       if (typeof v.cyDefaultLen === 'number' && v.cyDefaultLen >= 1 && v.cyDefaultLen <= 12) DEFAULT_LEN = Math.round(v.cyDefaultLen);
@@ -261,7 +260,7 @@
     var FV = firebase.firestore.FieldValue;
     return db.collection('cycle').doc(id).set({
       start: id, len: len || DEFAULT_LEN, longOk: !!longOk,
-      by: 'parv', createdAt: FV.serverTimestamp(), editedAt: FV.serverTimestamp()
+      by: ((window.__parvritiUser && window.__parvritiUser.person) || 'parv'), createdAt: FV.serverTimestamp(), editedAt: FV.serverTimestamp()
     }, { merge: true });
   }
   function patchLog(id, fields) {
@@ -316,7 +315,7 @@
   }
 
   /* ═══════════════════ render ═══════════════════ */
-  var washFlip = false, lastPh = null, shownDay = 0;
+  var washFlip = false, lastPh = null, shownDay = 0, iconPh = null;
 
   function paintLook(ph, instant) {
     var L = LOOK[ph];
@@ -367,6 +366,34 @@
     $('cyWeek').innerHTML = html;
   }
 
+  /* the centre phase glyph. Cross-fade the old icon into the new (two stacked layers)
+     instead of a hard innerHTML swap that popped/twitched. animate=false just seats an
+     icon with no transition (first paint, and the arrival's opening phase). Self-guards
+     on no-change, so repeated snapshots never re-trigger it. */
+  function setPhaseIcon(ph, animate) {
+    var host = $('cyPhIcon');
+    if (iconPh === ph && host.firstChild) return;
+    var layer = document.createElement('div');
+    layer.className = 'cy-phlayer';
+    layer.innerHTML = ICON[ph];
+    var old = host.firstChild;
+    if (!animate) {
+      host.innerHTML = '';
+      host.appendChild(layer);
+    } else {
+      layer.classList.add('cy-in');
+      host.appendChild(layer);
+      if (old) {
+        old.classList.remove('cy-in');
+        old.classList.add('cy-out');
+        (function (dead) {
+          setTimeout(function () { if (dead.parentNode === host) host.removeChild(dead); }, 820);
+        })(old);
+      }
+    }
+    iconPh = ph;
+  }
+
   function render(animateIcon) {
     var day = cycleDay();
     var isNone = (!LOGS.length || day < 1);
@@ -391,9 +418,8 @@
     $('cyPhName').textContent = PHNAME[ph];
     $('cyDayCap').textContent = isNone ? '' : 'cycle day';
     tweenDay(shownDay, day); shownDay = day || shownDay;
+    setPhaseIcon(ph, changed);
     if (changed) {
-      var ic = $('cyPhIcon'); ic.innerHTML = ICON[ph];
-      ic.classList.remove('enter'); void ic.offsetWidth; ic.classList.add('enter');
       var pn = $('cyPhName');
       pn.classList.remove('enter'); void pn.offsetWidth; pn.classList.add('enter');
     }
@@ -442,7 +468,7 @@
       arrive._done = true;
       lastPh = prev;
       paintLook(prev, true);
-      $('cyPhIcon').innerHTML = ICON[prev];
+      setPhaseIcon(prev, false);
       $('cyPhName').textContent = PHNAME[prev];
       staggerIn();
       setTimeout(function () { render(true); toast('new phase since you last looked'); }, 1150);
