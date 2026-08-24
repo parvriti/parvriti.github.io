@@ -171,6 +171,16 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
    ink for light mode so they read. */
 :root[data-theme="light"] .dev-tag { color: #1f8f56; }
 :root[data-theme="light"] .dev-tag.est { color: #a8730f; }
+/* dev-panel status inks were light green/amber/pink (for dark) and low-contrast on the white light
+   cards; deepen them so ok/warn/hot still read as status. */
+:root[data-theme="light"] .dev-num.ok { color: #16915f; }
+:root[data-theme="light"] .dev-num.warn { color: #9a6a0d; }
+:root[data-theme="light"] .dev-num.hot { color: #c62b3f; }
+:root[data-theme="light"] .dev-col-sub.hot-t { color: #c62b3f; }
+/* the "turn on notifications?" prompt was a dark pill with light ink; relight it for the light UI. */
+:root[data-theme="light"] .notif-prompt { background: rgba(255,255,255,.94); border-color: #f0c8d0; box-shadow: 0 8px 24px rgba(120,40,60,.14); }
+:root[data-theme="light"] .np-text { color: #5a3540; }
+:root[data-theme="light"] .np-no { color: #a05a68; }
 
 /* dev panel + toasts on light (keep readable) */
 :root[data-theme="light"] .room-toast, :root[data-theme="light"] .mini-toast { background: rgba(52,28,37,.92); color: #ffe4ea; border-color: rgba(192,66,90,.4); }
@@ -382,6 +392,12 @@ body[data-page="periods"] .cy-hint { padding-right: 76px; }
   .col, .screen { max-width: min(100%, 700px) !important; }
   .ow-grid { grid-template-columns: repeat(4, 1fr) !important; }
   .ow-paper, .ow-form { max-width: 380px; }
+  /* Periods / Settings / Dev are single-column utility layouts: cap them narrower than the reading
+     pages so the matrix toggles stay beside their labels and the dial + cards don't float in a wide
+     band. Higher specificity than the .col rules (here and at 1024), so it holds at every width. */
+  body[data-page="periods"] :is(.col, .screen),
+  body[data-page="settings"] :is(.col, .screen, .set-top),
+  body[data-page="dev"] :is(.col, .screen) { max-width: min(100%, 500px) !important; }
 }
 @media (min-width: 1024px) {
   .col, .screen { max-width: min(100%, 860px) !important; }
