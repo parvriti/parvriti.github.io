@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v62';
+  var VERSION = 'v63';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -24,14 +24,18 @@
     v_openwhen_riti: true, v_openwhen_parv: true,
     v_board_riti: true, v_board_parv: true, v_doodles_riti: true, v_doodles_parv: true,
     v_periods_riti: false, v_periods_parv: true, v_settings_riti: false, v_settings_parv: true,
-    cyLen: 31, cyFlagAt: 50, cyDefaultLen: 4
+    cyLen: 31, cyFlagAt: 50, cyDefaultLen: 4,
+    // cycle reminders (per person, OFF by default; each gated on their own Periods visibility)
+    cyNotifPeriod_riti: false, cyNotifPeriod_parv: false,
+    cyNotifPhase_riti: false, cyNotifPhase_parv: false,
+    cyNotifLead: 2
   };
   var SWITCHES = {
     stOnePerDay: 'hsOnePerDay',
     stHomeRitiNoida: 'hsHomeRitiNoida', stHomeRitiGurugram: 'hsHomeRitiGurugram',
     stHomeParvRohtak: 'hsHomeParvRohtak', stHomeParvGurugram: 'hsHomeParvGurugram'
   };
-  var STEPPERS = { stTogether: 'hsTogetherHrs', stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen' };
+  var STEPPERS = { stTogether: 'hsTogetherHrs', stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen', stCyLead: 'cyNotifLead' };
 
   var db = null, DOC = null, cfg = {}, saveTimer = null, isAdmin = false;
 
@@ -92,8 +96,25 @@
     for (id in STEPPERS) drawStep($(id), cfg[STEPPERS[id]]);
     setSeg(cfg.hsRule);
     bindMatrix();
+    gateCycle();
     conditional();
     wire();
+  }
+
+  /* Cycle-reminder cells + the shared "days before" row grey out (self-muted) for
+     each person until THEIR Periods tab is on. Riti's un-grey when v_periods_riti is
+     on; Parv's (and the shared lead) when v_periods_parv is on. Still tappable so a
+     tap can explain why. Re-run whenever a Periods visibility cell changes. */
+  function gateCycle() {
+    var cells = document.querySelectorAll('.mx-cell.cy-cell[data-key]');
+    for (var i = 0; i < cells.length; i++) {
+      var c = cells[i], k = c.getAttribute('data-key');
+      var who = /_riti$/.test(k) ? 'riti' : 'parv';
+      var visOn = who === 'parv' ? (cfg.v_periods_parv !== false) : (cfg.v_periods_riti === true);
+      c.classList.toggle('gated', !visOn);
+    }
+    var lead = $('rowCyLead');   // shared lead is Parv's, gated on his Periods
+    if (lead) lead.classList.toggle('gated', cfg.v_periods_parv === false);
   }
 
   /* the two matrices (notifications + visibility) — plain aria-checked cells */
@@ -171,6 +192,8 @@
       el.addEventListener('click', function (e) {
         var up = e.target.closest('.ss-up'), dn = e.target.closest('.ss-dn');
         if (!up && !dn) return;
+        var grow = el.closest('.set-row');
+        if (grow && grow.classList.contains('gated')) { toast('turn on the Periods tab first'); return; }
         var step = +el.getAttribute('data-step') || 1;
         var v = (+el.dataset.val || 0) + (up ? step : -step);
         drawStep(el, v); tick(); save(kv(STEPPERS[id], +el.dataset.val));
@@ -180,11 +203,13 @@
     document.querySelectorAll('.mx-cell[data-key]').forEach(function (cell) {
       cell.addEventListener('click', function () {
         if (cell.classList.contains('locked')) { toast('you can’t hide your own Settings'); return; }
+        if (cell.classList.contains('gated')) { toast('turn on the Periods tab first'); return; }
         if (cell.classList.contains('ro')) { toast('only Parv can change this'); return; }
         var k = cell.getAttribute('data-key');
         var on = cell.getAttribute('aria-checked') !== 'true';
         cell.setAttribute('aria-checked', on ? 'true' : 'false');
         cfg[k] = on; tick(); save(kv(k, on));
+        if (k.indexOf('v_periods') === 0) gateCycle();   // toggling a Periods tab re-grades the reminder cells
       });
     });
     var mute = $('stMuteAll');

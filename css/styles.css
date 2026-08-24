@@ -1825,6 +1825,12 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
 .mx-cell.ro { cursor: default; }
 .mx-cell.ro .mx-dot { opacity: .38; box-shadow: none; }
 .mx-cell.ro:active .mx-dot { transform: none; }
+/* cycle reminder cell self-muted until that person's Periods tab is on (still tappable
+   so a tap can say why). Uses the same dot, just greyed — theme-independent. */
+.mx-cell.gated { cursor: default; }
+.mx-cell.gated .mx-dot { opacity: .24; box-shadow: none; filter: grayscale(1); }
+.mx-cell.gated:active .mx-dot { transform: none; }
+.set-row.gated { opacity: .4; }
 #notifCard.muted .mx { opacity: .36; pointer-events: none; transition: opacity .25s; }
 
 /* mute-everything button */

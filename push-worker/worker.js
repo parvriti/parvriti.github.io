@@ -39,10 +39,15 @@ export default {
     return handlePush(request, env);
   },
 
-  /* Cron Trigger (set to "30 18 * * *" = 00:00 IST). Sends the birthday /
-     anniversary wish to BOTH phones at midnight, even with the apps closed. */
+  /* Two Cron Triggers:
+       "30 18 * * *" = 00:00 IST -> birthday / anniversary wish to BOTH phones.
+       "30 3 * * *"  = 09:00 IST -> cycle heads-up (upcoming period + phase changes),
+                                    per person, gated on their own Periods visibility.
+     Add the 09:00 trigger in Cloudflare (Workers -> the worker -> Triggers -> Cron)
+     the same way the midnight one was added. Until it exists, cycle nudges never run. */
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runCelebration(event, env));
+    if (event.cron === '30 3 * * *') ctx.waitUntil(runCycleNudges(event, env));
+    else ctx.waitUntil(runCelebration(event, env));
   }
 };
 
@@ -384,6 +389,187 @@ async function celebrationMark(id, accessToken) {
       body: JSON.stringify({ fields: { at: { integerValue: String(Date.now()) } } })
     });
   } catch (e) {}
+}
+
+/* ══════════════ cycle heads-up (upcoming period + phase changes) ══════════════
+   Runs at 09:00 IST. Rebuilds her cycle day, the predicted period window, and the
+   current phase server-side from settings/app + the latest logged period (the same
+   model periods.js draws on-screen). For EACH person it is gated on THEIR OWN Periods
+   visibility (Parv sees Periods by default; Riti only if she turned it on) plus their
+   own toggles — all OFF by default — plus the master mute. At most one period heads-up
+   per cycle and one note per phase per cycle (a cycleNudges marker guards repeats).
+   Tapping opens straight to the Periods tab. No location; nothing stored but the marker. */
+const CY_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+function isoToMs(iso) { const p = String(iso).split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
+function isoAdd(iso, n) { const d = new Date(isoToMs(iso) + n * 86400000); return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()); }
+function isoDiff(a, b) { return Math.round((isoToMs(b) - isoToMs(a)) / 86400000); }
+function cyFmt(iso) { const p = String(iso).split('-'); return (+p[2]) + ' ' + CY_MON[+p[1] - 1]; }
+
+/* the same phase boundaries periods.js derives from EXPECT. Only the five real phases
+   are ever notified; due/late/overdue collapse to 'due' (not in the notify set). */
+function cyPhase(day, len, expect) {
+  const RANGE = 2, open = expect - RANGE, ov = expect - 14;
+  const fFrom = Math.max(len + 1, ov - 3), fTo = Math.max(fFrom, ov + 3);
+  if (day <= len) return 'menstrual';
+  if (day < fFrom) return 'follicular';
+  if (day <= fTo) return 'fertile';
+  if (day < open - 2) return 'luteal';
+  if (day < open) return 'pms';
+  return 'due';
+}
+/* the four phases detected by a day-to-day transition. Menstrual is handled separately
+   below (it is not a "transition" — day 1's previous day is also menstrual): it fires
+   once per cycle on the first 9am tick where the period is logged and still ongoing, so
+   it lands whether the drop was tapped before or after 9am (the copy says "has started"
+   rather than "today", so it reads right on day 1 or day 2). */
+const CY_NOTIFY = { follicular: 1, fertile: 1, luteal: 1, pms: 1 };
+
+/* recipient-aware, purely informative copy (agreed with Parv: no advice, no poetry). */
+function cyPhaseMsg(recipient, phase, day) {
+  const Her = recipient === 'parv' ? 'Her' : 'Your';
+  const poss = recipient === 'parv' ? 'her' : 'your';
+  if (phase === 'menstrual') return { title: Her + ' period has started 🌊', body: 'Cycle day ' + day + '. A new cycle begins.' };
+  if (phase === 'follicular') return { title: 'Follicular phase started 🌱', body: 'Cycle day ' + day + '. Post-period, before ovulation.' };
+  if (phase === 'fertile') return { title: 'Fertile window started ☀️', body: 'Cycle day ' + day + '. ' + Her + ' most fertile days (ovulation).' };
+  if (phase === 'luteal') return { title: 'Luteal phase started 🌙', body: 'Cycle day ' + day + '. After ovulation, before ' + poss + ' period.' };
+  return { title: 'PMS phase started 💜', body: 'Cycle day ' + day + '. The final stretch before ' + poss + ' period.' };
+}
+function cyPeriodMsg(recipient, lead, openIso, closeIso) {
+  const Her = recipient === 'parv' ? 'Her' : 'Your';
+  const title = lead === 0
+    ? Her + ' period window opens today 💗'
+    : Her + ' period is about ' + lead + (lead === 1 ? ' day' : ' days') + ' away 💗';
+  return { title: title, body: 'Predicted window: ' + cyFmt(openIso) + ' to ' + cyFmt(closeIso) + '.' };
+}
+
+/* per-person cycle config from settings/app. Visibility defaults match the app:
+   Parv sees Periods unless turned off; Riti only if turned on. All toggles OFF. */
+async function getCycleCfg(accessToken) {
+  const d = {
+    muteAll: false, cyLen: 31,
+    vis: { parv: true, riti: false },
+    period: { parv: false, riti: false },
+    phase: { parv: false, riti: false },
+    lead: 2
+  };
+  try {
+    const r = await fetch(DOCS + '/settings/app', { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) return d;
+    const f = (await r.json()).fields || {};
+    d.muteAll = fval(f.muteAll) === true;
+    if ('cyLen' in f) { const v = fval(f.cyLen); if (typeof v === 'number' && v >= 18 && v <= 45) d.cyLen = Math.round(v); }
+    d.vis.parv = fval(f.v_periods_parv) !== false;
+    d.vis.riti = fval(f.v_periods_riti) === true;
+    d.period.parv = fval(f.cyNotifPeriod_parv) === true;
+    d.period.riti = fval(f.cyNotifPeriod_riti) === true;
+    d.phase.parv = fval(f.cyNotifPhase_parv) === true;
+    d.phase.riti = fval(f.cyNotifPhase_riti) === true;
+    { const v = fval(f.cyNotifLead); if (typeof v === 'number' && v >= 0 && v <= 7) d.lead = Math.round(v); }
+  } catch (e) {}
+  return d;
+}
+
+/* the latest logged period (doc id = start date). Returns { start, len } or null. */
+async function getLastCycle(accessToken) {
+  try {
+    const r = await fetch(DOCS + ':runQuery', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'cycle' }],
+          orderBy: [{ field: { fieldPath: 'start' }, direction: 'DESCENDING' }],
+          limit: 1
+        }
+      })
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    for (const row of rows) {
+      if (row.document && row.document.fields && row.document.fields.start) {
+        const f = row.document.fields;
+        const start = f.start.stringValue;
+        let len = f.len && f.len.integerValue ? parseInt(f.len.integerValue, 10) : (f.len && f.len.doubleValue ? Math.round(f.len.doubleValue) : 4);
+        if (!(len > 0 && len < 15)) len = 4;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(start || '')) return { start: start, len: len };
+      }
+    }
+    return null;
+  } catch (e) { return null; }
+}
+
+async function cyMarked(id, accessToken) {
+  try { const r = await fetch(DOCS + '/cycleNudges/' + encodeURIComponent(id), { headers: { Authorization: 'Bearer ' + accessToken } }); return r.ok; }
+  catch (e) { return true; }   // on error, skip rather than risk a duplicate
+}
+async function cyMark(id, accessToken) {
+  try {
+    await fetch(DOCS + '/cycleNudges?documentId=' + encodeURIComponent(id), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { at: { integerValue: String(Date.now()) } } })
+    });
+  } catch (e) {}
+}
+
+async function cySendTo(person, msg, accessToken) {
+  const devices = await getTokens(person, accessToken);
+  const link = SITE + '/periods.html?n=1';   // tap -> opens straight to the Periods tab
+  let sent = 0;
+  for (const d of devices) {
+    const res = await sendPush(accessToken, d.token, msg.title, msg.body, link);
+    if (res.ok) sent++;
+    else if (res.dead) await deleteDoc(d.name, accessToken);
+  }
+  return sent;
+}
+
+async function runCycleNudges(event, env) {
+  let sa;
+  try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
+  const accessToken = await getAccessToken(sa);
+  if (!accessToken) return;
+
+  const cfg = await getCycleCfg(accessToken);
+  if (cfg.muteAll) { console.log('cycle: muted-all'); return; }
+
+  const last = await getLastCycle(accessToken);
+  if (!last) { console.log('cycle: no logs'); return; }
+
+  const now = (event && event.scheduledTime) ? event.scheduledTime : Date.now();
+  const todayIso = istDay(now);
+  const EXPECT = cfg.cyLen, RANGE = 2, len = last.len;
+  const day = isoDiff(last.start, todayIso) + 1;        // cycle day 1 = the start date
+  if (day < 1) { console.log('cycle: future start?'); return; }
+
+  const openIso = isoAdd(last.start, EXPECT - RANGE - 1);   // window bounds match periods.js
+  const closeIso = isoAdd(last.start, EXPECT + RANGE - 1);
+  const phaseToday = cyPhase(day, len, EXPECT);
+  const phaseYest = cyPhase(day - 1, len, EXPECT);
+  // menstrual fires once per cycle while the period is ongoing (reliable whether the
+  // drop was tapped before or after 9am); the other four fire on their transition day.
+  const startedPhase = (day <= len) ? 'menstrual'
+    : ((phaseToday !== phaseYest && CY_NOTIFY[phaseToday]) ? phaseToday : null);
+
+  for (const person of ['parv', 'riti']) {
+    if (!cfg.vis[person]) continue;   // Periods hidden for them -> self-muted
+
+    if (cfg.period[person] && isoDiff(todayIso, openIso) === cfg.lead) {
+      const id = 'period-' + person + '-' + last.start;
+      if (!(await cyMarked(id, accessToken))) {
+        const n = await cySendTo(person, cyPeriodMsg(person, cfg.lead, openIso, closeIso), accessToken);
+        await cyMark(id, accessToken);
+        console.log('cycle: period -> ' + person + ' sent ' + n);
+      }
+    }
+
+    if (cfg.phase[person] && startedPhase) {
+      const id = 'phase-' + person + '-' + last.start + '-' + startedPhase;
+      if (!(await cyMarked(id, accessToken))) {
+        const n = await cySendTo(person, cyPhaseMsg(person, startedPhase, day), accessToken);
+        await cyMark(id, accessToken);
+        console.log('cycle: phase ' + startedPhase + ' -> ' + person + ' sent ' + n);
+      }
+    }
+  }
 }
 
 function json(obj, status) {
