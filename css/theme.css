@@ -1,0 +1,389 @@
+/* =====================================================================
+   theme.css — light/dark theme + native shell, layered on the UNTOUCHED
+   components (paired with js/native.js). Loaded AFTER css/styles.css.
+   Additive only (no component markup or backend touched):
+     1) NATIVE SHELL: bottom tab bar, frosted corners, smooth transitions,
+        press states, killed web tells.
+     2) THEME: light = the Periods richness (real fills, dark ink) carried
+        app-wide; dark = the current look + a redesigned dark Periods.
+   Values traced to the surface map of css/styles.css v58.
+   ===================================================================== */
+
+/* smooth cross-document navigation (Safari 18+/Chromium; graceful no-op) */
+@view-transition { navigation: auto; }
+
+/* ── kill the web tells ── */
+* { -webkit-tap-highlight-color: transparent; }
+.proto-tabbar, .proto-corner { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { overscroll-behavior: none; }
+body { -webkit-overflow-scrolling: touch; }
+a, button, [role="button"], .ow-card, .ow-side, .mx-cell, .set-sw, .set-btn,
+.set-step button, .cy-met, .proto-tab, .proto-corner { touch-action: manipulation; }
+.set-row:active, .set-btn:active, .ow-side:active, .cy-fab:active { transform: scale(.97); }
+
+/* ── hide the original top nav (replaced by the bottom bar) ── */
+#nav, .tabtop, .home-gear, .tt-back, .tt-gear, .set-back { display: none !important; }
+
+/* keep content clear of the bottom bar; float the heart above it */
+body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
+.love-fab, .cy-fab { bottom: calc(env(safe-area-inset-bottom) + 86px) !important; }
+
+/* ── native bottom tab bar (frosted) ── */
+.proto-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 500;
+  display: flex; justify-content: space-around;
+  padding: 7px 6px calc(env(safe-area-inset-bottom) + 7px);
+  background: rgba(16, 7, 11, .74);
+  backdrop-filter: saturate(1.5) blur(20px); -webkit-backdrop-filter: saturate(1.5) blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+.proto-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  text-decoration: none; color: #8c6d75; font: 600 10px 'DM Sans', sans-serif; padding: 3px 0;
+  transition: color .2s ease, transform .15s cubic-bezier(.32, .72, 0, 1); }
+.proto-tab svg { width: 23px; height: 23px; }
+.proto-tab.on { color: #e07090; }
+.proto-tab:active { transform: scale(.9); }
+
+/* ── frosted corner buttons: theme toggle (left) + gear (right) ── */
+.proto-corner {
+  position: fixed; top: calc(env(safe-area-inset-top) + 10px); z-index: 500;
+  width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid rgba(255, 255, 255, .1); background: rgba(32, 16, 23, .6);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  color: #c3a3ab; text-decoration: none; font-size: 18px; line-height: 1;
+  transition: transform .15s cubic-bezier(.32, .72, 0, 1); }
+.proto-corner:active { transform: scale(.9); }
+.proto-corner svg { width: 18px; height: 18px; }
+.proto-left { left: 14px; } .proto-right { right: 14px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIGHT THEME — Periods richness (real fills + dark ink) across the app.
+   Warm-rose reading of it (not the clinical navy), so the letters stay
+   romantic. Board/Doodles keep their cork-wood world; Periods keeps its
+   own light design.
+   ═══════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] { --l-bg:#fbf1f1; --l-ink:#341c25; --l-ink2:#7a5560; --l-ink3:#ad909a;
+  --l-card:#ffffff; --l-line:#f0e0e3; --l-soft:#ffe0e6; --l-accent:#c0425a; --l-deep:#b0264a;
+  --l-sh:0 10px 30px rgba(52,28,37,.07), 0 2px 6px rgba(52,28,37,.05); }
+
+:root[data-theme="light"] body { background: #fbf1f1 !important; color: var(--l-ink); }
+:root[data-theme="light"] .bg-base { background: #fbf1f1 !important; }
+:root[data-theme="light"] .bgp { display: none !important; }
+:root[data-theme="light"] .bloom-ov { background: #fbf1f1; }
+
+/* light-mode frosted chrome */
+:root[data-theme="light"] .proto-tabbar { background: rgba(251,241,241,.82); border-top-color: var(--l-line); }
+:root[data-theme="light"] .proto-tab { color: var(--l-ink3); }
+:root[data-theme="light"] .proto-tab.on { color: var(--l-accent); }
+:root[data-theme="light"] .proto-corner { background: rgba(255,255,255,.72); border-color: var(--l-line); color: var(--l-ink2); box-shadow: var(--l-sh); }
+
+/* HOME */
+:root[data-theme="light"] .headline { color: #8b2040; }
+:root[data-theme="light"] .sub { color: var(--l-ink2); }
+:root[data-theme="light"] .day-counter { color: var(--l-ink2); }
+:root[data-theme="light"] .day-counter b { color: var(--l-accent); }
+:root[data-theme="light"] .last-seen, :root[data-theme="light"] .home-state { color: var(--l-ink2); }
+
+/* OPEN WHEN — envelopes + parchment already read as rich; only recolour the surrounds */
+:root[data-theme="light"] .ow-kicker { color: var(--l-ink3); }
+:root[data-theme="light"] .ow-title { color: #8b2040; }
+:root[data-theme="light"] .ow-note { color: var(--l-ink2); }
+:root[data-theme="light"] .ow-side { background: var(--l-card); border-color: var(--l-line); color: #a05a68; box-shadow: var(--l-sh); }
+/* the light .ow-side override above (specificity 0,2,1) out-ranked the base .ow-side.active
+   rose/blue gradients, so the SELECTED side toggle rendered flat white like the inactive one.
+   Restore the active fills for light mode (rose for Riti, blue for the Parv side). */
+:root[data-theme="light"] .ow-side.active { background: linear-gradient(135deg,#c0425a,#7a1f3a) !important; color: #fff !important; border-color: transparent !important; box-shadow: 0 6px 18px rgba(192,66,90,.3) !important; }
+:root[data-theme="light"] .ow-side[data-side="parv"].active { background: linear-gradient(135deg,#5079c4,#22345f) !important; box-shadow: 0 6px 18px rgba(64,96,168,.34) !important; }
+:root[data-theme="light"] .ow-cap { color: #5a3540; }
+:root[data-theme="light"] .ow-add-env { background: var(--l-card); border-color: #e6b3c0; color: #b06a7a; }
+:root[data-theme="light"] .ow-editbar .ow-edit-toggle { background: var(--l-card); border-color: var(--l-line); color: #a05a68; }
+:root[data-theme="light"] .otd-card { background: linear-gradient(135deg, #ffe0e6, #ffd2dc); border-color: #f2c2ce; }
+:root[data-theme="light"] .otd-k { color: var(--l-deep); }
+:root[data-theme="light"] .otd-t { color: #5a3540; }
+
+/* SETTINGS — real white cards, dark ink (the strongest richness upgrade) */
+:root[data-theme="light"] .set-top { background: linear-gradient(#fbf1f1 74%, rgba(251,241,241,0)) !important; }
+:root[data-theme="light"] .set-h1 { color: var(--l-ink); }
+:root[data-theme="light"] .set-back { background: #fff; border-color: var(--l-line); color: #b0405a; }
+:root[data-theme="light"] .set-card { background: var(--l-card); border-color: var(--l-line); box-shadow: var(--l-sh); }
+:root[data-theme="light"] .set-card-h { color: var(--l-ink); border-bottom-color: var(--l-line); }
+:root[data-theme="light"] .set-row { border-bottom-color: #f4e6e9; }
+:root[data-theme="light"] .set-lbl b, :root[data-theme="light"] .mx-lbl { color: var(--l-ink); }
+:root[data-theme="light"] .set-lbl i, :root[data-theme="light"] .set-sub { color: var(--l-ink2); }
+:root[data-theme="light"] .set-note { color: #8a6570; }
+:root[data-theme="light"] .set-foot { color: #c09aa4; }
+:root[data-theme="light"] .set-sw { background: #f6e6ea; border-color: #f0c8d0; }
+:root[data-theme="light"] .set-sw-dot { background: #d99aa8; }
+/* the two light .set-sw / .set-sw-dot overrides above (:root is a pseudo-class, so specificity is
+   0,3,0) tied/out-ranked the base checked-state, so an ON switch kept the OFF light-pink track and
+   muted knob — on/off differed only by knob position. Restore the ON track + white knob, using the
+   friendlier light-mode pink (below) so all the toggle controls read as one warm pink, not maroon. */
+:root[data-theme="light"] .set-sw[aria-checked="true"] { background: linear-gradient(135deg,#e46a86,#c0425a) !important; border-color: transparent !important; }
+:root[data-theme="light"] .set-sw[aria-checked="true"] .set-sw-dot { background: #fff !important; }
+
+/* --- LIGHT MODE control-fill lightening (user: "lighter the tone" — warm friendly pink, not the
+   near-maroon #c0425a→#7a1f3a the base uses in both themes). Dark mode keeps the original palette. --- */
+/* the "When to ping" segmented control: brighter active pill + clearly-white text */
+:root[data-theme="light"] .set-seg button.on {
+  background: linear-gradient(135deg, #e46a86, #c0425a) !important; color: #fff !important;
+  box-shadow: 0 4px 14px rgba(228,106,134,.34); }
+/* the checked notification / visibility matrix dots: friendlier pink radial + a subtle shadow.
+   Exclude .locked so the "can't change your own" dot keeps its intentionally-muted look. */
+:root[data-theme="light"] .mx-cell[aria-checked="true"]:not(.locked) .mx-dot {
+  background: radial-gradient(circle at 34% 30%, #ef8aa4, #c0425a) !important;
+  box-shadow: 0 3px 10px rgba(228,106,134,.34); }
+:root[data-theme="light"] .set-seg, :root[data-theme="light"] .set-step { background: #f8ebee; border-color: #f0d8de; }
+:root[data-theme="light"] .set-seg button { color: #a83f56; }
+:root[data-theme="light"] .set-step button { background: #f6dbe1; color: #b0405a; }
+:root[data-theme="light"] .set-step .ss-val { color: var(--l-ink); }
+:root[data-theme="light"] .set-btn { background: #fff; border-color: #f0c8d0; color: #b0405a; }
+:root[data-theme="light"] .set-btn.danger { background: #fff0f0; border-color: #f5c0c0; color: #d64545; }
+:root[data-theme="light"] .mx-head span { color: #a05a68; }
+:root[data-theme="light"] .mx-row { border-top-color: #f4e6e9; }
+:root[data-theme="light"] .mx-sub { color: var(--l-ink3); }
+:root[data-theme="light"] .mx-dot { border-color: #e0a0ae; }
+:root[data-theme="light"] .set-mute { background: #fff; border-color: #f0c8d0; color: var(--l-accent); }
+:root[data-theme="light"] .set-devlink .set-dev-go { color: var(--l-ink3); }
+
+/* DEV PANEL (dev.html): its text colours (#f0dfe2 values, #e2cfd3 labels, etc.) are dark-theme
+   light inks — on the white light cards they were near-invisible. Re-ink them for light, and give
+   the meter tracks a visible light fill (their rgba(255,255,255,.07) track vanished on white). */
+:root[data-theme="light"] .dev-meter-top span:first-child { color: var(--l-ink); }
+:root[data-theme="light"] .dev-col-l, :root[data-theme="light"] .dev-op-l { color: var(--l-ink); }
+:root[data-theme="light"] .dev-col-r, :root[data-theme="light"] .dev-op-r { color: var(--l-ink2); }
+:root[data-theme="light"] .dev-col-r b, :root[data-theme="light"] .dev-op-r .dev-num { color: var(--l-ink); }
+:root[data-theme="light"] .dev-col-sub { color: var(--l-ink3); }
+:root[data-theme="light"] .dev-cap, :root[data-theme="light"] .dev-hint { color: var(--l-ink2); }
+:root[data-theme="light"] .dev-bar { background: #f1e2e5; }
+/* the MEASURED / ESTIMATE badges were light green/amber ink on their own light tint — deepen the
+   ink for light mode so they read. */
+:root[data-theme="light"] .dev-tag { color: #1f8f56; }
+:root[data-theme="light"] .dev-tag.est { color: #a8730f; }
+
+/* dev panel + toasts on light (keep readable) */
+:root[data-theme="light"] .room-toast, :root[data-theme="light"] .mini-toast { background: rgba(52,28,37,.92); color: #ffe4ea; border-color: rgba(192,66,90,.4); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK PERIODS — redesign the light-only Periods tab for dark mode.
+   Re-tokenise + override the hardcoded white literals from the map.
+   ═══════════════════════════════════════════════════════════════════ */
+:root[data-theme="dark"] body[data-page="periods"] {
+  --cy-card: #1c1119; --cy-line: rgba(255,255,255,.08);
+  --cy-soft: rgba(244,82,95,.17); --cy-ink: #f2e3e6; --cy-ink2: #c3a3ab; --cy-ink3: #8c6d75;
+  --cy-sh: 0 12px 30px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.35);
+  background: #0d0609 !important; color-scheme: dark;
+}
+/* white/near-white literals → dark surfaces */
+:root[data-theme="dark"] body[data-page="periods"] .cy-disc,
+:root[data-theme="dark"] body[data-page="periods"] .cy-sheet-in,
+:root[data-theme="dark"] body[data-page="periods"] .cy-drawer,
+:root[data-theme="dark"] body[data-page="periods"] .cy-prow,
+:root[data-theme="dark"] body[data-page="periods"] .cy-dst,
+:root[data-theme="dark"] body[data-page="periods"] .cy-calnav button,
+:root[data-theme="dark"] body[data-page="periods"] .cy-yr { background: #1c1119 !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-knob circle { fill: #1c1119 !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-pips i { background: rgba(255,255,255,.1) !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-caldet,
+:root[data-theme="dark"] body[data-page="periods"] .cy-ghost,
+:root[data-theme="dark"] body[data-page="periods"] .cy-edline,
+:root[data-theme="dark"] body[data-page="periods"] .cy-edline button,
+:root[data-theme="dark"] body[data-page="periods"] .cy-seg button,
+:root[data-theme="dark"] body[data-page="periods"] .cy-eddone,
+:root[data-theme="dark"] body[data-page="periods"] .cy-drx,
+:root[data-theme="dark"] body[data-page="periods"] .cy-ghost { background: #251722 !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-drsearch input { background: #201420 !important; color: var(--cy-ink); }
+/* the JS-painted page wash → a soft dark aura instead of a light tint */
+:root[data-theme="dark"] body[data-page="periods"] .cy-wash { background: radial-gradient(120% 60% at 50% 0%, rgba(244,82,95,.09), rgba(13,6,9,0) 70%) !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-drsearch input::placeholder { color: var(--cy-ink3); }
+
+/* ═══════════════ QA PASS ═══════════════ */
+
+/* --- DARK PERIODS: the "Period logged" toast was light-bg + white text (invisible) --- */
+:root[data-theme="dark"] body[data-page="periods"] .cy-toast {
+  background: #2a1824 !important; color: #f2e3e6; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+:root[data-theme="dark"] body[data-page="periods"] .cyt-undo { background: rgba(255,255,255,.15); color: #f2e3e6; }
+/* amber flag boxes: keep the amber but make text carry on dark */
+:root[data-theme="dark"] body[data-page="periods"] .cy-prow.flagged { background: rgba(240,175,70,.14) !important; border-color: rgba(214,160,60,.4) !important; }
+
+/* --- DARK PERIODS: periods.js injects the phase palette INLINE on <body>
+   (--cy-soft = a pale LIGHT fill, --cy-deep = dark ink for that pale fill). Inline styles
+   beat the overlay's token block, so every soft-fill chip rendered as a bright LIGHT box in
+   dark mode. Re-cast each as a translucent phase-ACCENT chip on dark and lift the text to
+   light ink, keeping per-phase colour via the accent tint. --- */
+/* the "days away" pill on the next-period card */
+:root[data-theme="dark"] body[data-page="periods"] .cy-pill {
+  background: color-mix(in srgb, var(--cy-accent) 22%, transparent) !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-pill b { color: #f7eef0 !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-pill span { color: #e7d3d8 !important; opacity: .82; }
+/* the "today" marker in the week strip */
+:root[data-theme="dark"] body[data-page="periods"] .cy-wd.sel {
+  background: color-mix(in srgb, var(--cy-accent) 26%, transparent) !important; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-wd.sel .n { color: #f7eef0 !important; }
+/* the dial's unfilled ring track: pale lavender → a subtle dark "empty" track */
+:root[data-theme="dark"] body[data-page="periods"] .cy-track { stroke: rgba(255,255,255,.09) !important; }
+/* logged-day fills inside the picker + phase calendar (soft light → accent-tint on dark) */
+:root[data-theme="dark"] body[data-page="periods"] .cy-pickgrid button.logged {
+  background: color-mix(in srgb, var(--cy-accent) 26%, transparent) !important; color: #f7eef0; }
+/* the earlier dark override painted ALL .cy-pips i (incl. the lit ".on" ones) with an
+   !important faint-white, so the energy/closeness/pain level pips were invisible. Restore the
+   lit pips to their metric colour (--c is inherited from .cy-met) with matching precedence. */
+:root[data-theme="dark"] body[data-page="periods"] .cy-pips i.on { background: var(--c) !important; }
+
+/* --- DARK PERIODS phase calendar: each day cell carries an inline --cbg (pale phase tint)
+   used as its fill, with --cdot (the vivid phase colour) for the dot. On the dark sheet the pale
+   fill + light --cy-ink number was near-invisible. Recast the fill as a translucent tint of the
+   vivid --cdot so the cell reads dark, the light number carries, and the dot still marks phase. */
+:root[data-theme="dark"] body[data-page="periods"] .cy-calgrid button {
+  background: color-mix(in srgb, var(--cdot, transparent) 24%, transparent) !important; }
+
+/* --- DARK PERIODS edit sheet --- */
+/* the "lasted how many days" segmented control: the dark override painted .cy-seg button with an
+   !important dark fill, which also swallowed the .on accent fill, so the selected day was only a
+   white number on the same dark chip as the others. Restore the accent fill for the selected one. */
+:root[data-theme="dark"] body[data-page="periods"] .cy-seg button.on {
+  background: var(--cy-accent) !important; color: #fff !important; border-color: transparent !important; }
+/* "Remove this period": #c02a3a red on the dark maroon fill was too low-contrast — lift to a
+   light red that carries on dark while keeping the destructive tone. */
+:root[data-theme="dark"] body[data-page="periods"] .cy-eddel { color: #ff8a92; }
+/* "change" button sat on the same #251722 as its date row and lost its affordance — give it a
+   touch of lift so it reads as a button. */
+:root[data-theme="dark"] body[data-page="periods"] .cy-edline button { background: rgba(255,255,255,.07) !important; }
+/* defensive: the long-cycle flag box uses dark amber ink meant for a pale amber fill; if it ever
+   renders on the dark sheet, keep its text legible (not triggerable with the current fixtures). */
+:root[data-theme="dark"] body[data-page="periods"] .cy-edflag p { color: #f0c66a; }
+:root[data-theme="dark"] body[data-page="periods"] .cy-edflag button { background: rgba(230,165,55,.2); color: #f0c66a; }
+
+/* --- LIGHT MODE: no more dark surfaces incurring into the light theme --- */
+/* the letter-opening reader (backdrop of the envelope ceremony + parchment) */
+:root[data-theme="light"] .ow-reader { background: radial-gradient(120% 90% at 50% 8%, #ffe2ea, #f3c6d2 64%); }
+:root[data-theme="light"] body.side-parv .ow-reader { background: radial-gradient(120% 90% at 50% 8%, #e6ecff, #cdd8f2 64%); }
+:root[data-theme="light"] .ow-close { color: #a8324f; }
+:root[data-theme="light"] body.side-parv .ow-close { color: #3a5ba0; }
+/* the sealed-capsule unseal overlay */
+:root[data-theme="light"] .ow-unseal { background: radial-gradient(circle at 50% 45%, rgba(255,180,198,.7), rgba(251,241,241,.94) 70%); }
+:root[data-theme="light"] body.side-parv .ow-unseal { background: radial-gradient(circle at 50% 45%, rgba(170,195,255,.7), rgba(244,246,251,.94) 70%); }
+/* presence pill + heartbeat pulse */
+:root[data-theme="light"] .pres-pill { background: rgba(255,255,255,.92); border-color: #f0c8d0; color: #7a5560; }
+:root[data-theme="light"] .love-pulse { background: radial-gradient(circle at 50% 44%, rgba(255,170,190,.55), rgba(251,241,241,.92) 72%); }
+:root[data-theme="light"] .love-text { color: #8b2040; }
+/* toasts → light in light mode (were dark pills) */
+:root[data-theme="light"] .mini-toast, :root[data-theme="light"] .room-toast {
+  background: rgba(255,255,255,.96); color: #5a2536; border-color: #f0c8d0; box-shadow: 0 8px 26px rgba(52,28,37,.16); }
+
+/* --- LIGHT MODE: Board + Doodles cork world lightened (was warm-dark) --- */
+:root[data-theme="light"] .wall {
+  background:
+    radial-gradient(rgba(255,255,255,.14) 1px, transparent 1px) 0 0 / 22px 22px,
+    radial-gradient(130% 120% at 50% 0%, #efe0c6, #e6d1af 70%, #d8be97) !important;
+  border-image: linear-gradient(160deg, #d8bd96, #c2a273 55%, #ad8b5c) 1 !important; }
+:root[data-theme="light"] .room-title { color: #7a4a2a; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+:root[data-theme="light"] .room-sub { color: rgba(90,58,30,.6); }
+:root[data-theme="light"] .room-foot { color: rgba(90,58,30,.55); }
+:root[data-theme="light"] .pad-wrap .pad { box-shadow: 0 12px 26px rgba(90,58,30,.22); }
+
+/* --- LIGHT MODE: the Board tile-open overlay (.room-ov — big-note / big-photo / stack viewer)
+   used a hardcoded DARK radial backdrop, so tapping a note in light mode dropped a dark box over
+   the whole page. Give it a soft cream-rose scrim in light, and darken the close-✕ (its light-peach
+   default was for the dark scrim). --- */
+:root[data-theme="light"] .room-ov { background: radial-gradient(120% 90% at 50% 30%, rgba(251,241,241,.92), rgba(240,222,226,.96)); }
+:root[data-theme="light"] .room-ov-x { color: #a8324f; }
+/* ALL THEMES: that overlay's close-✕ sits in the top-right corner, directly under the proto
+   settings gear (z-index 500) — the gear covered the ✕, so a tap there opened Settings instead of
+   closing the note. Hide the gear while a board overlay is on screen (it is removed from the DOM on
+   close, so the gear returns automatically). */
+body:has(.room-ov) .proto-corner.proto-right { display: none !important; }
+/* LIGHT MODE: the board composer (+ reason) card is a dark-brown box with cream ink — on the new
+   light scrim it read as a dark incursion. Give it a white card with dark ink (the cream textarea
+   + pink submit already carry across both themes). */
+:root[data-theme="light"] .composer-card { background: #fff; border-color: var(--l-line); box-shadow: var(--l-sh); }
+:root[data-theme="light"] .composer-card h3 { color: #8b2040; }
+:root[data-theme="light"] .cc-who { color: var(--l-ink2); }
+
+/* --- ALL THEMES: on Doodles the raised heart FAB (bottom:86px, x 303-357) sat over the pad's
+   bottom-right, covering the "clear" button and the "draw something silly together" caption.
+   The FAB owns the bottom-RIGHT, so EDGE-align both to the bottom-LEFT of the pad (clear's default
+   margin-left:auto pushed it right into the FAB; the caption defaulted to text-align:right). This
+   keeps them cleanly edge-aligned and fully clear of the FAB — not floated in the middle. --- */
+body[data-page="doodles"] .pad .clear { margin-left: 0; margin-right: auto; }
+body[data-page="doodles"] .pad .by { text-align: left; }
+
+/* --- ALL THEMES: the proto raised the periods log FAB (.cy-fab) to bottom:86px so it
+   clears the native tab bar, but that lifted it into the last hint line (.cy-hint), which
+   sits at the bottom of the (full-height) periods content. Keep the hint text out of the
+   FAB's bottom-right column so it can never sit under the drop button. The FAB left edge is
+   at ~303px (right:18 + 54 wide); reserving 76px of right padding wraps the hint clear of it
+   with a comfortable gap, and the extra line still clears the tab bar top (~752px). --- */
+body[data-page="periods"] .cy-hint { padding-right: 76px; }
+
+/* --- PERIODS phase-change animation: the centre dial icon used to hard-swap its innerHTML (an
+   instant jump). periods.js now stacks the phases as absolutely-positioned .cy-ph-layer children of
+   .cy-phic and cross-fades them: the incoming icon fades + springs up from small; the outgoing one
+   fades + scales up and out. It shares the phase's --cy-ease curve and overlaps the wash + accent
+   colour (1.5s) and the day-number tween (0.9s), so the whole dial moves as one — no pop, no flicker.
+   Both layers inherit `color: var(--cy-accent)` from .cy-phic, so the icon colour keeps morphing too. */
+body[data-page="periods"] .cy-phic { position: relative; }
+body[data-page="periods"] .cy-ph-layer {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transform: scale(.55) translateY(7px) rotate(-7deg);
+  transition: opacity .5s ease, transform .62s cubic-bezier(.22,1,.36,1);
+  will-change: opacity, transform; }
+body[data-page="periods"] .cy-ph-layer svg { width: 100%; height: 100%; display: block; overflow: visible; }
+body[data-page="periods"] .cy-ph-layer.show { opacity: 1; transform: none; }
+body[data-page="periods"] .cy-ph-layer.out { opacity: 0; transform: scale(1.3) translateY(-6px) rotate(7deg); }
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="periods"] .cy-ph-layer { transition: opacity .25s ease; transform: none; }
+  body[data-page="periods"] .cy-ph-layer.out { transform: none; }
+}
+
+/* ═══════════════════ RESPONSIVE: iPhone / iPad / Mac ═══════════════════
+   The components are phone-only (content capped at max-width:360px). Below: widen that cap for
+   wide phones, and on tablet/desktop centre the whole app as a phone-shaped column on a treated
+   ground instead of letting it stretch or hug a corner. ═══════════════════════════════════════ */
+
+/* --- PHONES (<=767): the .col/.screen 360px cap leaves dead side-margin on a 430 Pro Max.
+   Fill the width (still capped so it never gets ungainly on a tablet-in-portrait). --- */
+@media (max-width: 767px) {
+  .col { max-width: min(100%, 430px); }
+  .screen { max-width: min(100%, 430px); }
+}
+
+/* --- iPad + Mac (>=768): keep the phone shape. Centre a ~440px column; the html ground fills the
+   rest of the viewport (warm cream in light, deep wine in dark) and the body's own theme bg now
+   paints only the centred band, lifted with a soft shadow. Fixed chrome, bg washes and the heart
+   FAB are pulled into the same column so nothing spans the big screen. --- */
+/* ── the left SIDEBAR (built by proto-native.js); hidden on phones, shown >=768 ── */
+.proto-sidebar { display: none; position: fixed; left: 0; top: 0; bottom: 0; width: 240px; z-index: 600;
+  flex-direction: column; padding: 20px 14px calc(env(safe-area-inset-bottom) + 14px);
+  background: #140a10; border-right: 1px solid rgba(255,255,255,.08); box-sizing: border-box; }
+:root[data-theme="light"] .proto-sidebar { background: #fffafa; border-right-color: #f0e0e3; }
+.ps-brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px;
+  font: italic 500 21px/1 'Cormorant Garamond', serif; color: #f0dfe2; }
+:root[data-theme="light"] .ps-brand { color: #8b2040; }
+.ps-list { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; }
+.ps-foot { display: flex; flex-direction: column; gap: 3px; border-top: 1px solid rgba(255,255,255,.07); padding-top: 8px; margin-top: 8px; }
+:root[data-theme="light"] .ps-foot { border-top-color: #f0e0e3; }
+.ps-item { display: flex; align-items: center; gap: 13px; width: 100%; padding: 11px 12px; border-radius: 12px;
+  border: none; background: none; text-align: left; text-decoration: none; cursor: pointer;
+  font: 500 14.5px 'DM Sans', sans-serif; color: #8c6d75;
+  transition: background .16s ease, color .16s ease, transform .12s cubic-bezier(.32,.72,0,1); }
+:root[data-theme="light"] .ps-item { color: #8a6570; }
+.ps-item svg { width: 21px; height: 21px; flex: none; }
+.ps-item.on { background: rgba(192,66,90,.16); color: #e07090; }
+:root[data-theme="light"] .ps-item.on { background: #ffe0e6; color: #c0425a; }
+.ps-item:active { transform: scale(.97); }
+
+/* ── iPad + Mac: sidebar in, mobile chrome out, content fills the space to the right ── */
+@media (min-width: 768px) {
+  .proto-tabbar, .proto-corner { display: none !important; }
+  .proto-sidebar { display: flex; }
+  body { padding-left: 240px !important; padding-bottom: 24px !important; }
+  .love-fab, .cy-fab { bottom: calc(env(safe-area-inset-bottom) + 22px) !important; }
+  /* content uses the width; grids go multi-column; reading surfaces stay comfortable */
+  .col, .screen { max-width: min(100%, 700px) !important; }
+  .ow-grid { grid-template-columns: repeat(4, 1fr) !important; }
+  .ow-paper, .ow-form { max-width: 380px; }
+}
+@media (min-width: 1024px) {
+  .col, .screen { max-width: min(100%, 860px) !important; }
+  .ow-grid { grid-template-columns: repeat(5, 1fr) !important; }
+}
