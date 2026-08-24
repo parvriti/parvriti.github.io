@@ -24,9 +24,16 @@
   try { saved = localStorage.getItem(THEME_KEY) || 'dark'; } catch (e) {}
   if (root.getAttribute('data-theme') !== saved) applyTheme(saved);
   body.addEventListener('click', function (e) {
-    if (e.target.closest && e.target.closest('.proto-toggle, .ps-toggle')) {
+    if (!e.target.closest) return;
+    if (e.target.closest('.proto-toggle, .ps-toggle')) {
       applyTheme(root.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+      return;
     }
+    // Any nav link (tab bar / sidebar / corner gear) is an AUTHORIZED entry — sign-in
+    // already gated us in, so mark riti_open before it navigates so common.js's inner-page
+    // guard doesn't bounce a direct tab tap back to Home (same as the old gear did).
+    var link = e.target.closest('.proto-tab, .ps-item, .proto-corner');
+    if (link && link.getAttribute('href')) { try { sessionStorage.setItem('riti_open', '1'); } catch (er) {} }
   });
 
   var page = body.dataset ? (body.dataset.page || '') : (body.getAttribute('data-page') || '');
@@ -93,6 +100,9 @@
 
   /* build instantly from defaults (matches common.js), then refine from settings/app */
   function go() {
+    // On Home (post sign-in) open the session gate so every nav tap works even before
+    // the "Open it" ceremony. Home has no inner-page guard, so this only ever helps.
+    if (page === 'home') { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} }
     buildFrom({});
     try {
       if (typeof firebase !== 'undefined' && firebase.firestore) {
