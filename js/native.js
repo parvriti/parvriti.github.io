@@ -22,7 +22,7 @@
   }
   var saved = 'dark';
   try { saved = localStorage.getItem(THEME_KEY) || 'dark'; } catch (e) {}
-  if (root.getAttribute('data-theme') !== saved) applyTheme(saved);
+  applyTheme(saved);   // unconditional: the head-init already set data-theme, but only applyTheme syncs the theme-color meta
   body.addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('.proto-toggle, .ps-toggle')) {

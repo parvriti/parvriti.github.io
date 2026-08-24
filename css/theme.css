@@ -84,6 +84,16 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .day-counter b { color: var(--l-accent); }
 :root[data-theme="light"] .last-seen, :root[data-theme="light"] .home-state { color: var(--l-ink2); }
 :root[data-theme="light"] .last-seen .ls-note { color: #8c6672; }   /* "last opened ..." was a dark-theme pale blush -> invisible on cream; readable dusty mauve, still softer than the main line */
+/* CELEBRATION takeover (birthdays / anniversary): the banner + gold-gradient title are built for the
+   dark page and washed out on cream. Deepen them for light so the most important days stay legible. */
+:root[data-theme="light"] .celebrate-banner {
+  background: linear-gradient(120deg, rgba(240,205,120,.6), rgba(240,178,193,.5));
+  border-color: rgba(198,148,58,.7); box-shadow: 0 8px 22px rgba(180,130,40,.24); }
+:root[data-theme="light"] .cb-text { color: #7a4a10; }
+:root[data-theme="light"] body.celebrate .headline,
+:root[data-theme="light"] body.celebrate .ow-title,
+:root[data-theme="light"] body.celebrate .note-title {
+  background: linear-gradient(90deg, #a9760a, #b0304a, #a9760a); }
 
 /* OPEN WHEN — envelopes + parchment already read as rich; only recolour the surrounds */
 :root[data-theme="light"] .ow-kicker { color: var(--l-ink3); }
@@ -129,8 +139,9 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
   background: linear-gradient(135deg, #e46a86, #c0425a) !important; color: #fff !important;
   box-shadow: 0 4px 14px rgba(228,106,134,.34); }
 /* the checked notification / visibility matrix dots: friendlier pink radial + a subtle shadow.
-   Exclude .locked so the "can't change your own" dot keeps its intentionally-muted look. */
-:root[data-theme="light"] .mx-cell[aria-checked="true"]:not(.locked) .mx-dot {
+   Exclude .locked/.ro/.gated so a muted cell that happens to be ON keeps its greyed look
+   (else this !important rule would repaint a read-only or self-muted ON cell full-bright). */
+:root[data-theme="light"] .mx-cell[aria-checked="true"]:not(.locked):not(.ro):not(.gated) .mx-dot {
   background: radial-gradient(circle at 34% 30%, #ef8aa4, #c0425a) !important;
   box-shadow: 0 3px 10px rgba(228,106,134,.34); }
 :root[data-theme="light"] .set-seg, :root[data-theme="light"] .set-step { background: #f8ebee; border-color: #f0d8de; }
@@ -288,11 +299,15 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
    default was for the dark scrim). --- */
 :root[data-theme="light"] .room-ov { background: radial-gradient(120% 90% at 50% 30%, rgba(251,241,241,.92), rgba(240,222,226,.96)); }
 :root[data-theme="light"] .room-ov-x { color: #a8324f; }
-/* ALL THEMES: that overlay's close-✕ sits in the top-right corner, directly under the proto
-   settings gear (z-index 500) — the gear covered the ✕, so a tap there opened Settings instead of
-   closing the note. Hide the gear while a board overlay is on screen (it is removed from the DOM on
-   close, so the gear returns automatically). */
-body:has(.room-ov) .proto-corner.proto-right { display: none !important; }
+/* ALL THEMES: the letter reader + New/Edit form (both .ow-reader.active, z-index 300), the unseal
+   ceremony (.ow-unseal, z-index 340) and the board tile overlay (.room-ov, z-index 400) all sit
+   BELOW the native shell (bar/corners z-index 500, sidebar z-index 600). Left unhidden, the shell
+   covered their content — the frosted bar over the bottom of a letter, the sidebar over the left of
+   a centered reader/photo, and worst, the bar over the form's Save/Cancel row. Hide the whole shell
+   while any of them is open (they leave the DOM on close, so it returns automatically). */
+body:has(.ow-reader.active) :is(.proto-tabbar, .proto-sidebar, .proto-corner),
+body:has(.ow-unseal) :is(.proto-tabbar, .proto-sidebar, .proto-corner),
+body:has(.room-ov) :is(.proto-tabbar, .proto-sidebar, .proto-corner) { display: none !important; }
 /* LIGHT MODE: the board composer (+ reason) card is a dark-brown box with cream ink — on the new
    light scrim it read as a dark incursion. Give it a white card with dark ink (the cream textarea
    + pink submit already carry across both themes). */
@@ -316,25 +331,9 @@ body[data-page="doodles"] .pad .by { text-align: left; }
    with a comfortable gap, and the extra line still clears the tab bar top (~752px). --- */
 body[data-page="periods"] .cy-hint { padding-right: 76px; }
 
-/* --- PERIODS phase-change animation: the centre dial icon used to hard-swap its innerHTML (an
-   instant jump). periods.js now stacks the phases as absolutely-positioned .cy-ph-layer children of
-   .cy-phic and cross-fades them: the incoming icon fades + springs up from small; the outgoing one
-   fades + scales up and out. It shares the phase's --cy-ease curve and overlaps the wash + accent
-   colour (1.5s) and the day-number tween (0.9s), so the whole dial moves as one — no pop, no flicker.
-   Both layers inherit `color: var(--cy-accent)` from .cy-phic, so the icon colour keeps morphing too. */
-body[data-page="periods"] .cy-phic { position: relative; }
-body[data-page="periods"] .cy-ph-layer {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  opacity: 0; transform: scale(.55) translateY(7px) rotate(-7deg);
-  transition: opacity .5s ease, transform .62s cubic-bezier(.22,1,.36,1);
-  will-change: opacity, transform; }
-body[data-page="periods"] .cy-ph-layer svg { width: 100%; height: 100%; display: block; overflow: visible; }
-body[data-page="periods"] .cy-ph-layer.show { opacity: 1; transform: none; }
-body[data-page="periods"] .cy-ph-layer.out { opacity: 0; transform: scale(1.3) translateY(-6px) rotate(7deg); }
-@media (prefers-reduced-motion: reduce) {
-  body[data-page="periods"] .cy-ph-layer { transition: opacity .25s ease; transform: none; }
-  body[data-page="periods"] .cy-ph-layer.out { transform: none; }
-}
+/* phase-change cross-fade lives in styles.css (.cy-phlayer / cyPhIn / cyPhOut, with reduced-motion
+   handled by the periods-page wildcard). The old proto .cy-ph-layer block here was dead code (name
+   mismatch) and was removed. */
 
 /* ═══════════════════ RESPONSIVE: iPhone / iPad / Mac ═══════════════════
    The components are phone-only (content capped at max-width:360px). Below: widen that cap for

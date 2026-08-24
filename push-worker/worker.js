@@ -60,7 +60,10 @@ async function handlePush(request, env) {
   const to = body && body.to;
   const title = body && body.title;
   const text = (body && body.body) || '';
-  const link = (body && body.url) || (SITE + '/open-when.html');
+  let link = (body && body.url) || (SITE + '/open-when.html');
+  // a notification tap must only ever open our own origin. Accept exactly SITE or SITE + '/...'
+  // (the trailing-slash check blocks a look-alike like https://parvriti.github.io.evil.com).
+  if (typeof link !== 'string' || (link !== SITE && link.indexOf(SITE + '/') !== 0)) link = SITE + '/open-when.html';
   if (!to || !title) return json({ error: 'missing to/title' }, 400);
 
   // 1) the caller must be one of us
@@ -399,7 +402,7 @@ async function celebrationMark(id, accessToken) {
    own toggles — all OFF by default — plus the master mute. At most one period heads-up
    per cycle and one note per phase per cycle (a cycleNudges marker guards repeats).
    Tapping opens straight to the Periods tab. No location; nothing stored but the marker. */
-const CY_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+const CY_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];   // 'Sep' to match periods.js SHORTM (the app the notification opens)
 function isoToMs(iso) { const p = String(iso).split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
 function isoAdd(iso, n) { const d = new Date(isoToMs(iso) + n * 86400000); return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()); }
 function isoDiff(a, b) { return Math.round((isoToMs(b) - isoToMs(a)) / 86400000); }
@@ -478,7 +481,7 @@ async function getLastCycle(accessToken) {
         structuredQuery: {
           from: [{ collectionId: 'cycle' }],
           orderBy: [{ field: { fieldPath: 'start' }, direction: 'DESCENDING' }],
-          limit: 1
+          limit: 5
         }
       })
     });
@@ -490,7 +493,10 @@ async function getLastCycle(accessToken) {
         const start = f.start.stringValue;
         let len = f.len && f.len.integerValue ? parseInt(f.len.integerValue, 10) : (f.len && f.len.doubleValue ? Math.round(f.len.doubleValue) : 4);
         if (!(len > 0 && len < 15)) len = 4;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(start || '')) return { start: start, len: len };
+        // regex + round-trip: reject an impossible date (e.g. 2026-02-30) that the regex passes but
+        // Date rolls over. periods.js rejects these too, so the two must agree on "the latest period".
+        // rows are start-DESC, so the first valid one is the newest valid period.
+        if (/^\d{4}-\d{2}-\d{2}$/.test(start || '') && isoAdd(start, 0) === start) return { start: start, len: len };
       }
     }
     return null;
@@ -556,7 +562,7 @@ async function runCycleNudges(event, env) {
       const id = 'period-' + person + '-' + last.start;
       if (!(await cyMarked(id, accessToken))) {
         const n = await cySendTo(person, cyPeriodMsg(person, cfg.lead, openIso, closeIso), accessToken);
-        await cyMark(id, accessToken);
+        if (n > 0) await cyMark(id, accessToken);   // only mark once actually delivered (mirrors the got-home sentDay guard), so a device registered later that day still gets this cycle's nudge
         console.log('cycle: period -> ' + person + ' sent ' + n);
       }
     }
@@ -565,7 +571,7 @@ async function runCycleNudges(event, env) {
       const id = 'phase-' + person + '-' + last.start + '-' + startedPhase;
       if (!(await cyMarked(id, accessToken))) {
         const n = await cySendTo(person, cyPhaseMsg(person, startedPhase, day), accessToken);
-        await cyMark(id, accessToken);
+        if (n > 0) await cyMark(id, accessToken);   // only mark once actually delivered (mirrors the got-home sentDay guard), so a device registered later that day still gets this cycle's nudge
         console.log('cycle: phase ' + startedPhase + ' -> ' + person + ' sent ' + n);
       }
     }

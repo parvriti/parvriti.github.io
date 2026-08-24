@@ -272,7 +272,7 @@ function envelopesFor(side) {
   }
   seedsFor(side).forEach(function (s) { ensure(s.emotion, s.emoji, s.title).entries.push(Object.assign({ seed: true, side: side }, s)); });
   liveNotes.filter(function (n) { return n.side === side; }).forEach(function (n) {
-    ensure(n.emotion, n.emoji, n.title).entries.push(Object.assign({ seed: false }, n));
+    ensure(n.emotion, n.emoji, n.title).entries.push(Object.assign({}, n, { seed: false }));   // hard-force seed:false LAST so a live note's own seed:true can never flip it to raw-HTML rendering
   });
   order.forEach(function (k) {
     map[k].entries.sort(function (a, b) {

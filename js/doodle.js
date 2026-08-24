@@ -104,8 +104,14 @@ function clearDoodle() {
   if (!window.confirm('Wipe the doodle for both of you?')) return;
   pctx.clearRect(0, 0, pad.width, pad.height);
   ddb.collection('canvasStrokes').get().then(function (snap) {
-    var batch = ddb.batch(); snap.docs.forEach(function (d) { batch.delete(d.ref); }); return batch.commit();
-  }).then(function () { toast('cleared the pad'); }).catch(function () {});
+    var docs = snap.docs, jobs = [];   // a WriteBatch caps at 500 ops, so chunk (each stroke is its own doc)
+    for (var i = 0; i < docs.length; i += 450) {
+      var batch = ddb.batch();
+      docs.slice(i, i + 450).forEach(function (d) { batch.delete(d.ref); });
+      jobs.push(batch.commit());
+    }
+    return Promise.all(jobs);
+  }).then(function () { toast('cleared the pad'); }).catch(function () { toast('could not clear'); });
 }
 
 if (window.__parvritiAuthed) startDoodle();
