@@ -503,7 +503,12 @@
   }
   function renderHomeState(el, other) {
     if (!el) return;
-    var STALE = 12 * 3600 * 1000;   // a missed Leave shouldn't strand either line "on" forever
+    // Trust the arrive/leave automations — they flip home/away (and together) on
+    // real events now. This cap is only a LAST-RESORT for a totally-missed Leave,
+    // so it must sit ABOVE a normal continuous stay — and Parv + Riti are both
+    // home a lot (full days, long weekends). 12h wrongly flipped a genuinely-home
+    // 20h stay to "away"; 72h clears a 3-day stay.
+    var STALE = 72 * 3600 * 1000;
     // "Together right now" wins over the per-person line when you're both in.
     var t = homeStateTog;
     if (t && t.together && t.since && (Date.now() - t.since < STALE)) {
