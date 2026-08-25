@@ -37,6 +37,7 @@ var undoStack = [], undone = {};   // undoStack: {cid, ref} of items I added thi
 
 function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;
+  if (startDoodle._on) return; startDoodle._on = true;   // one wiring only (mirrors startRealtime); a second auth re-fire must not stack listeners / a second onSnapshot
   pctx = pad.getContext('2d'); pctx.lineCap = 'round'; pctx.lineJoin = 'round';
 
   var eraseBtn = document.getElementById('eraseTool'), fillBtn = document.getElementById('fillTool');
@@ -48,12 +49,14 @@ function startDoodle() {
   }
   document.querySelectorAll('.swatch').forEach(function (sw) {
     sw.addEventListener('click', function () {
+      if (drawing) return;   // a second finger must not recolour the stroke already in progress (commit stores one colour, so it would recolour retroactively)
       document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });
       sw.classList.add('sel'); penColor = sw.dataset.c; setTool('draw');   // picking a colour returns to the pen
     });
   });
   document.querySelectorAll('.nib').forEach(function (nb) {
     nb.addEventListener('click', function () {   // nib sets size for pen AND eraser
+      if (drawing) return;   // don't resize the stroke already in progress mid-way
       document.querySelectorAll('.nib').forEach(function (x) { x.classList.remove('sel'); });
       nb.classList.add('sel'); drawSize = +nb.dataset.s;
     });
@@ -69,7 +72,7 @@ function startDoodle() {
   pad.addEventListener('pointercancel', dEnd);
   window.addEventListener('pointerup', dEnd); window.addEventListener('pointercancel', dEnd);   // safety net: end the stroke even if a release lands off the pad or setPointerCapture failed (else drawing stays stuck true)
   window.addEventListener('pagehide', sendDoodleNudge);   // doodle-and-leave still nudges (don't rely only on the 40s timer)
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') sendDoodleNudge(); });   // iOS PWA backgrounds via visibilitychange, not pagehide
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (drawing) dEnd(); sendDoodleNudge(); } });   // iOS PWA backgrounds via visibilitychange, not pagehide; also end any active stroke so a mid-stroke background can't leave drawing stuck true (dEnd commits + resets)
 
   if (ddb) {
     try {
@@ -79,10 +82,16 @@ function startDoodle() {
         for (var uc in undone) if (!present[uc]) delete undone[uc];   // an undone item's delete has landed -> stop filtering it
         strokes = strokes.filter(function (s) { return !(s.cid && undone[s.cid]); });   // hide items I just undid until their delete confirms (no flicker-back)
         if (!strokes.length) { pendingMine = []; imgCache = {}; undoStack = []; undone = {}; }   // a wipe (or empty pad): drop my unconfirmed items + decoded fill patches + undo history
-        else if (pendingMine.length) {   // drop mine that echoed back (cid), or expired after ~12s (e.g. deleted before its echo)
-          var have = {}, cutoff = Date.now() - 12000;
-          strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
-          pendingMine = pendingMine.filter(function (p) { return !have[p.cid] && p.t > cutoff; });
+        else {
+          if (pendingMine.length) {   // drop mine that echoed back (cid), or expired after ~12s (e.g. deleted before its echo)
+            var have = {}, cutoff = Date.now() - 12000;
+            strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
+            pendingMine = pendingMine.filter(function (p) { return !have[p.cid] && p.t > cutoff; });
+          }
+          var keep = {};   // prune decoded fill patches whose doc is gone (e.g. the other person undid a fill) - imgCache would otherwise grow for the whole session; anything still shown is re-decoded on demand
+          strokes.forEach(function (s) { if (s.cid) keep[s.cid] = true; });
+          pendingMine.forEach(function (p) { if (p.cid) keep[p.cid] = true; });
+          for (var ic in imgCache) if (!keep[ic]) delete imgCache[ic];
         }
         paintAll();   // redraw strokes + fills in order, then my not-yet-confirmed items + the in-progress line
         var last = strokes.length ? strokes[strokes.length - 1] : null;
@@ -116,7 +125,7 @@ function paintAll() {
 var _repaintQ = false;
 function scheduleRepaint() { if (_repaintQ) return; _repaintQ = true; requestAnimationFrame(function () { _repaintQ = false; paintAll(); }); }   // coalesce a burst of fill-image decodes into one repaint
 function drawStroke(pts, color, size) {
-  if (!pts || !pts.length) return;
+  if (!pts || !Array.isArray(pts) || !pts.length) return;
   pctx.strokeStyle = color || '#c0425a'; pctx.lineWidth = size || 5;
   pctx.beginPath(); pctx.moveTo(pts[0].x, pts[0].y);
   for (var i = 1; i < pts.length; i++) pctx.lineTo(pts[i].x, pts[i].y);
