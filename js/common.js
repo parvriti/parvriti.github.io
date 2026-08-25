@@ -301,7 +301,7 @@
       if (!user) return;
       user.getIdToken().then(function (idt) {
         fetch(PUSH_ENDPOINT, {
-          method: 'POST',
+          method: 'POST', keepalive: true,   // still completes if fired from a pagehide handler (doodle-and-leave nudge)
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
           body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html', type: type || '' })
         }).catch(function () {});
