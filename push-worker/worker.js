@@ -46,7 +46,7 @@ export default {
      Add the 09:00 trigger in Cloudflare (Workers -> the worker -> Triggers -> Cron)
      the same way the midnight one was added. Until it exists, cycle nudges never run. */
   async scheduled(event, env, ctx) {
-    if (event.cron === '30 3 * * *') ctx.waitUntil(runCycleNudges(event, env));
+    if (event.cron === '30 3 * * *') { ctx.waitUntil(runCycleNudges(event, env)); ctx.waitUntil(runCapsuleNudges(event, env)); }
     else ctx.waitUntil(runCelebration(event, env));
   }
 };
@@ -516,9 +516,9 @@ async function cyMark(id, accessToken) {
   } catch (e) {}
 }
 
-async function cySendTo(person, msg, accessToken) {
+async function cySendTo(person, msg, accessToken, link) {
   const devices = await getTokens(person, accessToken);
-  const link = SITE + '/periods.html?n=1';   // tap -> opens straight to the Periods tab
+  link = link || (SITE + '/periods.html?n=1');   // default: tap -> opens straight to the Periods tab
   let sent = 0;
   for (const d of devices) {
     const res = await sendPush(accessToken, d.token, msg.title, msg.body, link);
@@ -575,6 +575,69 @@ async function runCycleNudges(event, env) {
         console.log('cycle: phase ' + startedPhase + ' -> ' + person + ' sent ' + n);
       }
     }
+  }
+}
+
+/* Open-When notification prefs from settings/app (muteAll + each person's n_openwhen toggle). */
+async function getOwNotif(accessToken) {
+  const d = { muteAll: false, ow: { parv: true, riti: true } };   // n_openwhen defaults on
+  try {
+    const r = await fetch(DOCS + '/settings/app', { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) return d;
+    const f = (await r.json()).fields || {};
+    d.muteAll = fval(f.muteAll) === true;
+    d.ow.parv = fval(f.n_openwhen_parv) !== false;
+    d.ow.riti = fval(f.n_openwhen_riti) !== false;
+  } catch (e) {}
+  return d;
+}
+
+/* "A time capsule just unlocked" — a morning nudge on the day a sealed Open-When note ripens
+   (they get pinged when it's sealed, then otherwise forget it's waiting). Rides the same 09:00 IST
+   cron. Queries notes whose openDate == today, pushes the recipient (note.side) ONCE, deduped by a
+   capsule-<noteId> marker in cycleNudges, respecting muteAll + the recipient's own n_openwhen. Tap
+   opens straight to that envelope. Fires only on the exact unlock day (no backlog of missed ones). */
+async function runCapsuleNudges(event, env) {
+  let sa;
+  try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
+  const accessToken = await getAccessToken(sa);
+  if (!accessToken) return;
+
+  const notif = await getOwNotif(accessToken);
+  if (notif.muteAll) { console.log('capsule: muted-all'); return; }
+
+  const now = (event && event.scheduledTime) ? event.scheduledTime : Date.now();
+  const todayIso = istDay(now);
+
+  let rows;
+  try {
+    const r = await fetch(DOCS + ':runQuery', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ structuredQuery: {
+        from: [{ collectionId: 'notes' }],
+        where: { fieldFilter: { field: { fieldPath: 'openDate' }, op: 'EQUAL', value: { stringValue: todayIso } } },
+        limit: 25
+      } })
+    });
+    if (!r.ok) { console.log('capsule: query failed ' + r.status); return; }
+    rows = await r.json();
+  } catch (e) { return; }
+
+  for (const row of rows) {
+    if (!row.document || !row.document.fields) continue;
+    const f = row.document.fields;
+    const side = f.side && f.side.stringValue;                 // the recipient of this envelope
+    if (side !== 'parv' && side !== 'riti') continue;
+    if (!notif.ow[side]) continue;                             // recipient turned Open-When notifications off
+    const noteId = row.document.name.split('/').pop();
+    const id = 'capsule-' + noteId;
+    if (await cyMarked(id, accessToken)) continue;             // already nudged (reuses the cycleNudges marker store)
+    const emotion = (f.emotion && f.emotion.stringValue) || '';
+    const author = side === 'riti' ? 'Parv' : 'Riti';
+    const link = SITE + '/open-when.html?open=' + encodeURIComponent(emotion) + '&side=' + side;
+    const n = await cySendTo(side, { title: 'A time capsule just unlocked 💌', body: author + ' left this for today 🌸' }, accessToken, link);
+    if (n > 0) await cyMark(id, accessToken);
+    console.log('capsule: ' + noteId + ' -> ' + side + ' sent ' + n);
   }
 }
 
