@@ -61,7 +61,9 @@ function startDoodle() {
   pad.addEventListener('pointermove', dMove);
   pad.addEventListener('pointerup', dEnd);
   pad.addEventListener('pointercancel', dEnd);
+  window.addEventListener('pointerup', dEnd); window.addEventListener('pointercancel', dEnd);   // safety net: end the stroke even if a release lands off the pad or setPointerCapture failed (else drawing stays stuck true)
   window.addEventListener('pagehide', sendDoodleNudge);   // doodle-and-leave still nudges (don't rely only on the 40s timer)
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') sendDoodleNudge(); });   // iOS PWA backgrounds via visibilitychange, not pagehide
 
   if (ddb) {
     try {
@@ -121,7 +123,7 @@ function commitStroke() {
   var pts = curPts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; });
   var cid = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
   pendingMine.push({ pts: pts, color: drawColor, size: drawSize, cid: cid, t: Date.now() });   // t = expiry so a stroke deleted before its echo can't ghost forever
-  dEnd._drew = true;
+  if (drawColor !== ERASE) dEnd._drew = true;   // an erase-only session shouldn't say "left you a doodle"
   ddb.collection('canvasStrokes').add({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }).catch(function () {});
 }
 function dEnd(e) {
