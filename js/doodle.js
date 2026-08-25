@@ -32,29 +32,33 @@ function toast(m) {
 var pad, pctx, strokes = [], drawColor = '#c0425a', drawSize = 6, drawing = false, curPts = null, lastXY = null, activePtr = null;   // 6 = the pre-selected medium nib
 var pendingMine = [];   // finished strokes I just added, kept painted until their own doc echoes back
 var ERASE = '#fffdf6';   // the canvas paper colour (styles.css .pad canvas) - erasing paints a stroke in it, which syncs + covers (at:serverTimestamp is null while pending, so an orderBy('at') snapshot omits them for ~½s and a redraw would erase them)
+var tool = 'draw', penColor = '#c0425a', imgCache = {}, FILL_TOL = 32;   // fill tool: flood-fill on tap -> stored as a self-contained PNG patch (syncs pixel-identical); imgCache decodes patches for redraw
 
 function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;
   pctx = pad.getContext('2d'); pctx.lineCap = 'round'; pctx.lineJoin = 'round';
 
-  var eraseBtn = document.getElementById('eraseTool');
+  var eraseBtn = document.getElementById('eraseTool'), fillBtn = document.getElementById('fillTool');
+  function setTool(t) {   // colour (swatch) and tool (pen/erase/fill) are orthogonal
+    tool = t;
+    if (eraseBtn) eraseBtn.classList.toggle('on', t === 'erase');
+    if (fillBtn) fillBtn.classList.toggle('on', t === 'fill');
+    drawColor = (t === 'erase') ? ERASE : penColor;
+  }
   document.querySelectorAll('.swatch').forEach(function (sw) {
     sw.addEventListener('click', function () {
       document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });
-      if (eraseBtn) eraseBtn.classList.remove('on');   // picking a colour leaves erase mode
-      sw.classList.add('sel'); drawColor = sw.dataset.c;
+      sw.classList.add('sel'); penColor = sw.dataset.c; setTool('draw');   // picking a colour returns to the pen
     });
   });
   document.querySelectorAll('.nib').forEach(function (nb) {
-    nb.addEventListener('click', function () {   // nib sets size for both drawing AND erasing
+    nb.addEventListener('click', function () {   // nib sets size for pen AND eraser
       document.querySelectorAll('.nib').forEach(function (x) { x.classList.remove('sel'); });
       nb.classList.add('sel'); drawSize = +nb.dataset.s;
     });
   });
-  if (eraseBtn) eraseBtn.addEventListener('click', function () {
-    document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });
-    eraseBtn.classList.add('on'); drawColor = ERASE;   // erase = paint in the paper colour; syncs + covers like any stroke
-  });
+  if (eraseBtn) eraseBtn.addEventListener('click', function () { setTool('erase'); });
+  if (fillBtn) fillBtn.addEventListener('click', function () { setTool('fill'); });   // fill uses the selected swatch colour; tap the canvas to flood a region
   var cl = document.getElementById('clearPad'); if (cl) cl.addEventListener('click', clearDoodle);
 
   pad.addEventListener('pointerdown', dStart);
@@ -75,9 +79,7 @@ function startDoodle() {
           strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
           pendingMine = pendingMine.filter(function (p) { return !have[p.cid] && p.t > cutoff; });
         }
-        redraw();
-        pendingMine.forEach(function (p) { drawStroke(p.pts, p.color, p.size); });   // keep my not-yet-confirmed strokes painted so a redraw can't erase them
-        if (drawing && curPts && curPts.length) drawStroke(curPts, drawColor, drawSize);   // keep your in-progress line visible over a concurrent remote redraw
+        paintAll();   // redraw strokes + fills in order, then my not-yet-confirmed items + the in-progress line
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
@@ -86,9 +88,25 @@ function startDoodle() {
   }
 }
 function pxy(e) { var r = pad.getBoundingClientRect(); return { x: (e.clientX - r.left) * (pad.width / r.width), y: (e.clientY - r.top) * (pad.height / r.height) }; }
+/* draw one item in order: a fill patch (stamp its cached PNG) or a stroke */
+function paintItem(it) {
+  if (!it) return;
+  if (it.png) {   // a fill patch
+    var im = imgCache[it.cid];
+    if (!im) { im = new Image(); imgCache[it.cid] = im; im.onload = paintAll; im.src = it.png; }   // decode async, then repaint
+    if (im.complete && im.naturalWidth) pctx.drawImage(im, it.x, it.y);
+  } else if (it.pts) {
+    drawStroke(it.pts, it.color, it.size);
+  }
+}
 function redraw() {
   pctx.clearRect(0, 0, pad.width, pad.height);
-  strokes.forEach(function (s) { drawStroke(s.pts, s.color, s.size); });
+  strokes.forEach(paintItem);
+}
+function paintAll() {
+  redraw();
+  pendingMine.forEach(paintItem);   // my not-yet-confirmed strokes + fills
+  if (drawing && curPts && curPts.length) drawStroke(curPts, drawColor, drawSize);
 }
 function drawStroke(pts, color, size) {
   if (!pts || !pts.length) return;
@@ -98,8 +116,64 @@ function drawStroke(pts, color, size) {
   if (pts.length === 1) pctx.lineTo(pts[0].x + 0.1, pts[0].y + 0.1);
   pctx.stroke();
 }
+function hexToRgb(h) {
+  var m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return null;
+  var n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+/* scanline flood fill from (sx,sy); paints the region in `fill` and returns its mask + bounding box */
+function floodFill(ctx, w, h, sx, sy, fill, tol) {
+  var img = ctx.getImageData(0, 0, w, h), d = img.data;
+  var si = (sy * w + sx) * 4, tr = d[si], tg = d[si + 1], tb = d[si + 2], ta = d[si + 3];
+  if (tr === fill[0] && tg === fill[1] && tb === fill[2] && ta === 255) return null;   // already that colour
+  function m(i) { return Math.abs(d[i] - tr) <= tol && Math.abs(d[i + 1] - tg) <= tol && Math.abs(d[i + 2] - tb) <= tol && Math.abs(d[i + 3] - ta) <= tol; }
+  var mask = new Uint8Array(w * h), st = [[sx, sy]], minX = w, minY = h, maxX = 0, maxY = 0, filled = 0;
+  while (st.length) {
+    var pt = st.pop(), cx = pt[0], cy = pt[1];
+    if (!m((cy * w + cx) * 4)) continue;
+    var xl = cx; while (xl > 0 && m((cy * w + xl - 1) * 4)) xl--;
+    var xr = cx; while (xr < w - 1 && m((cy * w + xr + 1) * 4)) xr++;
+    for (var xx = xl; xx <= xr; xx++) {
+      var i = (cy * w + xx) * 4; d[i] = fill[0]; d[i + 1] = fill[1]; d[i + 2] = fill[2]; d[i + 3] = 255;
+      mask[cy * w + xx] = 1; filled++;
+      if (xx < minX) minX = xx; if (xx > maxX) maxX = xx; if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
+      if (cy > 0 && m(((cy - 1) * w + xx) * 4)) st.push([xx, cy - 1]);
+      if (cy < h - 1 && m(((cy + 1) * w + xx) * 4)) st.push([xx, cy + 1]);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return { mask: mask, bx: minX, by: minY, bw: maxX - minX + 1, bh: maxY - minY + 1, filled: filled };
+}
+/* crop the filled region into a transparent PNG patch (solid colour -> tiny) */
+function capturePatch(mask, r, fill, w) {
+  var t = document.createElement('canvas'); t.width = r.bw; t.height = r.bh;
+  var tx = t.getContext('2d'), im = tx.createImageData(r.bw, r.bh), dd = im.data;
+  for (var yy = 0; yy < r.bh; yy++) for (var xx = 0; xx < r.bw; xx++) {
+    if (mask[(r.by + yy) * w + (r.bx + xx)]) { var i = (yy * r.bw + xx) * 4; dd[i] = fill[0]; dd[i + 1] = fill[1]; dd[i + 2] = fill[2]; dd[i + 3] = 255; }
+  }
+  tx.putImageData(im, 0, 0);
+  return t.toDataURL('image/png');
+}
+/* paint-bucket: flood-fill the tapped region, store it as a self-contained PNG patch (syncs pixel-identical) */
+function doFill(e) {
+  if (!ddb) return;
+  var p = pxy(e);
+  var sx = Math.max(0, Math.min(pad.width - 1, Math.round(p.x)));
+  var sy = Math.max(0, Math.min(pad.height - 1, Math.round(p.y)));
+  var fill = hexToRgb(penColor); if (!fill) return;
+  var r = floodFill(pctx, pad.width, pad.height, sx, sy, fill, FILL_TOL);
+  if (!r || !r.filled) return;
+  var png = capturePatch(r.mask, r, fill, pad.width);
+  var cid = 'f' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+  var item = { type: 'fill', png: png, x: r.bx, y: r.by, cid: cid, t: Date.now() };
+  pendingMine.push(item);                                   // keep it painted until its doc echoes
+  var im = new Image(); imgCache[cid] = im; im.onload = paintAll; im.src = png;   // decode for redraw
+  dEnd._drew = true;
+  ddb.collection('canvasStrokes').add({ type: 'fill', png: png, x: r.bx, y: r.by, by: me(), at: serverTime(), cid: cid }).catch(function () {});
+  if (window.parvritiNotify && !dEnd._sent) { clearTimeout(dEnd._nt); dEnd._nt = setTimeout(sendDoodleNudge, 40000); }
+}
 function dStart(e) {
   if (drawing) return;   // one active stroke at a time - ignore a palm / second finger
+  if (tool === 'fill') { e.preventDefault(); doFill(e); return; }   // fill is a tap, not a stroke
   e.preventDefault();
   activePtr = e.pointerId;
   try { pad.setPointerCapture(e.pointerId); } catch (er) {}
@@ -146,7 +220,7 @@ function clearDoodle() {
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }
   if (!window.confirm('Wipe the doodle for both of you?')) return;
   pctx.clearRect(0, 0, pad.width, pad.height);
-  pendingMine = [];   // don't let my not-yet-confirmed strokes repaint over a wipe
+  pendingMine = []; imgCache = {};   // don't let my not-yet-confirmed items repaint over a wipe; drop decoded fill patches
   clearTimeout(dEnd._nt); dEnd._sent = false; dEnd._drew = false;   // cancel a pending ping + reset "drew" so a wipe can't leave a phantom nudge
   wipeAll(2);
 }
