@@ -109,80 +109,9 @@
         'width:85px;height:60px;background:#8b2040;bottom:15%;left:7%;opacity:.04;animation-duration:28s;animation-delay:-14s;'
       ].forEach(function (s) { var p = document.createElement('div'); p.className = 'bgp'; p.setAttribute('style', s); body.insertBefore(p, base.nextSibling); });
     }
-    var me = (window.__parvritiUser && window.__parvritiUser.person) || null;
-
-    /* Which tabs/pages each person sees (Settings → Visibility matrix). A
-       curtain, not a wall: the static files + most Firestore rules stay
-       readable, and each page's own JS re-checks. Defaults preserve today's
-       reality — Periods + Settings are Parv-only, Wedding is paused — and Parv
-       can never lock himself out of Settings. */
-    var VIS_DEFAULT = {
-      openwhen: { riti: true, parv: true }, board: { riti: true, parv: true },
-      doodles: { riti: true, parv: true }, periods: { riti: false, parv: true },
-      settings: { riti: false, parv: true }
-    };
-    function canSee(key, who, d) {
-      if (key === 'settings' && who === 'parv') return true;   // never lock Parv out of his own panel
-      var v = d && d['v_' + key + '_' + who];
-      if (typeof v === 'boolean') return v;
-      return !!(VIS_DEFAULT[key] && VIS_DEFAULT[key][who]);
-    }
-    var PAGES = [
-      { href: 'open-when.html', label: 'Open When…', page: 'open-when', vis: 'openwhen' },
-      { href: 'board.html', label: 'Our Board', page: 'board', vis: 'board' },
-      { href: 'doodles.html', label: 'Doodles', page: 'doodles', vis: 'doodles' },
-      { href: 'periods.html', label: 'Periods', page: 'periods', vis: 'periods' }
-    ];
-    var GEAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
-    var BACK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
-    /* inner pages get a slim top strip: ‹ home on the left, ⚙ on the right. */
-    function ensureTabTop() {
-      if (page === 'home') return null;
-      var existing = document.getElementById('tabTop'); if (existing) return existing;
-      var navEl = document.getElementById('nav'); if (!navEl || !navEl.parentNode) return null;
-      var top = document.createElement('div'); top.id = 'tabTop'; top.className = 'tabtop';
-      var back = document.createElement('a');
-      back.className = 'tt-btn tt-back'; back.href = 'index.html'; back.setAttribute('aria-label', 'Back to home');
-      back.innerHTML = BACK_SVG + '<span>home</span>';
-      top.appendChild(back);
-      navEl.parentNode.insertBefore(top, navEl);
-      return top;
-    }
-    var navSig = null;
-    function buildNavAndGear(d) {
-      if (!me) return;
-      var vis = PAGES.filter(function (p) { return canSee(p.vis, me, d); });
-      var wantGear = page !== 'settings' && canSee('settings', me, d);   // not on the Settings page itself
-      var sig = vis.map(function (p) { return p.page; }).join(',') + (wantGear ? '|g' : '');
-      if (sig === navSig) return;   // nothing changed → no rebuild, no flash
-      navSig = sig;
-      var navEl = document.getElementById('nav');
-      if (navEl) {
-        navEl.innerHTML = '';
-        vis.forEach(function (item) {
-          var a = document.createElement('a');
-          a.className = 'tab' + (item.page === page ? ' active' : '');
-          a.href = item.href; a.textContent = item.label; navEl.appendChild(a);
-        });
-      }
-      var top = ensureTabTop();
-      var gear = document.getElementById('homeGear');
-      if (wantGear && !gear) {
-        gear = document.createElement('a');
-        gear.id = 'homeGear'; gear.href = 'settings.html';
-        gear.setAttribute('aria-label', 'Settings'); gear.innerHTML = GEAR_SVG;
-        gear.addEventListener('click', function () { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} });
-        if (page === 'home') { gear.className = 'home-gear'; body.appendChild(gear); }
-        else if (top) { gear.className = 'tt-btn tt-gear'; top.appendChild(gear); }
-        else { gear.className = 'home-gear'; body.appendChild(gear); }
-      } else if (!wantGear && gear && gear.parentNode) { gear.parentNode.removeChild(gear); }
-    }
-    buildNavAndGear({});   // instant, from defaults (today's reality)
-    try {
-      var vdb = (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore() : null;
-      if (vdb) vdb.collection('settings').doc('app').get()
-        .then(function (s) { buildNavAndGear(s.exists ? (s.data() || {}) : {}); }).catch(function () {});
-    } catch (e) {}
+    // Navigation is owned entirely by native.js (the bottom tab bar / sidebar), which does
+    // its own settings/app read + canSee filtering. The old hidden #nav/#tabTop/#homeGear
+    // shell used to be built here too, causing a duplicate Firestore read and dead DOM.
     renderDayCounter();
   }
 
