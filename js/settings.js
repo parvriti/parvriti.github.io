@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v69';
+  var VERSION = 'v70';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -229,7 +229,7 @@
   function testPing(to) {
     if (!window.parvritiNotify) { toast('push not ready'); return; }
     var who = to === 'riti' ? 'Riti' : 'you';
-    window.parvritiNotify(to, 'Test ping 🌸', 'from Settings — everything works', 'https://parvriti.github.io/index.html');
+    window.parvritiNotify(to, 'Test ping 🌸', 'from Settings · everything works', 'https://parvriti.github.io/index.html');
     toast('sent a test to ' + who);
   }
 

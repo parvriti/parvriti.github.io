@@ -55,7 +55,10 @@ body {
   position: relative;
 }
 .col { width: 100%; max-width: 360px; }
-.page-fade { animation: fadeUp .5s ease both; }
+/* Nav is an MPA reload; a gentle opacity fade reads far less like a document load than
+   the shared 18px slide-up (fadeUp) did on every tab tap. */
+.page-fade { animation: pageIn .24s ease both; }
+@keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ─── 3. ATMOSPHERE & BLOOM ─── */
 .bg-base { position: fixed; inset: 0; background: #0a0406; z-index: -1; }
@@ -82,6 +85,9 @@ body {
 @keyframes bIn { 0%{opacity:0} 30%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
 @keyframes spinS { to { transform: rotate(360deg); } }
 @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+/* quiet the always-on decorative motion for reduce-motion users (drifting petals, the sign-in
+   flower/jewel, the intro bloom); they otherwise spin/pulse forever regardless of the setting. */
+@media (prefers-reduced-motion: reduce) { .bgp, .auth-flower svg, .auth-jewel, .intro-bloom svg { animation: none !important; } }
 
 /* ─── 4. INTRO + LOCKS (index) ─── */
 .intro-bloom { position: relative; width: 150px; height: 150px; margin-bottom: 28px; }
@@ -774,7 +780,7 @@ body.side-parv .ow-seal-field > label, body.side-parv .ow-seal-hint { color: #6f
   width: 54px; height: 54px; border-radius: 50%; border: none; cursor: pointer; -webkit-appearance: none;
   background: radial-gradient(circle at 32% 28%, #ff6f91, #c0294a);
   box-shadow: 0 6px 20px rgba(192,42,74,.55); font-size: 24px;
-  display: flex; align-items: center; justify-content: center; position: fixed;
+  display: flex; align-items: center; justify-content: center;
   animation: fabBeat 2.6s ease-in-out infinite;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
   touch-action: none; transition: transform .25s cubic-bezier(.2,.9,.3,1.3);

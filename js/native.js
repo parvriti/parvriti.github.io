@@ -112,5 +112,5 @@
     } catch (e) {}
   }
   if (window.__parvritiAuthed) go();
-  else window.addEventListener('parvriti-authed', go);
+  else window.addEventListener('parvriti-authed', go, { once: true });
 })();

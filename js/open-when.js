@@ -346,9 +346,9 @@ function currentEnv() {
   return envelopesFor(currentSide).find(function (e) { return e.emotion === openEmotion; }) || null;
 }
 
-function openEnvelope(emotion) {
+function openEnvelope(emotion, idx) {
   openEmotion = emotion;
-  entryIdx = 0;
+  entryIdx = idx || 0;   // open straight to a specific note (deep links land on the newest)
   const env = currentEnv();
   if (!env) return;
   const unsealed = loadUnsealed();
@@ -633,7 +633,7 @@ function onLive() {
       const last = env.entries.length - 1;
       const readerOpen = document.getElementById('owReader').classList.contains('active');
       if (readerOpen && openEmotion === pendingOpen) { entryIdx = last; renderEntry(); }
-      else { openEnvelope(pendingOpen); entryIdx = last; renderEntry(); }
+      else { openEnvelope(pendingOpen, last); }   // opens straight to the newest note (no phantom receipt on note 0)
       pendingOpen = null;
       return;
     }

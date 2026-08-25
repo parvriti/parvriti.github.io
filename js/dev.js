@@ -73,7 +73,7 @@
       if (h === 24) h = 0;
       var mins = 24 * 60 - (h * 60 + m);
       return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
-    } catch (e) { return '—'; }
+    } catch (e) { return '·'; }
   }
   function monthResetIn() {
     var now = new Date(), end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -170,7 +170,7 @@
     CAPS.forEach(function (c) {
       var pct = c.cap / DOC_LIMIT * 100, t = toneCap(pct);
       var nudge = pct >= 90
-        ? 'Within a hair of the 1 MiB doc limit — body + metadata could tip a write over. Lower to ~700 KB for headroom.'
+        ? 'Within a hair of the 1 MiB doc limit; body + metadata could tip a write over. Lower to ~700 KB for headroom.'
         : (pct >= 75 ? 'Comfortable, but not much spare room above the payload.' : 'Plenty of headroom.');
       html += '<div class="dev-lim">' +
         '<div class="dev-col-top"><span class="dev-col-l">' + c.ic + ' ' + c.name + ' cap</span>' +
@@ -185,7 +185,7 @@
       '<div class="dev-col-top"><span class="dev-col-l">✏️ Doodle strokes</span>' +
       '<span class="dev-col-r dev-num">' + sc + ' / ~300</span></div>' +
       '<div class="dev-bar sm"><i class="' + tone(sPct) + '" style="width:' + Math.min(100, sPct) + '%"></i></div>' +
-      '<div class="dev-col-sub">' + (sc > 300 ? 'Heavy pad — consider flattening old strokes.' : 'Well under a heavy pad. Every stroke is its own doc.') + '</div>' +
+      '<div class="dev-col-sub">' + (sc > 300 ? 'Heavy pad; consider flattening old strokes.' : 'Well under a heavy pad. Every stroke is its own doc.') + '</div>' +
       '</div>';
     $('devLimits').innerHTML = html;
     // animate the gauge fills

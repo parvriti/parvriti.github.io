@@ -354,8 +354,8 @@ function openStack(stack) {
   var cards = stack.map(function (it) {
     var inner = it.type === 'photo' ? bigPhotoInner(it) : bigNoteInner(it, num[it.id]);
     var acts = '<div class="sv-acts">' +
-      '<button type="button" class="sv-act sv-unstack" data-id="' + it.id + '">↗ take out of stack</button>' +
-      (it.by === me() ? '<button type="button" class="sv-act sv-del" data-id="' + it.id + '">take it down</button>' : '') +
+      '<button type="button" class="sv-act sv-unstack" data-id="' + esc(it.id) + '">↗ take out of stack</button>' +
+      (it.by === me() ? '<button type="button" class="sv-act sv-del" data-id="' + esc(it.id) + '">take it down</button>' : '') +
       '</div>';
     return '<div class="sv-card">' + inner + acts + '</div>';
   }).join('');

@@ -518,6 +518,7 @@
       rip.classList.remove('go'); void rip.offsetWidth; rip.classList.add('go');
       var t = today();
       for (var i = 0; i < LOGS.length; i++) if (iso(LOGS[i].start) === iso(t)) { toast('today is already logged'); return; }
+      if (inSpan(t)) { toast('today falls inside a logged period'); return; }
       if (window.parvritiHaptic) window.parvritiHaptic();
       saveLog(t, DEFAULT_LEN, false).then(function () {
         toastUndo('Period logged 🌸', function () {
@@ -583,6 +584,7 @@
       var picked = pkSel;
       for (var i = 0; i < LOGS.length; i++)
         if (iso(LOGS[i].start) === iso(picked) && LOGS[i].id !== pkEditId) { toast(fmt(picked) + ' is already logged'); return; }
+      if (inSpan(picked, pkEditId)) { toast(fmt(picked) + ' falls inside a logged period'); return; }
       if (pkMode === 'edit' && pkEditId) {
         var L = findLog(pkEditId); if (!L) { closePick(); return; }
         moveLog(pkEditId, picked, L.len, L.longOk).then(function () {
@@ -597,6 +599,19 @@
   })();
 
   function findLog(id) { for (var i = 0; i < LOGS.length; i++) if (LOGS[i].id === id) return LOGS[i]; return null; }
+  // true if date t falls INSIDE an already-logged period's span (day 2..len); she's already
+  // bleeding per that log, so a new "start" there would fabricate a bogus short cycle. The exact
+  // start day is caught separately by the "already logged" guard, so we only check days 1..len-1.
+  function inSpan(t, exceptId) {
+    var ts = iso(t);
+    for (var i = 0; i < LOGS.length; i++) {
+      var L = LOGS[i];
+      if (exceptId && L.id === exceptId) continue;
+      var len = L.len || DEFAULT_LEN;
+      for (var k = 1; k < len; k++) if (iso(addD(L.start, k)) === ts) return true;
+    }
+    return false;
+  }
   function findIdx(id) { for (var i = 0; i < LOGS.length; i++) if (LOGS[i].id === id) return i; return -1; }
 
   /* ═══════════════════ phase calendar ═══════════════════ */

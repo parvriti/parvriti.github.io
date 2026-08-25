@@ -2,8 +2,8 @@
    doodle.js - "Doodles" (doodles.html)
 
    A shared sketch pad. Whatever one of you draws appears on the other's
-   screen, live. A clear button wipes it for both. NO notification is ever
-   sent - it's just for fun.
+   screen, live. A clear button wipes it for both. A gentle "left you a
+   doodle" nudge is sent ~40s after the last stroke, while the pad stays open.
    ===================================================================== */
 
 var firebaseConfig = {
@@ -29,7 +29,7 @@ function toast(m) {
   toast._t = setTimeout(function () { t.classList.remove('on'); }, 2000);
 }
 
-var pad, pctx, strokes = [], drawColor = '#c0425a', drawSize = 5, drawing = false, curPts = null, lastXY = null;
+var pad, pctx, strokes = [], drawColor = '#c0425a', drawSize = 6, drawing = false, curPts = null, lastXY = null;   // 6 = the pre-selected medium nib
 
 function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;

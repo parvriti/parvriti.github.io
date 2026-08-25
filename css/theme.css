@@ -73,6 +73,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
   --l-card:#ffffff; --l-line:#f0e0e3; --l-soft:#ffe0e6; --l-accent:#c0425a; --l-deep:#b0264a;
   --l-sh:0 10px 30px rgba(52,28,37,.07), 0 2px 6px rgba(52,28,37,.05); }
 
+:root[data-theme="light"] { background: #fbf1f1; }   /* :root IS <html>; else its dark ground (styles.css) flashes on overscroll / pre-paint */
 :root[data-theme="light"] body { background: #fbf1f1 !important; color: var(--l-ink); }
 :root[data-theme="light"] .bg-base { background: #fbf1f1 !important; }
 :root[data-theme="light"] .bgp { display: none !important; }
