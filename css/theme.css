@@ -354,7 +354,7 @@ body:has(.room-ov) :is(.proto-tabbar, .proto-sidebar, .proto-corner) { display: 
    The FAB owns the bottom-RIGHT, so EDGE-align both to the bottom-LEFT of the pad (clear's default
    margin-left:auto pushed it right into the FAB; the caption defaulted to text-align:right). This
    keeps them cleanly edge-aligned and fully clear of the FAB — not floated in the middle. --- */
-body[data-page="doodles"] .pad .clear { margin-left: 0; margin-right: auto; }
+body[data-page="doodles"] .pad .clear { margin: 0; }   /* clear is a trash icon in the tool row now, no auto margin */
 body[data-page="doodles"] .pad .by { text-align: left; }
 
 /* --- ALL THEMES: the proto raised the periods log FAB (.cy-fab) to bottom:86px so it

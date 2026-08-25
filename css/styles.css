@@ -1200,20 +1200,21 @@ body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px
 .pad { position: relative; border-radius: 8px; padding: 14px 14px 12px; background: linear-gradient(180deg,#fbf5e6,#efe4cc); box-shadow: 0 16px 30px rgba(0,0,0,.5); transform: rotate(-.6deg); }
 .pad .clip { position: absolute; left: 50%; top: -13px; transform: translateX(-50%); width: 56px; height: 20px; border-radius: 5px; background: linear-gradient(180deg,#d9dde2,#9aa2ab); box-shadow: 0 4px 7px rgba(0,0,0,.4); }
 .pad canvas { width: 100%; height: 60vh; max-height: 620px; display: block; border-radius: 5px; background: #fffdf6; cursor: crosshair; box-shadow: inset 0 0 0 1px rgba(120,90,50,.18); touch-action: none; }
-.pad .tools { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+.pad .tools { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; }
+.tool-row { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }   /* nowrap = the split is identical on iPhone / iPad / Mac (never re-wraps by width) */
 .swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,.7); box-shadow: 0 2px 5px rgba(0,0,0,.3); }
 .swatch.sel { transform: scale(1.18); box-shadow: 0 0 0 2px #4a2c1a, 0 2px 5px rgba(0,0,0,.3); }
-.nib { width: 26px; height: 26px; border-radius: 50%; position: relative; cursor: pointer; background: rgba(74,44,20,.12); border: 2px solid transparent; }
+.nib { width: 24px; height: 24px; border-radius: 50%; position: relative; cursor: pointer; background: rgba(74,44,20,.12); border: 2px solid transparent; }
 .nib::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; background: #4a2c1a; }
 .nib.s1::after { width: 4px; height: 4px; } .nib.s2::after { width: 8px; height: 8px; } .nib.s3::after { width: 13px; height: 13px; }
 .nib.sel { border-color: #4a2c1a; background: rgba(74,44,20,.24); }
-.erase, .fill, .undo { width: 26px; height: 26px; border-radius: 50%; padding: 0; cursor: pointer; -webkit-appearance: none;
+.erase, .fill, .undo, .clear { width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer; -webkit-appearance: none;
   background: rgba(74,44,20,.12); border: 2px solid transparent; color: #4a2c1a;
   display: inline-flex; align-items: center; justify-content: center; transition: transform .12s ease; }
-.erase svg, .fill svg, .undo svg { width: 15px; height: 15px; display: block; }
+.erase svg, .fill svg, .undo svg, .clear svg { width: 14px; height: 14px; display: block; }
 .erase.on, .fill.on { border-color: #4a2c1a; background: rgba(74,44,20,.26); }
-.undo:active { transform: scale(.88); }
-.pad .clear { margin-left: auto; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #7a4d2a; background: rgba(122,77,42,.12); border: none; border-radius: 40px; padding: 7px 15px; cursor: pointer; }
+.undo:active, .clear:active { transform: scale(.88); }
+.pad .clear { color: #b5453f; }   /* trash icon, subtly redder to read as destructive */
 .pad .by { font-family: 'Caveat', cursive; font-size: 15px; color: #8a6236; margin-top: 6px; text-align: right; }
 
 .room-toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(10px); z-index: 9999; background: rgba(20,8,12,.92); border: 1px solid rgba(255,180,150,.3); color: #ffe4d6; font-family: 'DM Sans', sans-serif; font-size: 12.5px; padding: 9px 17px; border-radius: 40px; max-width: 88vw; text-align: center; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
