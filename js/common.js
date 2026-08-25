@@ -60,6 +60,7 @@
   function unlock(user) {
     var g = document.getElementById('authGate');
     if (g && g.parentNode) g.parentNode.removeChild(g);
+    try { localStorage.setItem('parvritiReturning', '1'); } catch (e) {}   // next load can skip the splash
     window.__parvritiAuthed = true;
     if (user && user.email) window.__parvritiUser = { email: user.email, person: personFor(user.email) };
     try { window.dispatchEvent(new Event('parvriti-authed')); } catch (e) {}
@@ -226,6 +227,11 @@
         '<div class="auth-msg" id="authMsg"></div>' +
       '</div>';
     body.appendChild(g);
+    // Someone who has signed in on this device before doesn't need the full "Only for us."
+    // splash flashed at them on every page load while auth silently re-resolves. Start the
+    // gate transparent + click-through; unlock() removes it, or revealGate() brings it back
+    // if auth actually needs them (signed out / failed).
+    try { if (localStorage.getItem('parvritiReturning') === '1') g.classList.add('gate-quiet'); } catch (e) {}
     g.querySelector('#authGoogle').addEventListener('click', function () {
       gateMsg('');
       if (!auth) { gateMsg('Sign-in is not available right now.'); return; }
@@ -248,7 +254,9 @@
   }
   function revealGate(msg) {
     var g = document.getElementById('authGate');
-    if (g) g.classList.add('ready');
+    // auth genuinely needs them, so the "returning" assumption was wrong: show the real gate.
+    try { localStorage.removeItem('parvritiReturning'); } catch (e) {}
+    if (g) { g.classList.remove('gate-quiet'); g.classList.add('ready'); }
     if (msg) gateMsg(msg);
   }
   function gateMsg(t) { var m = document.getElementById('authMsg'); if (m) m.textContent = t || ''; }

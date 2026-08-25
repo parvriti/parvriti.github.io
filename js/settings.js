@@ -248,6 +248,7 @@
   function signOut() {
     try {
       sessionStorage.removeItem('riti_open');
+      try { localStorage.removeItem('parvritiReturning'); } catch (e) {}   // show the gate again next visit
       firebase.auth().signOut().then(function () { location.replace('index.html'); }).catch(function () { location.replace('index.html'); });
     } catch (e) { location.replace('index.html'); }
   }
