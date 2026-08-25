@@ -592,7 +592,9 @@ async function verifyCaller(idToken, apiKey) {
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) return { email: null, detail: 'lookup ' + r.status + ': ' + ((d.error && d.error.message) || 'unknown') };
-    const email = d.users && d.users[0] && d.users[0].email;
+    const u = d.users && d.users[0];
+    const email = u && u.email;
+    if (email && u.emailVerified === false) return { email: null, detail: 'email not verified' };   // don't trust an unverified email (defense-in-depth if a non-Google provider is ever enabled)
     return { email: email || null, detail: email ? 'ok' : 'no email on account' };
   } catch (e) { return { email: null, detail: 'exception: ' + (e && e.message ? e.message : e) }; }
 }
@@ -686,7 +688,9 @@ async function sendPush(accessToken, token, title, text, link) {
     const d = await r.json().catch(() => ({}));
     const err = d.error || {};
     const code = (err.details && err.details[0] && err.details[0].errorCode) || err.status || '';
-    const dead = r.status === 404 || code === 'UNREGISTERED' || code === 'INVALID_ARGUMENT';
+    // Only prune on a definitively-dead token. INVALID_ARGUMENT also covers a malformed PAYLOAD,
+    // so treating it as dead could delete every recipient token in one bad send.
+    const dead = r.status === 404 || code === 'UNREGISTERED' || code === 'SENDER_ID_MISMATCH';
     return { ok: false, dead: dead };
   } catch (e) { return { ok: false, dead: false }; }   // network blip → do NOT delete
 }

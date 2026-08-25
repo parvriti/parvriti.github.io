@@ -35,7 +35,7 @@
 
   var LOGS = [];         // [{id, start:Date, len:int, longOk:bool}]
   var LONGEST = EXPECT, SHORTEST = EXPECT, LONGEST_EVER = EXPECT, lastStart = null;
-  var db = null, ready = false, canEdit = false;   // canEdit: Parv only — Riti's view is read-only
+  var db = null, ready = false, canEdit = false;   // canEdit becomes true for whoever can see the tab (Parv always; Riti once she enables Periods)
 
   /* ── dates. All local, so the day never flips at 05:30 IST ─────────── */
   function d(s) { var p = String(s).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
@@ -53,7 +53,6 @@
 
   function byStart(a, b) { return a.start - b.start; }
   function cycleLen(i) { return (i < LOGS.length - 1) ? diffD(LOGS[i + 1].start, LOGS[i].start) : null; }
-  function median(a) { var s = a.slice().sort(function (x, y) { return x - y; }), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
   function curLen() { return LOGS.length ? LOGS[LOGS.length - 1].len : DEFAULT_LEN; }
 
   /* recomputed after EVERY change, so nothing can go stale */
@@ -315,7 +314,7 @@
   }
 
   /* ═══════════════════ render ═══════════════════ */
-  var washFlip = false, lastPh = null, shownDay = 0, iconPh = null;
+  var washFlip = false, lastPh = null, shownDay = null, iconPh = null;   // shownDay null so the first render always paints; then only re-tween on a real change
 
   function paintLook(ph, instant) {
     var L = LOOK[ph];
@@ -417,7 +416,7 @@
 
     $('cyPhName').textContent = PHNAME[ph];
     $('cyDayCap').textContent = isNone ? '' : 'cycle day';
-    tweenDay(shownDay, day); shownDay = day || shownDay;
+    if (day !== shownDay) { tweenDay(shownDay, day); shownDay = day || shownDay; }   // only pop/tween when the day actually changed (was popping on every snapshot)
     setPhaseIcon(ph, changed);
     if (changed) {
       var pn = $('cyPhName');

@@ -54,6 +54,9 @@ function shade(hex) {
   var c = hex.replace('#', ''); var r = parseInt(c.substr(0, 2), 16), g = parseInt(c.substr(2, 2), 16), b = parseInt(c.substr(4, 2), 16);
   return 'rgb(' + Math.max(0, r - 24) + ',' + Math.max(0, g - 24) + ',' + Math.max(0, b - 24) + ')';
 }
+// color is stored per note and flows into an inline style (and shade()); whitelist it to a hex so a
+// crafted value can't break out of the attribute (XSS) and a non-string can't crash shade().
+function safeColor(c) { return /^#[0-9a-f]{3,8}$/i.test(c) ? c : '#fff2a8'; }
 
 /* ── overlay plumbing ── */
 function overlay(inner, cls) {
@@ -108,12 +111,14 @@ function dropCell(cx, cy) {   // the exact grid cell a point lands in (clamped)
   return r * COLS + c;
 }
 
+var dragActive = false;   // true while a tile is being dragged; pauses snapshot rebuilds so the drag isn't destroyed mid-move
 /* ── live feed ── */
 function startItems() {
   if (!rdb) { renderBoard(); return; }
   try {
     rdb.collection('roomItems').orderBy('createdAt', 'asc').onSnapshot(function (snap) {
       items = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (dragActive) return;   // a drag is in progress: keep items fresh but don't rebuild the DOM now; end() re-renders
       renderBoard();
     }, function (e) { console.warn('roomItems listen', e); });
   } catch (e) { console.warn(e); }
@@ -147,14 +152,14 @@ function singleTileEl(slot, it, num) {
   el.className = 'tile ' + (it.type === 'photo' ? 'photo' : 'note');
   el.dataset.slot = slot;
   el.style.setProperty('--r', (it.rot != null ? it.rot : 0) + 'deg');
-  if (it.type !== 'photo') { var color = it.color || '#fff2a8'; el.style.background = 'linear-gradient(158deg,' + color + ',' + shade(color) + ')'; }
+  if (it.type !== 'photo') { var color = safeColor(it.color); el.style.background = 'linear-gradient(158deg,' + color + ',' + shade(color) + ')'; }
   el.innerHTML = tileInner(it, num[it.id]);
   return el;
 }
 function coverDiv(it, no) {   // the visible face of a stack (visual only, no events)
   var el = document.createElement('div');
   el.className = 'tile cover ' + (it.type === 'photo' ? 'photo' : 'note');
-  if (it.type !== 'photo') { var c = it.color || '#fff2a8'; el.style.background = 'linear-gradient(158deg,' + c + ',' + shade(c) + ')'; }
+  if (it.type !== 'photo') { var c = safeColor(it.color); el.style.background = 'linear-gradient(158deg,' + c + ',' + shade(c) + ')'; }
   el.innerHTML = tileInner(it, no);
   return el;
 }
@@ -238,7 +243,7 @@ function makeDraggable(el, onDrop) {
   el.addEventListener('pointerdown', function (e) {
     if (e.target.closest && e.target.closest('.tdel')) return;
     e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {}
-    dragging = true; moved = false; el.classList.add('dragging');
+    dragging = true; dragActive = true; moved = false; el.classList.add('dragging');
     sx = e.clientX; sy = e.clientY; ox = parseFloat(el.style.left); oy = parseFloat(el.style.top);
   });
   el.addEventListener('pointermove', function (e) {
@@ -250,7 +255,7 @@ function makeDraggable(el, onDrop) {
     highlightDrop(nx + sz / 2, ny + sz / 2, el);
   });
   function end() {
-    if (!dragging) return; dragging = false; el.classList.remove('dragging');
+    if (!dragging) return; dragging = false; dragActive = false; el.classList.remove('dragging');
     clearHighlights();
     if (!moved) { renderBoard(); return; }
     var cs = cellSize(), g = gap(), sz = cs - g;
@@ -284,7 +289,7 @@ function renderPending() {
   var el = document.createElement('div');
   el.className = 'tile pending ' + (pending.type === 'photo' ? 'photo' : 'note') + (stacking ? ' will-stack' : '');
   el.style.setProperty('--r', pending.rot + 'deg');
-  if (pending.type !== 'photo') { var color = pending.color || '#fff2a8'; el.style.background = 'linear-gradient(158deg,' + color + ',' + shade(color) + ')'; }
+  if (pending.type !== 'photo') { var color = safeColor(pending.color); el.style.background = 'linear-gradient(158deg,' + color + ',' + shade(color) + ')'; }
   el.innerHTML = tileInner({ type: pending.type, text: pending.text, img: pending.img, by: pending.by }, '');
   placeEl(el, pending.slot);
   makeDraggable(el, function (cx, cy) { pending.slot = dropCell(cx, cy); renderBoard(); });
@@ -326,7 +331,7 @@ function cancelPending() { pending = null; renderBoard(); toast('threw it away')
 
 /* ── readers ── */
 function bigNoteInner(it, no) {
-  var color = it.color || '#fff2a8';
+  var color = safeColor(it.color);
   var who = it.by === 'parv' ? 'Pavu' : 'Riti';
   return '<div class="big-note" style="background:linear-gradient(158deg,' + color + ',' + shade(color) + ')">' +
     '<div class="bn-kick">reason i love you · #' + (no || '') + '</div>' +
@@ -423,12 +428,12 @@ function handlePhoto(file) {
     var cw = Math.round(img.width * s), ch = Math.round(img.height * s);
     var c = document.createElement('canvas'); c.width = cw; c.height = ch;
     c.getContext('2d').drawImage(img, 0, 0, cw, ch);
-    var url; try { url = c.toDataURL('image/jpeg', 0.72); } catch (e) { toast('could not read that photo'); return; }
+    var url; try { url = c.toDataURL('image/jpeg', 0.72); } catch (e) { URL.revokeObjectURL(img.src); toast('could not read that photo'); return; }
     if (url.length > 980000) { toast('that photo is a bit large, try another'); URL.revokeObjectURL(img.src); return; }
     URL.revokeObjectURL(img.src);
     startPlacing({ type: 'photo', img: url, by: me() });
   };
-  img.onerror = function () { toast('could not read that photo'); };
+  img.onerror = function () { URL.revokeObjectURL(img.src); toast('could not read that photo'); };
   img.src = URL.createObjectURL(file);
 }
 

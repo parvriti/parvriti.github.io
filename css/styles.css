@@ -671,7 +671,7 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
   -webkit-appearance: none; touch-action: manipulation;
   transition: transform .16s ease, box-shadow .16s ease, opacity .5s ease;
 }
-.auth-google:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(139,32,64,.5); }
+@media (hover:hover){ .auth-google:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(139,32,64,.5); } }
 .auth-google:active { transform: translateY(0); }
 .auth-g { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #fff; color: #4285f4; font-family: Arial, sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .auth-msg { font-family: 'DM Sans', sans-serif; font-size: 12px; color: #e59aa8; margin-top: 18px; min-height: 16px; }
@@ -684,7 +684,7 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
   border: 1px solid rgba(192,66,90,.32); border-radius: 16px; padding: 13px 16px;
   transition: transform .15s ease, border-color .15s ease;
 }
-.otd-card:hover { transform: translateY(-1px); border-color: rgba(192,66,90,.5); }
+@media (hover:hover){ .otd-card:hover { transform: translateY(-1px); border-color: rgba(192,66,90,.5); } }
 .otd-k { font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #d98ea0; margin-bottom: 3px; }
 .otd-t { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 18px; color: #f0d8dc; }
 .otd-more { color: #b8788a; text-transform: none; letter-spacing: 0; }
@@ -695,7 +695,7 @@ body.side-parv .otd-k { color: #8fb0e6; }
 .ow-receipt { display: block; margin: 16px auto 0; font-family: 'DM Sans', sans-serif; font-size: 12.5px; }
 .ow-receipt.read { color: #9c5563; text-align: center; }
 .ow-receipt.tap { background: rgba(192,66,90,.09); border: 1px solid rgba(192,66,90,.3); color: #a8324f; border-radius: 40px; padding: 9px 18px; cursor: pointer; -webkit-appearance: none; transition: transform .14s ease, background .14s ease; }
-.ow-receipt.tap:hover { transform: translateY(-1px); background: rgba(192,66,90,.15); }
+@media (hover:hover){ .ow-receipt.tap:hover { transform: translateY(-1px); background: rgba(192,66,90,.15); } }
 body.side-parv .ow-receipt.read { color: #6f8fd0; }
 body.side-parv .ow-receipt.tap { background: rgba(40,60,120,.09); border-color: rgba(40,60,120,.3); color: #2b4d8f; }
 
@@ -1103,7 +1103,7 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 .wall-label { position: relative; z-index: 2; font-family: 'Caveat', cursive; color: #5a3a1e; font-size: 22px; text-align: center; margin: 0 0 4px; opacity: .82; }
 .wall-tools { position: relative; z-index: 2; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 6px 0 14px; }
 .wtool { font-family: 'DM Sans', sans-serif; font-size: 12px; color: #5a3a1e; background: rgba(255,250,235,.35); border: 1px solid rgba(74,44,20,.28); border-radius: 40px; padding: 6px 14px; cursor: pointer; -webkit-appearance: none; transition: .16s; }
-.wtool:hover { background: rgba(255,250,235,.6); transform: translateY(-1px); }
+@media (hover:hover){ .wtool:hover { background: rgba(255,250,235,.6); transform: translateY(-1px); } }
 .wtool.edit.on { background: rgba(255,210,150,.75); color: #3e2614; border-color: rgba(74,44,20,.5); }
 
 /* the grid board */
@@ -1115,7 +1115,7 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 
 .tile { position: absolute; box-sizing: border-box; border: none; padding: 0; cursor: pointer; -webkit-appearance: none;
   box-shadow: 0 7px 14px rgba(0,0,0,.32); transform: rotate(var(--r,0deg)); transition: transform .16s, box-shadow .16s; z-index: 2; }
-.tile:not(.dragging):not(.editing):hover { transform: rotate(0deg) scale(1.07); box-shadow: 0 12px 22px rgba(0,0,0,.45); z-index: 6; }
+@media (hover:hover){ .tile:not(.dragging):not(.editing):hover { transform: rotate(0deg) scale(1.07); box-shadow: 0 12px 22px rgba(0,0,0,.45); z-index: 6; } }
 .tile.dragging { z-index: 24; transform: rotate(0deg) scale(1.08); box-shadow: 0 18px 34px rgba(0,0,0,.55); cursor: grabbing; }
 .tile .tack { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); width: 13px; height: 13px; border-radius: 50%; z-index: 3;
   background: radial-gradient(circle at 36% 30%, #fff, #e0637f 42%, #a8203e); box-shadow: 0 3px 5px rgba(0,0,0,.45); }
@@ -1145,7 +1145,7 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 .tile.pending.will-stack { box-shadow: 0 16px 32px rgba(0,0,0,.5), 0 0 0 3px rgba(255,214,150,.9); }
 .stackwrap { position: absolute; box-sizing: border-box; border: none; padding: 0; margin: 0; background: transparent; cursor: pointer; -webkit-appearance: none;
   transform: rotate(var(--r,0deg)); transition: transform .16s; z-index: 2; }
-.stackwrap:not(.dragging):not(.editing):hover { transform: rotate(0deg) scale(1.06); z-index: 6; }
+@media (hover:hover){ .stackwrap:not(.dragging):not(.editing):hover { transform: rotate(0deg) scale(1.06); z-index: 6; } }
 .stackwrap.dragging { z-index: 24; transform: rotate(0deg) scale(1.08); cursor: grabbing; }
 .stackwrap .peek { position: absolute; inset: 0; border-radius: 3px; background: linear-gradient(160deg,#fdfaf2,#efe7d5); box-shadow: 0 6px 12px rgba(0,0,0,.32); pointer-events: none; }
 .stackwrap .peek.p1 { transform: rotate(5deg) translate(3px,2px); z-index: 1; }
@@ -1161,7 +1161,7 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 .more-room { position: relative; z-index: 2; display: block; width: 100%; margin: 14px auto 2px; max-width: 220px;
   font-family: 'DM Sans', sans-serif; font-size: 12.5px; letter-spacing: .04em; color: #5a3a1e;
   background: rgba(255,250,235,.28); border: 1.5px dashed rgba(74,44,20,.4); border-radius: 40px; padding: 11px 16px; cursor: pointer; -webkit-appearance: none; transition: .16s; }
-.more-room:hover { background: rgba(255,250,235,.5); }
+@media (hover:hover){ .more-room:hover { background: rgba(255,250,235,.5); } }
 
 /* the stack viewer (swipe through the pile) */
 .stack-ov .room-ov-in { max-width: 340px; }

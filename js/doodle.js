@@ -59,6 +59,7 @@ function startDoodle() {
       ddb.collection('canvasStrokes').orderBy('at', 'asc').onSnapshot(function (snap) {
         strokes = snap.docs.map(function (d) { return d.data(); });
         redraw();
+        if (drawing && curPts && curPts.length) drawStroke(curPts, drawColor, drawSize);   // keep your in-progress line visible over a concurrent remote redraw
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
@@ -91,9 +92,10 @@ function dEnd() {
   // let the "drawing" presence linger briefly so pauses between strokes don't flicker
   if (window.parvritiActivity) { clearTimeout(dEnd._t); dEnd._t = setTimeout(function () { window.parvritiActivity(null); }, 6000); }
   // one "left you a doodle" ping per session: fire ~40s after the LAST stroke
-  if (window.parvritiNotify) {
+  if (window.parvritiNotify && !dEnd._sent) {
     clearTimeout(dEnd._nt);
     dEnd._nt = setTimeout(function () {
+      dEnd._sent = true;   // one "left you a doodle" ping per session (reset when the pad is cleared), not per 40s burst
       var meP = me(), other = meP === 'parv' ? 'riti' : 'parv';
       window.parvritiNotify(other, (meP === 'parv' ? 'Parv' : 'Riti') + ' left you a doodle ✏️', '', 'https://parvriti.github.io/doodles.html?n=1', 'doodle');
     }, 40000);
@@ -103,6 +105,7 @@ function clearDoodle() {
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }
   if (!window.confirm('Wipe the doodle for both of you?')) return;
   pctx.clearRect(0, 0, pad.width, pad.height);
+  clearTimeout(dEnd._nt); dEnd._sent = false;   // cancel a pending "left you a doodle" ping so it can't fire into a just-cleared pad
   ddb.collection('canvasStrokes').get().then(function (snap) {
     var docs = snap.docs, jobs = [];   // a WriteBatch caps at 500 ops, so chunk (each stroke is its own doc)
     for (var i = 0; i < docs.length; i += 450) {

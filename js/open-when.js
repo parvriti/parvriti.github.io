@@ -204,6 +204,8 @@ function receiptFor(e) {
   return '<div class="ow-receipt read">💗 ' + who + ' opened this' + when + '</div>';
 }
 const openNotified = {};   // guard against firing twice before the snapshot lands
+var loadedVoiceKey = null; // which voice clip the <audio> currently holds (so a snapshot re-render doesn't reset playback)
+var envPushSent = false;   // one "opened your letter" push per envelope-open (reset on each open)
 function maybeNotifyOpen(e, env) {
   if (!e || isSealed(e)) return;
   if (mePerson() !== e.side) return;             // only the RECIPIENT of this side, never the author
@@ -219,6 +221,8 @@ function maybeNotifyOpen(e, env) {
     openNotified[guard] = true;
     if (db) db.collection('notes').doc(e.id).update({ readAt: serverTime(), readBy: reader }).catch(function (err) { console.warn(err); });
   }
+  if (envPushSent) return;                        // read receipt is written per note above; the PUSH fires once per envelope-open so paging a stack doesn't storm the author
+  envPushSent = true;
   var name = reader === 'parv' ? 'Parv' : 'Riti';
   var url = 'https://parvriti.github.io/open-when.html?open=' + encodeURIComponent(e.emotion || env.emotion || '') + '&side=' + e.side;
   if (window.parvritiNotify) window.parvritiNotify(author, name + ' opened your letter - ' + env.title + ' 💌', '', url, 'read');
@@ -361,6 +365,7 @@ function openEnvelope(emotion) {
 }
 
 function openReaderNow() {
+  envPushSent = false;   // a fresh open of this envelope may send one read-receipt push
   const reader = document.getElementById('owReader');
   const stage = document.getElementById('envStage');
   const envEl = document.getElementById('env');
@@ -437,17 +442,25 @@ function renderEntry() {
     '<div class="ow-paper-date">' + fmtDate(e.date) + '</div>' +
     mid + editDel + pager + addHere;
 
+  // Only (re)load the <audio> when the clip actually changes. A Firestore snapshot echo
+  // (e.g. this note's own read-receipt write) re-runs renderEntry for the SAME entry; without
+  // this guard it would pause+rewind the voice note she just tapped play on.
   const a = document.getElementById('owAudio');
-  a.pause(); a.currentTime = 0;
-  if (!sealed && e.voiceFile) a.src = e.voiceFile;
-  else if (!sealed && e.voice) a.src = 'data:' + (e.voiceType || 'audio/mp4') + ';base64,' + e.voice;
-  else a.removeAttribute('src');
+  const vkey = sealed ? '' : (e.voiceFile ? 'f:' + e.voiceFile : (e.voice ? 'b:' + (e.id || e.emotion) + ':' + e.date : ''));
+  if (vkey !== loadedVoiceKey) {
+    a.pause(); a.currentTime = 0;
+    if (!sealed && e.voiceFile) a.src = e.voiceFile;
+    else if (!sealed && e.voice) a.src = 'data:' + (e.voiceType || 'audio/mp4') + ';base64,' + e.voice;
+    else a.removeAttribute('src');
+    loadedVoiceKey = vkey;
+  }
 }
 
 function closeWhen() {
   clearTimeout(owTimer);
   const a = document.getElementById('owAudio');
   if (a) a.pause();
+  loadedVoiceKey = null;   // next open reloads the clip fresh (from 0)
   document.getElementById('owReader').classList.remove('active');
   document.getElementById('env').classList.remove('open');
   document.getElementById('envStage').classList.remove('done');
@@ -516,7 +529,11 @@ function openForm(mode, ctx) {
   const forWho = currentSide === 'parv' ? 'for Parv' : 'for Riti';
   const sealField = document.getElementById('owSealField');
   const inOpen = document.getElementById('owInOpen');
-  if (inOpen) inOpen.value = '';
+  if (inOpen) {
+    inOpen.value = '';
+    var tmr = new Date(); tmr.setDate(tmr.getDate() + 1);   // only a future date seals, so block today/past in the picker (was silently ignored)
+    inOpen.min = tmr.getFullYear() + '-' + ('0' + (tmr.getMonth() + 1)).slice(-2) + '-' + ('0' + tmr.getDate()).slice(-2);
+  }
   document.getElementById('owFormErr').textContent = '';
   if (mode === 'new') {
     titleWrap.style.display = '';
@@ -577,21 +594,19 @@ function saveForm(ev) {
   if (formMode === 'edit') {
     db.collection('notes').doc(formEntry.id).update({ body: body, voice: voice, voiceType: voiceType, editedAt: serverTime() }).then(done).catch(fail);
   } else if (formMode === 'add') {
-    pendingOpen = formEnv.emotion;
     db.collection('notes').add({
       side: currentSide, emotion: formEnv.emotion, emoji: formEnv.emoji, title: formEnv.title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(function () { notifyRecipient(formEnv.title, formEnv.emotion); done(); }).catch(fail);
+    }).then(function () { pendingOpen = formEnv.emotion; notifyRecipient(formEnv.title, formEnv.emotion); done(); }).catch(fail);   // set pendingOpen only on success, else a failed save leaves it to auto-open later
   } else {
     const title = document.getElementById('owInTitle').value.trim();
     const emoji = document.getElementById('owInEmoji').value.trim() || (currentSide === 'parv' ? '💙' : '💌');
     if (!title) { err.textContent = 'Give it a title 💛'; return false; }
     const key = newKey();
-    pendingOpen = key;
     db.collection('notes').add({
       side: currentSide, emotion: key, emoji: emoji, title: title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(function () { notifyRecipient(title, key); done(); }).catch(fail);
+    }).then(function () { pendingOpen = key; notifyRecipient(title, key); done(); }).catch(fail);
   }
   return false;
 }

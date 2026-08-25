@@ -46,7 +46,13 @@ Add a rule so each phone can save its own push token. Publish this alongside
 the existing rules (Firestore → Rules):
 
 ```
-match /deviceTokens/{doc} { allow read, write: if ok(); }
+match /deviceTokens/{doc} {
+  // only the worker (service account) reads these; a client just registers ITS OWN token
+  function myPerson() { return request.auth.token.email == 'aritika2000@gmail.com' ? 'riti' : 'parv'; }
+  allow read:           if false;
+  allow create, update: if ok() && request.resource.data.person == myPerson();
+  allow delete:         if ok() && resource.data.person == myPerson();
+}
 ```
 
 (where `ok()` is the same allow-list function guarding `notes` / `presence` /

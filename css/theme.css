@@ -11,15 +11,22 @@
 
 /* smooth cross-document navigation (Safari 18+/Chromium; graceful no-op) */
 @view-transition { navigation: auto; }
+/* keep the persistent chrome pinned across a navigation instead of cross-fading the whole page */
+.proto-tabbar { view-transition-name: parvtabbar; }
+.proto-sidebar { view-transition-name: parvsidebar; }
 
 /* ── kill the web tells ── */
 * { -webkit-tap-highlight-color: transparent; }
-.proto-tabbar, .proto-corner { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* native apps don't let you select or long-press UI chrome; real content opts back in on the next line */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.ow-paper-body, .bn-txt, .ow-sealed-msg, input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
+img { -webkit-touch-callout: none; }
 html, body { overscroll-behavior: none; }
 body { -webkit-overflow-scrolling: touch; }
 a, button, [role="button"], .ow-card, .ow-side, .mx-cell, .set-sw, .set-btn,
 .set-step button, .cy-met, .proto-tab, .proto-corner { touch-action: manipulation; }
 .set-row:active, .set-btn:active, .ow-side:active, .cy-fab:active { transform: scale(.97); }
+.love-fab:active { animation: none !important; transform: scale(.92); }   /* native press-down on the heart (overrides the idle beat while held) */
 
 /* ── hide the original top nav (replaced by the bottom bar) ── */
 #nav, .tabtop, .home-gear, .tt-back, .tt-gear, .set-back { display: none !important; }
@@ -70,6 +77,15 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .bg-base { background: #fbf1f1 !important; }
 :root[data-theme="light"] .bgp { display: none !important; }
 :root[data-theme="light"] .bloom-ov { background: #fbf1f1; }
+/* sign-in gate: was a dark radial on every load; give it a cream ground + dark ink in light mode */
+:root[data-theme="light"] .auth-gate {
+  background:
+    radial-gradient(120% 90% at 50% 6%, rgba(228,150,170,.34), transparent 60%),
+    radial-gradient(100% 80% at 50% 110%, rgba(192,66,90,.20), transparent 60%),
+    #fbf1f1;
+}
+:root[data-theme="light"] .auth-title { color: #8b2040; }
+:root[data-theme="light"] .auth-sub { color: #9a6a74; }
 
 /* light-mode frosted chrome */
 :root[data-theme="light"] .proto-tabbar { background: rgba(251,241,241,.82); border-top-color: var(--l-line); }
@@ -309,6 +325,13 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
    default was for the dark scrim). --- */
 :root[data-theme="light"] .room-ov { background: radial-gradient(120% 90% at 50% 30%, rgba(251,241,241,.92), rgba(240,222,226,.96)); }
 :root[data-theme="light"] .room-ov-x { color: #a8324f; }
+/* the overlay's CONTENTS (stack viewer + photo caption) were light-peach for the dark scrim; re-ink for the cream light scrim so they aren't invisible */
+:root[data-theme="light"] .sv-head { color: #8a6570; }
+:root[data-theme="light"] .sv-act { color: #7a3550; background: #fff; border-color: #e6cdd4; }
+:root[data-theme="light"] .sv-act.sv-del { color: #b0304a; background: #fbe9ea; border-color: #f0c8d0; }
+:root[data-theme="light"] .sv-dot { background: rgba(140,90,110,.28); }
+:root[data-theme="light"] .sv-dot.on { background: #c0425a; }
+:root[data-theme="light"] .big-photo .bp-cap { color: #8a6570; }
 /* ALL THEMES: the letter reader + New/Edit form (both .ow-reader.active, z-index 300), the unseal
    ceremony (.ow-unseal, z-index 340) and the board tile overlay (.room-ov, z-index 400) all sit
    BELOW the native shell (bar/corners z-index 500, sidebar z-index 600). Left unhidden, the shell
