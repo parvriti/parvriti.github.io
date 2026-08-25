@@ -62,7 +62,10 @@
     clearTimeout(quietTimer);
     var g = document.getElementById('authGate');
     if (g && g.parentNode) g.parentNode.removeChild(g);
-    try { localStorage.setItem('parvritiReturning', '1'); } catch (e) {}   // next load can skip the splash
+    // Remember "returning" ONLY for a real signed-in user — not the Firebase-failed-to-load
+    // fallback unlock() (which passes no user). That keeps the gate-quiet skip meaning
+    // "an allowed account signed in on this device before".
+    if (user && user.email) { try { localStorage.setItem('parvritiReturning', '1'); } catch (e) {} }
     window.__parvritiAuthed = true;
     if (user && user.email) window.__parvritiUser = { email: user.email, person: personFor(user.email) };
     try { window.dispatchEvent(new Event('parvriti-authed')); } catch (e) {}
