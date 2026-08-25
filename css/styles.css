@@ -1120,7 +1120,10 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 
 /* the grid board */
 .board { position: relative; z-index: 2; width: 100%; margin: 0 auto; }
-.board-empty { position: absolute; left: 0; right: 0; top: 40%; z-index: 2; text-align: center; font-family: 'Caveat', cursive; font-size: 20px; color: #5a3a1e; opacity: .72; padding: 0 20px; }
+.board-empty { position: absolute; left: 0; right: 0; top: 34%; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; color: #5a3a1e; padding: 0 20px; animation: fadeUp .5s ease both; }
+.board-empty .be-ic { width: 54px; height: 54px; opacity: .5; }
+.board-empty .be-title { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 21px; opacity: .8; }
+.board-empty .be-sub { font-family: 'Caveat', cursive; font-size: 19px; opacity: .68; }
 
 .cellghost { position: absolute; box-sizing: border-box; border-radius: 5px; border: 1.5px dashed rgba(255,246,228,.30); background: rgba(255,246,228,.05); z-index: 1; transition: background .14s, border-color .14s, box-shadow .14s; }
 .cellghost.hot { border-color: rgba(255,214,150,.95); background: rgba(255,214,150,.20); box-shadow: inset 0 0 16px rgba(255,190,120,.45); }
@@ -1712,6 +1715,14 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
   border-radius: 22px; padding: 4px 18px 14px; margin-bottom: 15px;
   animation: fadeUp .5s ease both;
 }
+/* cascade the cards in instead of all-at-once */
+.set-main .set-card:nth-of-type(2) { animation-delay: .05s; }
+.set-main .set-card:nth-of-type(3) { animation-delay: .10s; }
+.set-main .set-card:nth-of-type(4) { animation-delay: .15s; }
+.set-main .set-card:nth-of-type(5) { animation-delay: .20s; }
+.set-main .set-card:nth-of-type(6) { animation-delay: .25s; }
+.set-main .set-card:nth-of-type(7) { animation-delay: .30s; }
+@media (prefers-reduced-motion: reduce) { .set-card { animation: none !important; } }
 .set-card-h {
   display: flex; align-items: center; gap: 9px;
   font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 18px;

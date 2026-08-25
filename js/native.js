@@ -103,11 +103,20 @@
     // On Home (post sign-in) open the session gate so every nav tap works even before
     // the "Open it" ceremony. Home has no inner-page guard, so this only ever helps.
     if (page === 'home') { try { sessionStorage.setItem('riti_open', '1'); } catch (e) {} }
-    buildFrom({});
+    // Build instantly from the last-known visibility (cached this session) so tab-to-tab nav
+    // doesn't flicker from defaults, then refine from the live settings/app read.
+    var cached = null;
+    try { cached = JSON.parse(sessionStorage.getItem('parvritiVis') || 'null'); } catch (e) {}
+    buildFrom(cached || {});
     try {
       if (typeof firebase !== 'undefined' && firebase.firestore) {
         firebase.firestore().collection('settings').doc('app').get()
-          .then(function (s) { buildFrom(s.exists ? (s.data() || {}) : {}); }).catch(function () {});
+          .then(function (s) {
+            var data = s.exists ? (s.data() || {}) : {};
+            var vis = {}; for (var k in data) if (k.indexOf('v_') === 0) vis[k] = data[k];   // only the visibility flags
+            try { sessionStorage.setItem('parvritiVis', JSON.stringify(vis)); } catch (e) {}
+            buildFrom(data);
+          }).catch(function () {});
       }
     } catch (e) {}
   }

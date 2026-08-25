@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
 <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('parvritiTheme')||'dark')}catch(e){}</script>
-<link rel="stylesheet" href="css/styles.css?v=70">
-<link rel="stylesheet" href="css/theme.css?v=70">
+<link rel="stylesheet" href="css/styles.css?v=71">
+<link rel="stylesheet" href="css/theme.css?v=71">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -46,7 +46,15 @@
         <button class="wtool edit" id="editBoard" type="button">✎ edit</button>
       </div>
       <div class="board" id="board"></div>
-      <div class="board-empty" id="boardEmpty" style="display:none">tap ＋ to pin your first little thing 🌸</div>
+      <div class="board-empty" id="boardEmpty" style="display:none">
+        <svg class="be-ic" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="32" cy="13" r="4"/><path d="M32 17v3"/>
+          <rect x="15" y="20" width="34" height="32" rx="4"/>
+          <path d="M25 35c0-3.2 4.2-4.2 5.4-1.1 1.2-3.1 5.4-2.1 5.4 1.1 0 3.2-5.4 6.4-5.4 6.4s-5.4-3.2-5.4-6.4z"/>
+        </svg>
+        <div class="be-title">nothing pinned yet</div>
+        <div class="be-sub">tap ＋ to pin your first little thing 🌸</div>
+      </div>
       <button class="more-room" id="moreRoom" type="button">＋ more room</button>
     </section>
 
@@ -57,12 +65,13 @@
 <input type="file" id="photoInput" accept="image/*" style="display:none">
 <div class="room-toast" id="roomToast"></div>
 
+<nav class="proto-tabbar" id="protoTabbar" aria-label="Main"></nav>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=70"></script>
-<script src="js/board.js?v=70"></script>
-<script src="js/native.js?v=70"></script>
+<script src="js/common.js?v=71"></script>
+<script src="js/board.js?v=71"></script>
+<script src="js/native.js?v=71"></script>
 </body>
 </html>
