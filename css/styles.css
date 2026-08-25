@@ -653,7 +653,10 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
   -webkit-tap-highlight-color: transparent;
 }
 /* Returning device: the gate stays mounted (so it can snap back if auth fails) but
-   invisible and click-through while auth re-resolves, so no splash flashes on load. */
+   invisible and click-through while auth re-resolves, so no splash flashes on load.
+   Fast path: auth resolves in tens of ms and unlock() removes the gate before anyone
+   sees it. Slow path: the safety timer drops gate-quiet and the branded splash shows
+   instantly (never a lingering blank shell) until content is ready. */
 .auth-gate.gate-quiet { opacity: 0; pointer-events: none; }
 .auth-inner { text-align: center; max-width: 340px; width: 100%; }
 .auth-flower { position: relative; width: 114px; height: 114px; margin: 0 auto 26px; }

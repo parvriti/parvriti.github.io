@@ -30,6 +30,7 @@
   var INITIAL_SEARCH = (location.search || '');   // captured before any page strips it (for the deep-link gate)
   var auth = null;
   var cdb = null;
+  var quietTimer = null;   // gate-quiet safety fallback (see buildGate)
 
   registerSW();
   setupHaptics();
@@ -58,6 +59,7 @@
   } catch (e) { unlock(); }
 
   function unlock(user) {
+    clearTimeout(quietTimer);
     var g = document.getElementById('authGate');
     if (g && g.parentNode) g.parentNode.removeChild(g);
     try { localStorage.setItem('parvritiReturning', '1'); } catch (e) {}   // next load can skip the splash
@@ -160,7 +162,19 @@
     // splash flashed at them on every page load while auth silently re-resolves. Start the
     // gate transparent + click-through; unlock() removes it, or revealGate() brings it back
     // if auth actually needs them (signed out / failed).
-    try { if (localStorage.getItem('parvritiReturning') === '1') g.classList.add('gate-quiet'); } catch (e) {}
+    try {
+      if (localStorage.getItem('parvritiReturning') === '1') {
+        g.classList.add('gate-quiet');
+        // Fast path (local-persistence auth ≈ tens of ms): stays transparent the whole time,
+        // so the tab just opens — no splash. Safety: if auth is slow to resolve, don't leave a
+        // blank shell lingering; fade the branded splash in as a placeholder (no sign-in button —
+        // auth may still succeed). unlock()/revealGate() cancel this.
+        quietTimer = setTimeout(function () {
+          var gg = document.getElementById('authGate');
+          if (gg) gg.classList.remove('gate-quiet');
+        }, 200);
+      }
+    } catch (e) {}
     g.querySelector('#authGoogle').addEventListener('click', function () {
       gateMsg('');
       if (!auth) { gateMsg('Sign-in is not available right now.'); return; }
@@ -182,6 +196,7 @@
     });
   }
   function revealGate(msg) {
+    clearTimeout(quietTimer);
     var g = document.getElementById('authGate');
     // auth genuinely needs them, so the "returning" assumption was wrong: show the real gate.
     try { localStorage.removeItem('parvritiReturning'); } catch (e) {}
