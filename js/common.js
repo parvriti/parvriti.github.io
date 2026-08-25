@@ -32,6 +32,7 @@
   var cdb = null;
 
   registerSW();
+  setupHaptics();
   buildGate();   // opaque overlay covers everything until we know who this is
 
   try {
@@ -182,6 +183,21 @@
         .then(function (s) { buildNavAndGear(s.exists ? (s.data() || {}) : {}); }).catch(function () {});
     } catch (e) {}
     renderDayCounter();
+  }
+
+  /* ── iOS haptics ── navigator.vibrate is a no-op in an iOS PWA. The one thing that
+     DOES buzz is toggling a rendered <input type="checkbox" switch> inside a user gesture
+     (iOS 17.4+). Keep one hidden off-screen and click it from parvritiHaptic(). Everywhere
+     else it's a harmless no-op, so callers can just call it and also keep navigator.vibrate. */
+  function setupHaptics() {
+    window.parvritiHaptic = function () {};   // safe default until the element exists
+    try {
+      var sw = document.createElement('input');
+      sw.type = 'checkbox'; sw.setAttribute('switch', ''); sw.tabIndex = -1; sw.setAttribute('aria-hidden', 'true');
+      sw.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+      (document.body || document.documentElement).appendChild(sw);
+      window.parvritiHaptic = function () { try { sw.click(); } catch (e) {} };
+    } catch (e) {}
   }
 
   /* ── the sign-in gate ── */
@@ -400,6 +416,7 @@
       if (!cdb) return;
       cdb.collection('pings').doc(other).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).catch(function () {});
       toast('sent 💗');
+      if (window.parvritiHaptic) window.parvritiHaptic();
       if (navigator.vibrate) navigator.vibrate(24);
       // also push, so it reaches them even if the app is closed
       if (window.parvritiNotify) window.parvritiNotify(other, (me === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗', '', 'https://parvriti.github.io/index.html?moment=heart&who=' + me, 'heart');

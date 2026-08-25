@@ -507,6 +507,7 @@
       startRing();
       timer = setTimeout(function () {
         held = true;
+        if (window.parvritiHaptic) window.parvritiHaptic();
         clearBtn(); resetRing();
         openPick(today(), 'add', null);
       }, 760);
@@ -517,6 +518,7 @@
       rip.classList.remove('go'); void rip.offsetWidth; rip.classList.add('go');
       var t = today();
       for (var i = 0; i < LOGS.length; i++) if (iso(LOGS[i].start) === iso(t)) { toast('today is already logged'); return; }
+      if (window.parvritiHaptic) window.parvritiHaptic();
       saveLog(t, DEFAULT_LEN, false).then(function () {
         toastUndo('Period logged 🌸', function () {
           deleteLog(iso(t)).then(function () { toast('undone'); }).catch(function () { toast('could not undo'); });

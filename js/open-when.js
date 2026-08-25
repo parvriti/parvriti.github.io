@@ -376,6 +376,7 @@ function openReaderNow() {
   reader.classList.add('active');
   reader.scrollTop = 0;
   renderEntry();
+  if (window.parvritiHaptic) window.parvritiHaptic();
   if (navigator.vibrate) navigator.vibrate(18);
   void envEl.offsetWidth;
   envEl.classList.add('open');
