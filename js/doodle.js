@@ -30,6 +30,7 @@ function toast(m) {
 }
 
 var pad, pctx, strokes = [], drawColor = '#c0425a', drawSize = 6, drawing = false, curPts = null, lastXY = null;   // 6 = the pre-selected medium nib
+var pendingMine = [];   // finished strokes I just added, kept painted until their own doc echoes back (at:serverTimestamp is null while pending, so an orderBy('at') snapshot omits them for ~½s and a redraw would erase them)
 
 function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;
@@ -58,7 +59,13 @@ function startDoodle() {
     try {
       ddb.collection('canvasStrokes').orderBy('at', 'asc').onSnapshot(function (snap) {
         strokes = snap.docs.map(function (d) { return d.data(); });
+        if (pendingMine.length) {   // drop any of my finished strokes that have now echoed back (matched by cid)
+          var have = {};
+          strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
+          pendingMine = pendingMine.filter(function (p) { return !have[p.cid]; });
+        }
         redraw();
+        pendingMine.forEach(function (p) { drawStroke(p.pts, p.color, p.size); });   // keep my not-yet-confirmed strokes painted so a redraw can't erase them
         if (drawing && curPts && curPts.length) drawStroke(curPts, drawColor, drawSize);   // keep your in-progress line visible over a concurrent remote redraw
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
@@ -86,7 +93,9 @@ function dEnd() {
   if (!drawing) return; drawing = false;
   if (curPts && curPts.length && ddb) {
     var pts = curPts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; });
-    ddb.collection('canvasStrokes').add({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime() }).catch(function () {});
+    var cid = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    pendingMine.push({ pts: pts, color: drawColor, size: drawSize, cid: cid });   // stays painted until this doc echoes back
+    ddb.collection('canvasStrokes').add({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }).catch(function () {});
   }
   curPts = null;
   // let the "drawing" presence linger briefly so pauses between strokes don't flicker
@@ -105,6 +114,7 @@ function clearDoodle() {
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }
   if (!window.confirm('Wipe the doodle for both of you?')) return;
   pctx.clearRect(0, 0, pad.width, pad.height);
+  pendingMine = [];   // don't let my not-yet-confirmed strokes repaint over a wipe
   clearTimeout(dEnd._nt); dEnd._sent = false;   // cancel a pending "left you a doodle" ping so it can't fire into a just-cleared pad
   ddb.collection('canvasStrokes').get().then(function (snap) {
     var docs = snap.docs, jobs = [];   // a WriteBatch caps at 500 ops, so chunk (each stroke is its own doc)

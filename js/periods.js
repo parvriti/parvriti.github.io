@@ -137,7 +137,7 @@
     pms: 'Be the steady one. Supplies stocked, nothing heavy scheduled.',
     due: 'Could be any day now. Keep everything within reach.',
     late: 'Running long is normal for her. Nothing to do differently.',
-    overdue: 'Longer than she has ever run. Most likely one went unlogged, so hold the drop to add it.',
+    overdue: 'Longer than her recent cycles. Most likely one went unlogged, so hold the drop to add it.',
     none: 'Nothing logged yet. Tap the drop when her period begins.'
   };
 
@@ -599,16 +599,17 @@
   })();
 
   function findLog(id) { for (var i = 0; i < LOGS.length; i++) if (LOGS[i].id === id) return LOGS[i]; return null; }
-  // true if date t falls INSIDE an already-logged period's span (day 2..len); she's already
-  // bleeding per that log, so a new "start" there would fabricate a bogus short cycle. The exact
-  // start day is caught separately by the "already logged" guard, so we only check days 1..len-1.
+  // true if a new start at t would OVERLAP an already-logged period (either direction) — that
+  // fabricates a bogus short cycle. The exact same-start day is caught separately by the "already
+  // logged" guard, so both checks skip day 0.
   function inSpan(t, exceptId) {
     var ts = iso(t);
     for (var i = 0; i < LOGS.length; i++) {
       var L = LOGS[i];
       if (exceptId && L.id === exceptId) continue;
-      var len = L.len || DEFAULT_LEN;
-      for (var k = 1; k < len; k++) if (iso(addD(L.start, k)) === ts) return true;
+      var len = L.len || DEFAULT_LEN, lStart = iso(L.start);
+      for (var k = 1; k < len; k++) if (iso(addD(L.start, k)) === ts) return true;         // t sits inside L's span
+      for (var j = 1; j < DEFAULT_LEN; j++) if (iso(addD(t, j)) === lStart) return true;    // L's start sits inside t's new span (backfilling just before L)
     }
     return false;
   }
@@ -790,7 +791,7 @@
   /* ═══════════════════ edit a logged period ═══════════════════ */
   var edId = null;
   function openEdit(id) {
-    var i = findIdx(id); if (i < 0) return;
+    var i = findIdx(id); if (i < 0) { closeEdit(); return; }   // the log was deleted (e.g. by the other person) - close, don't leave a stale sheet that could re-create it
     edId = id;
     var L = LOGS[i], cyc = cycleLen(i);
     $('cyEdDate').textContent = longDate(L.start);

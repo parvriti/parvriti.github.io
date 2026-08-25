@@ -245,6 +245,7 @@
 
   /* ══════════════ push notifications (reaches a closed phone) ══════════════ */
   function setupMessaging() {
+    if (setupMessaging._on) return; setupMessaging._on = true;   // onAuthStateChanged can refire; don't stack onMessage observers or re-write the token
     var u = window.__parvritiUser;
     if (!u || !cdb || typeof firebase === 'undefined' || !firebase.messaging) return;
     if (FCM_VAPID_KEY.indexOf('REPLACE') === 0) return;   // not configured yet → stay dormant
@@ -319,10 +320,10 @@
     var FV = firebase.firestore.FieldValue;
     var meRef = cdb.collection('presence').doc(me);
     var inner = page && page !== 'home';
-    var curAct = null, curActLabel = '';   // live "reading/drawing" activity, rewritten on every beat
+    var curAct = null, curActLabel = '', curTyping = false;   // live "reading/drawing/typing" state, rewritten on every beat
 
     function beat(extra) {
-      var d = { at: FV.serverTimestamp(), atMs: Date.now(), page: page, hidden: !!document.hidden, gone: false, activity: curAct, activityLabel: curActLabel };
+      var d = { at: FV.serverTimestamp(), atMs: Date.now(), page: page, hidden: !!document.hidden, gone: false, activity: curAct, activityLabel: curActLabel, typing: curTyping };
       if (extra) for (var k in extra) d[k] = extra[k];
       meRef.set(d, { merge: true }).catch(function () {});
     }
@@ -335,9 +336,9 @@
     /* open-when.js calls this while the note box is being typed in */
     var typingOffT = null;
     window.parvritiTyping = function (on) {
-      beat({ typing: !!on });
+      curTyping = !!on; beat();   // rides the base object now, so a fresh page load (curTyping=false) clears a stuck "writing…" the same way activity self-clears
       clearTimeout(typingOffT);
-      if (on) typingOffT = setTimeout(function () { beat({ typing: false }); }, 5000);
+      if (on) typingOffT = setTimeout(function () { curTyping = false; beat(); }, 5000);
     };
     /* open-when.js calls this when a note is opened → the "last opened" line */
     window.parvritiSetLastOpened = function (title) {

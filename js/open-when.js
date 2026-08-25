@@ -251,7 +251,9 @@ function renderOnThisDay() {
   host.innerHTML = '<button type="button" class="otd-card"><div class="otd-k">🌸 On this day, ' + when + more + '</div><div class="otd-t">you wrote “' + escapeHtml(m.title) + '”</div></button>';
   host.querySelector('.otd-card').addEventListener('click', function () {
     if (currentSide !== m.side) setSide(m.side);
-    openEnvelope(m.emotion);
+    var env = envelopesFor(m.side).find(function (e) { return e.emotion === m.emotion; });   // open straight to the surfaced note, not entry 0
+    var idx = env ? env.entries.findIndex(function (en) { return en.date === m.date && en.title === m.title; }) : -1;
+    openEnvelope(m.emotion, idx >= 0 ? idx : 0);
   });
 }
 

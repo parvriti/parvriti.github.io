@@ -7,12 +7,12 @@
    Cross-origin things (fonts, Firebase SDK) are cache-first so they're
    there offline once they've loaded at least once.
    ===================================================================== */
-var CACHE = 'parvriti-v71';
+var CACHE = 'parvriti-v72';
 var CORE = [
   'index.html', 'open-when.html', 'board.html', 'doodles.html', 'periods.html', 'settings.html', 'dev.html',
-  'css/styles.css?v=71', 'css/theme.css?v=71',
-  'js/common.js?v=71', 'js/open-when.js?v=71', 'js/board.js?v=71', 'js/doodle.js?v=71',
-  'js/periods.js?v=71', 'js/settings.js?v=71', 'js/dev.js?v=71', 'js/native.js?v=71',
+  'css/styles.css?v=72', 'css/theme.css?v=72',
+  'js/common.js?v=72', 'js/open-when.js?v=72', 'js/board.js?v=72', 'js/doodle.js?v=72',
+  'js/periods.js?v=72', 'js/settings.js?v=72', 'js/dev.js?v=72', 'js/native.js?v=72',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.json'
 ];
 
@@ -41,7 +41,7 @@ self.addEventListener('fetch', function (e) {
 
   // Never touch Firebase auth / Firestore traffic - it must always be live and uncached.
   var isFirebaseApi = (/googleapis\.com$/.test(host) && host.indexOf('fonts.') !== 0) ||
-    /firebaseio\.com$/.test(host) || host === 'accounts.google.com' ||
+    /firebaseio\.com$/.test(host) || /firebaseapp\.com$/.test(host) || host === 'accounts.google.com' ||
     host === 'apis.google.com' || host === 'www.google.com';
   if (isFirebaseApi) return;
 
@@ -51,7 +51,7 @@ self.addEventListener('fetch', function (e) {
       fetch(req).then(function (res) {
         if (res && res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
         return res;
-      }).catch(function () { return caches.match(req); })
+      }).catch(function () { return caches.match(req, { ignoreSearch: true }); })   // deep-linked URLs (?moment=/?open=/?n=) still resolve to the cached shell offline
     );
   } else {
     // fonts / Firebase SDK: cache first, refresh in the background
