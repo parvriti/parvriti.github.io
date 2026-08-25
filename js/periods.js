@@ -948,6 +948,16 @@
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && ready) { render(false); }
   });
+  /* ...and if it just sits open + foregrounded across midnight (no background
+     event to lean on), refresh at the day boundary - the same idempotent
+     render(false) as the return path, then reschedule for the next midnight */
+  var _midnightT = null;
+  function tickAtMidnight() {
+    clearTimeout(_midnightT);
+    var n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 5);
+    _midnightT = setTimeout(function () { if (ready) render(false); tickAtMidnight(); }, next - n);
+  }
+  tickAtMidnight();
 
   /* Escape closes whatever is on top. Desktop only in practice, but free. */
   document.addEventListener('keydown', function (e) {
