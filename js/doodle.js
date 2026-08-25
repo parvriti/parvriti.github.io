@@ -33,6 +33,7 @@ var pad, pctx, strokes = [], drawColor = '#c0425a', drawSize = 6, drawing = fals
 var pendingMine = [];   // finished strokes I just added, kept painted until their own doc echoes back
 var ERASE = '#fffdf6';   // the canvas paper colour (styles.css .pad canvas) - erasing paints a stroke in it, which syncs + covers (at:serverTimestamp is null while pending, so an orderBy('at') snapshot omits them for ~½s and a redraw would erase them)
 var tool = 'draw', penColor = '#c0425a', imgCache = {}, FILL_TOL = 32;   // fill tool: flood-fill on tap -> stored as a self-contained PNG patch (syncs pixel-identical); imgCache decodes patches for redraw
+var undoStack = [], undone = {};   // undoStack: {cid, ref} of items I added this session (newest last) - undo deletes my last one (syncs). undone: cids I deleted, filtered from snapshots until the delete lands (no flicker-back)
 
 function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;
@@ -59,6 +60,7 @@ function startDoodle() {
   });
   if (eraseBtn) eraseBtn.addEventListener('click', function () { setTool('erase'); });
   if (fillBtn) fillBtn.addEventListener('click', function () { setTool('fill'); });   // fill uses the selected swatch colour; tap the canvas to flood a region
+  var un = document.getElementById('undoTool'); if (un) un.addEventListener('click', undoLast);
   var cl = document.getElementById('clearPad'); if (cl) cl.addEventListener('click', clearDoodle);
 
   pad.addEventListener('pointerdown', dStart);
@@ -73,7 +75,10 @@ function startDoodle() {
     try {
       ddb.collection('canvasStrokes').orderBy('at', 'asc').onSnapshot(function (snap) {
         strokes = snap.docs.map(function (d) { return d.data(); });
-        if (!strokes.length) { pendingMine = []; }   // a wipe (or empty pad): drop my unconfirmed strokes so none can ghost past a clear
+        var present = {}; strokes.forEach(function (s) { if (s.cid) present[s.cid] = true; });
+        for (var uc in undone) if (!present[uc]) delete undone[uc];   // an undone item's delete has landed -> stop filtering it
+        strokes = strokes.filter(function (s) { return !(s.cid && undone[s.cid]); });   // hide items I just undid until their delete confirms (no flicker-back)
+        if (!strokes.length) { pendingMine = []; imgCache = {}; undoStack = []; undone = {}; }   // a wipe (or empty pad): drop my unconfirmed items + decoded fill patches + undo history
         else if (pendingMine.length) {   // drop mine that echoed back (cid), or expired after ~12s (e.g. deleted before its echo)
           var have = {}, cutoff = Date.now() - 12000;
           strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
@@ -93,14 +98,14 @@ function paintItem(it) {
   if (!it) return;
   if (it.png) {   // a fill patch
     var im = imgCache[it.cid];
-    if (!im) { im = new Image(); imgCache[it.cid] = im; im.onload = paintAll; im.src = it.png; }   // decode async, then repaint
+    if (!im) { im = new Image(); imgCache[it.cid] = im; im.onload = scheduleRepaint; im.src = it.png; }   // decode async, then repaint
     if (im.complete && im.naturalWidth) pctx.drawImage(im, it.x, it.y);
   } else if (it.pts) {
     drawStroke(it.pts, it.color, it.size);
   }
 }
 function redraw() {
-  pctx.clearRect(0, 0, pad.width, pad.height);
+  pctx.fillStyle = ERASE; pctx.fillRect(0, 0, pad.width, pad.height);   // opaque paper base so erase marks and blank paper are the SAME pixels (flood-fill treats them alike)
   strokes.forEach(paintItem);
 }
 function paintAll() {
@@ -108,6 +113,8 @@ function paintAll() {
   pendingMine.forEach(paintItem);   // my not-yet-confirmed strokes + fills
   if (drawing && curPts && curPts.length) drawStroke(curPts, drawColor, drawSize);
 }
+var _repaintQ = false;
+function scheduleRepaint() { if (_repaintQ) return; _repaintQ = true; requestAnimationFrame(function () { _repaintQ = false; paintAll(); }); }   // coalesce a burst of fill-image decodes into one repaint
 function drawStroke(pts, color, size) {
   if (!pts || !pts.length) return;
   pctx.strokeStyle = color || '#c0425a'; pctx.lineWidth = size || 5;
@@ -125,19 +132,19 @@ function floodFill(ctx, w, h, sx, sy, fill, tol) {
   var img = ctx.getImageData(0, 0, w, h), d = img.data;
   var si = (sy * w + sx) * 4, tr = d[si], tg = d[si + 1], tb = d[si + 2], ta = d[si + 3];
   if (tr === fill[0] && tg === fill[1] && tb === fill[2] && ta === 255) return null;   // already that colour
-  function m(i) { return Math.abs(d[i] - tr) <= tol && Math.abs(d[i + 1] - tg) <= tol && Math.abs(d[i + 2] - tb) <= tol && Math.abs(d[i + 3] - ta) <= tol; }
-  var mask = new Uint8Array(w * h), st = [[sx, sy]], minX = w, minY = h, maxX = 0, maxY = 0, filled = 0;
+  function m(p) { var i = p * 4; return Math.abs(d[i] - tr) <= tol && Math.abs(d[i + 1] - tg) <= tol && Math.abs(d[i + 2] - tb) <= tol && Math.abs(d[i + 3] - ta) <= tol; }
+  var mask = new Uint8Array(w * h), st = [sx, sy], minX = w, minY = h, maxX = 0, maxY = 0, filled = 0;   // flat number stack: no per-seed array allocation
   while (st.length) {
-    var pt = st.pop(), cx = pt[0], cy = pt[1];
-    if (!m((cy * w + cx) * 4)) continue;
-    var xl = cx; while (xl > 0 && m((cy * w + xl - 1) * 4)) xl--;
-    var xr = cx; while (xr < w - 1 && m((cy * w + xr + 1) * 4)) xr++;
+    var cy = st.pop(), cx = st.pop(), pm = cy * w + cx;
+    if (mask[pm] || !m(pm)) continue;   // already filled or non-matching -> can't re-push / thrash even if fill is near the target
+    var xl = cx; while (xl > 0 && !mask[cy * w + xl - 1] && m(cy * w + xl - 1)) xl--;
+    var xr = cx; while (xr < w - 1 && !mask[cy * w + xr + 1] && m(cy * w + xr + 1)) xr++;
     for (var xx = xl; xx <= xr; xx++) {
-      var i = (cy * w + xx) * 4; d[i] = fill[0]; d[i + 1] = fill[1]; d[i + 2] = fill[2]; d[i + 3] = 255;
-      mask[cy * w + xx] = 1; filled++;
+      var q = cy * w + xx, i = q * 4; d[i] = fill[0]; d[i + 1] = fill[1]; d[i + 2] = fill[2]; d[i + 3] = 255;
+      mask[q] = 1; filled++;
       if (xx < minX) minX = xx; if (xx > maxX) maxX = xx; if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
-      if (cy > 0 && m(((cy - 1) * w + xx) * 4)) st.push([xx, cy - 1]);
-      if (cy < h - 1 && m(((cy + 1) * w + xx) * 4)) st.push([xx, cy + 1]);
+      if (cy > 0 && !mask[q - w] && m(q - w)) { st.push(xx); st.push(cy - 1); }
+      if (cy < h - 1 && !mask[q + w] && m(q + w)) { st.push(xx); st.push(cy + 1); }
     }
   }
   ctx.putImageData(img, 0, 0);
@@ -166,9 +173,11 @@ function doFill(e) {
   var cid = 'f' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
   var item = { type: 'fill', png: png, x: r.bx, y: r.by, cid: cid, t: Date.now() };
   pendingMine.push(item);                                   // keep it painted until its doc echoes
-  var im = new Image(); imgCache[cid] = im; im.onload = paintAll; im.src = png;   // decode for redraw
+  var im = new Image(); imgCache[cid] = im; im.onload = scheduleRepaint; im.src = png;   // decode for redraw
   dEnd._drew = true;
-  ddb.collection('canvasStrokes').add({ type: 'fill', png: png, x: r.bx, y: r.by, by: me(), at: serverTime(), cid: cid }).catch(function () {});
+  var ref = ddb.collection('canvasStrokes').doc();
+  undoStack.push({ cid: cid, ref: ref });
+  ref.set({ type: 'fill', png: png, x: r.bx, y: r.by, by: me(), at: serverTime(), cid: cid }).catch(function () {});
   if (window.parvritiNotify && !dEnd._sent) { clearTimeout(dEnd._nt); dEnd._nt = setTimeout(sendDoodleNudge, 40000); }
 }
 function dStart(e) {
@@ -198,7 +207,9 @@ function commitStroke() {
   var cid = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
   pendingMine.push({ pts: pts, color: drawColor, size: drawSize, cid: cid, t: Date.now() });   // t = expiry so a stroke deleted before its echo can't ghost forever
   if (drawColor !== ERASE) dEnd._drew = true;   // an erase-only session shouldn't say "left you a doodle"
-  ddb.collection('canvasStrokes').add({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }).catch(function () {});
+  var ref = ddb.collection('canvasStrokes').doc();
+  undoStack.push({ cid: cid, ref: ref });
+  ref.set({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }).catch(function () {});
 }
 function dEnd(e) {
   if (!drawing || (e && e.pointerId != null && e.pointerId !== activePtr)) return;
@@ -216,11 +227,23 @@ function sendDoodleNudge() {
   var meP = me(), other = meP === 'parv' ? 'riti' : 'parv';
   window.parvritiNotify(other, (meP === 'parv' ? 'Parv' : 'Riti') + ' left you a doodle ✏️', '', 'https://parvriti.github.io/doodles.html?n=1', 'doodle');
 }
+/* undo MY last item this session: delete its doc (syncs the removal), drop it locally right away */
+function undoLast() {
+  if (!ddb || !undoStack.length) { toast('nothing to undo'); return; }
+  var last = undoStack.pop();
+  undone[last.cid] = true;
+  pendingMine = pendingMine.filter(function (p) { return p.cid !== last.cid; });
+  strokes = strokes.filter(function (s) { return s.cid !== last.cid; });
+  delete imgCache[last.cid];
+  paintAll();
+  last.ref.delete().catch(function () {});
+  toast('undone');
+}
 function clearDoodle() {
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }
   if (!window.confirm('Wipe the doodle for both of you?')) return;
   pctx.clearRect(0, 0, pad.width, pad.height);
-  pendingMine = []; imgCache = {};   // don't let my not-yet-confirmed items repaint over a wipe; drop decoded fill patches
+  pendingMine = []; imgCache = {}; undoStack = []; undone = {};   // don't let my not-yet-confirmed items repaint over a wipe; drop decoded fill patches + undo history
   clearTimeout(dEnd._nt); dEnd._sent = false; dEnd._drew = false;   // cancel a pending ping + reset "drew" so a wipe can't leave a phantom nudge
   wipeAll(2);
 }

@@ -22,7 +22,7 @@
   var COLS = [
     { id: 'notes',         label: 'Open When notes', ic: '💌', blob: 'voice' },
     { id: 'roomItems',     label: 'Board items',     ic: '📌', blob: 'img' },
-    { id: 'canvasStrokes', label: 'Doodle strokes',  ic: '✏️', blob: 'pts' },
+    { id: 'canvasStrokes', label: 'Doodle strokes',  ic: '✏️', blob: ['pts', 'png'] },
     { id: 'cycle',         label: 'Cycle logs',      ic: '🌸', blob: null }
   ];
   // the caps the app enforces today (mirrored from open-when.js / board.js)
@@ -95,9 +95,12 @@
           try { b = JSON.stringify(data).length; } catch (e) {}
           bytes += b; count++; if (b > largest) largest = b;
           if (c.blob) {
-            var v = data[c.blob];
-            if (typeof v === 'string') blob += v.length;
-            else if (v != null) { try { blob += JSON.stringify(v).length; } catch (e) {} }
+            var fields = (typeof c.blob === 'string') ? [c.blob] : c.blob;   // a collection can have >1 blob field (doodles: pts + png fills)
+            for (var fi = 0; fi < fields.length; fi++) {
+              var v = data[fields[fi]];
+              if (typeof v === 'string') blob += v.length;
+              else if (v != null) { try { blob += JSON.stringify(v).length; } catch (e) {} }
+            }
           }
         });
         out[c.id] = { count: count, bytes: bytes, blob: blob, largest: largest };
