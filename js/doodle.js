@@ -34,6 +34,7 @@ var pendingMine = [];   // finished strokes I just added, kept painted until the
 var ERASE = '#fffdf6';   // the canvas paper colour (styles.css .pad canvas) - erasing paints a stroke in it, which syncs + covers (at:serverTimestamp is null while pending, so an orderBy('at') snapshot omits them for ~½s and a redraw would erase them)
 var tool = 'draw', penColor = '#c0425a', imgCache = {}, FILL_TOL = 32;   // fill tool: flood-fill on tap -> stored as a self-contained PNG patch (syncs pixel-identical); imgCache decodes patches for redraw
 var undoStack = [], undone = {};   // undoStack: {cid, ref} of items I added this session (newest last) - undo deletes my last one (syncs). undone: cids I deleted, filtered from snapshots until the delete lands (no flicker-back)
+var doodleLoaded = false, doodleVeil = null;   // loading veil (first snapshot ends it)
 
 function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;
@@ -74,6 +75,7 @@ function startDoodle() {
   window.addEventListener('pagehide', sendDoodleNudge);   // doodle-and-leave still nudges (don't rely only on the 40s timer)
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (drawing) dEnd(); sendDoodleNudge(); } });   // iOS PWA backgrounds via visibilitychange, not pagehide; also end any active stroke so a mid-stroke background can't leave drawing stuck true (dEnd commits + resets)
 
+  doodleVeil = window.parvritiLoadVeil ? window.parvritiLoadVeil('doodleLoad') : null;
   if (ddb) {
     try {
       ddb.collection('canvasStrokes').orderBy('at', 'asc').onSnapshot(function (snap) {
@@ -97,9 +99,10 @@ function startDoodle() {
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
-      }, function (e) { console.warn('strokes', e); });
-    } catch (e) { console.warn(e); }
-  }
+        if (!doodleLoaded) { doodleLoaded = true; if (doodleVeil) doodleVeil.done(); }   // first snapshot: strokes are painted, end the veil exactly here
+      }, function (e) { console.warn('strokes', e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); });
+    } catch (e) { console.warn(e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); }
+  } else if (doodleVeil) { doodleVeil.fail("couldn't load, check your connection"); }
 }
 function pxy(e) { var r = pad.getBoundingClientRect(); return { x: (e.clientX - r.left) * (pad.width / r.width), y: (e.clientY - r.top) * (pad.height / r.height) }; }
 /* draw one item in order: a fill patch (stamp its cached PNG) or a stroke */
@@ -245,8 +248,10 @@ function undoLast() {
   strokes = strokes.filter(function (s) { return s.cid !== last.cid; });
   delete imgCache[last.cid];
   paintAll();
-  last.ref.delete().catch(function () {});
-  toast('undone');
+  last.ref.delete().then(function () { toast('undone'); }).catch(function () {
+    delete undone[last.cid]; undoStack.push(last);   // undo did not persist: let the stroke come back on the next snapshot and stay re-undoable
+    toast("couldn't undo, try again");
+  });
 }
 function clearDoodle() {
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }

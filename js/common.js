@@ -138,6 +138,27 @@
     } catch (e) {}
   }
 
+  /* ── loading veil ── a translucent bloom over a content area during its FIRST data load.
+     Hidden by default; a page arms it, and it only becomes visible if data has not arrived
+     within ~120ms (so a fast / cached load shows nothing at all - zero added time). done()
+     fades it out the instant content paints: call it in the SAME snapshot callback, right
+     AFTER the render, so the hand-off is exact - never an empty flash, never a lingering wait. */
+  function buildLoadVeil(id) {
+    var v = document.getElementById(id);
+    var finished = false, t = null;
+    if (v) t = setTimeout(function () { if (!finished && v) v.classList.add('show'); }, 120);
+    return {
+      done: function () { finished = true; if (t) clearTimeout(t); if (v) v.classList.add('gone'); },
+      fail: function (msg) {
+        finished = true; if (t) clearTimeout(t);
+        if (!v) return;
+        v.classList.add('show', 'err');
+        var c = v.querySelector('.lv-cap'); if (c && msg) c.textContent = msg;
+      }
+    };
+  }
+  window.parvritiLoadVeil = buildLoadVeil;
+
   /* ── the sign-in gate ── */
   function buildGate() {
     var g = document.createElement('div');
@@ -313,7 +334,7 @@
         if (!token) { if (announce) toast('notifications unavailable here'); return; }
         cdb.collection('deviceTokens').doc(token).set({
           person: person, token: token, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(function () { if (announce) toast('🔔 notifications on'); }).catch(function () {});
+        }).then(function () { if (announce) toast('🔔 notifications on'); }).catch(function () { if (announce) toast("couldn't turn on notifications, try again"); });
       }).catch(function () { if (announce) toast('could not turn on notifications'); });
     } catch (e) {}
   }
@@ -421,8 +442,7 @@
     /* heartbeat ping */
     window.parvritiSendLove = function () {
       if (!cdb) return;
-      cdb.collection('pings').doc(other).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).catch(function () {});
-      toast('sent 💗');
+      cdb.collection('pings').doc(other).set({ at: FV.serverTimestamp(), from: me, seq: Date.now() }).then(function () { toast('sent 💗'); }).catch(function () { toast("couldn't send, try again"); });
       if (window.parvritiHaptic) window.parvritiHaptic();
       if (navigator.vibrate) navigator.vibrate(24);
       // also push, so it reaches them even if the app is closed

@@ -36,6 +36,7 @@
   var LOGS = [];         // [{id, start:Date, len:int, longOk:bool}]
   var LONGEST = EXPECT, SHORTEST = EXPECT, LONGEST_EVER = EXPECT, lastStart = null;
   var HAS_CYCLES = false;   // true once there is at least one real completed-cycle gap (not the EXPECT fallback)
+  var periodsLoaded = false, periodsVeil = null;   // loading veil (first render ends it)
   var db = null, ready = false, canEdit = false;   // canEdit becomes true for whoever can see the tab (Parv always; Riti once she enables Periods)
 
   /* ── dates. All local, so the day never flips at 05:30 IST ─────────── */
@@ -198,6 +199,7 @@
     if (boot._on) return; boot._on = true;
     var u = window.__parvritiUser;
     if (!u) { location.replace('index.html'); return; }
+    periodsVeil = window.parvritiLoadVeil ? window.parvritiLoadVeil('periodsLoad') : null;
     try { db = firebase.firestore(); } catch (e) { fail('Firestore did not load.'); return; }
 
     /* Visibility curtain (Settings → Visibility). Default: Parv sees it, Riti
@@ -251,7 +253,9 @@
     }, function () { fail('Could not read her history.'); });
   }
   function fail(msg) {
-    ready = true; LOGS = []; recompute(); render(true);
+    ready = true; LOGS = []; recompute();
+    periodsLoaded = true; if (periodsVeil) periodsVeil.fail("couldn't load, check your connection");   // show the error in the veil, not a faded-out empty dial
+    render(true);
     toast(msg);
   }
 
@@ -276,7 +280,11 @@
   /* moving a start means a new doc id, so it is a delete plus a create */
   function moveLog(oldId, newStart, len, longOk) {
     return saveLog(newStart, len, longOk).then(function () {
-      if (iso(newStart) !== oldId) return deleteLog(oldId);
+      if (iso(newStart) === oldId) return;
+      // the new date is saved; if clearing the old one fails, resolve with a flag so the
+      // caller can say so honestly (a leftover doc fabricates a bogus short cycle) rather
+      // than "could not save" as if nothing happened.
+      return deleteLog(oldId).then(function () { return; }, function () { return 'MOVE_PARTIAL'; });
     });
   }
 
@@ -466,6 +474,7 @@
       val.textContent = WORD[String(v)]; val.className = 'cy-mval' + (v < 0 ? ' q' : '');
     }
     $('cyHint').textContent = HINT[ph];
+    if (!periodsLoaded) { periodsLoaded = true; if (periodsVeil) periodsVeil.done(); }   // first paint is done: end the veil exactly here
   }
 
   /* the arrival: if her phase moved on since he last looked, open wearing the
@@ -605,9 +614,10 @@
       if (inSpan(picked, pkEditId, tLen)) { toast(fmt(picked) + ' falls inside a logged period'); return; }
       if (pkMode === 'edit' && pkEditId) {
         var L = findLog(pkEditId); if (!L) { closePick(); return; }
-        moveLog(pkEditId, picked, L.len, L.longOk).then(function () {
-          closePick(); closeEdit(); toast('moved to ' + fmt(picked));
-        }).catch(function () { toast('could not save'); });
+        moveLog(pkEditId, picked, L.len, L.longOk).then(function (r) {
+          closePick(); closeEdit();
+          toast(r === 'MOVE_PARTIAL' ? "moved, but couldn't clear the old date - check history" : ('moved to ' + fmt(picked)));
+        }).catch(function () { toast("couldn't save, try again"); });
       } else {
         saveLog(picked, DEFAULT_LEN, false).then(function () {
           closePick(); toast('logged ' + fmt(picked));
@@ -877,7 +887,7 @@
     $('cyEdInsert').addEventListener('click', function () {
       var id = edId, i = findIdx(id); if (i < 0) return;
       if (this.dataset.n === 'undo') {
-        patchLog(id, { longOk: false }).then(function () { toast('flagged again'); openEdit(id); });
+        patchLog(id, { longOk: false }).then(function () { toast('flagged again'); openEdit(id); }).catch(function () { toast("couldn't save, try again"); });
         return;
       }
       var n = +this.dataset.n, cyc = cycleLen(i), start = LOGS[i].start;

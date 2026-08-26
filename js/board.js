@@ -112,24 +112,21 @@ function dropCell(cx, cy) {   // the exact grid cell a point lands in (clamped)
 }
 
 var dragActive = false;   // true while a tile is being dragged; pauses snapshot rebuilds so the drag isn't destroyed mid-move
+var boardLoaded = false, boardVeil = null;   // loading veil state (first snapshot ends it)
 /* ── live feed ── */
 function startItems() {
-  if (!rdb) {   // no connection: say so, don't show the "nothing pinned yet, tap + " invite as if the wall were just empty
-    var be = document.getElementById('boardEmpty');
-    if (be) {
-      var t = be.querySelector('.be-title'), s = be.querySelector('.be-sub');
-      if (t) t.textContent = "can't reach the wall right now";
-      if (s) s.textContent = 'check your connection and reopen 🌸';
-    }
-    renderBoard(); return;
-  }
+  boardVeil = window.parvritiLoadVeil ? window.parvritiLoadVeil('boardLoad') : null;
+  if (!rdb) { if (boardVeil) boardVeil.fail("couldn't load, check your connection"); renderBoard(); return; }
   try {
     rdb.collection('roomItems').orderBy('createdAt', 'asc').onSnapshot(function (snap) {
       items = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       if (dragActive) return;   // a drag is in progress: keep items fresh but don't rebuild the DOM now; end() re-renders
-      renderBoard();
-    }, function (e) { console.warn('roomItems listen', e); });
-  } catch (e) { console.warn(e); }
+      var first = !boardLoaded;
+      if (first) { boardLoaded = true; var st = document.getElementById('boardStage'); if (st) st.classList.remove('veil-load'); }
+      renderBoard();   // boardLoaded set FIRST so the empty-state gate is correct, then paint
+      if (first && boardVeil) boardVeil.done();   // content is painted -> end the veil in the same tick (exact hand-off)
+    }, function (e) { console.warn('roomItems listen', e); if (!boardLoaded && boardVeil) boardVeil.fail("couldn't load, check your connection"); });
+  } catch (e) { console.warn(e); if (!boardLoaded && boardVeil) boardVeil.fail("couldn't load, check your connection"); }
 }
 
 /* ── render ── */
@@ -234,7 +231,7 @@ function renderBoard() {
 
   if (pending) renderPending();
   var empty = document.getElementById('boardEmpty');
-  if (empty) empty.style.display = (items.length || pending) ? 'none' : '';
+  if (empty) empty.style.display = (!boardLoaded || items.length || pending) ? 'none' : '';   // never flash the empty invite before the first load
 }
 
 /* ── dragging (placement + edit-move); drop resolves to the cell under the tile ── */
@@ -280,7 +277,7 @@ function batchSetSlot(ids, slot) {
   if (!rdb) return;
   var batch = rdb.batch();
   ids.forEach(function (id) { batch.update(rdb.collection('roomItems').doc(id), { slot: slot }); });
-  batch.commit().catch(function (e) { console.warn('move', e); });
+  batch.commit().catch(function (e) { console.warn('move', e); renderBoard(); toast("couldn't move it, try again"); });
 }
 
 /* ── placement: the pending tile with ✓ / ✕ (drop it on a spot, or onto a tile to stack) ── */

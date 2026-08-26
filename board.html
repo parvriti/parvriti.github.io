@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
 <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('parvritiTheme')||'dark')}catch(e){}</script>
-<link rel="stylesheet" href="css/styles.css?v=83">
-<link rel="stylesheet" href="css/theme.css?v=83">
+<link rel="stylesheet" href="css/styles.css?v=84">
+<link rel="stylesheet" href="css/theme.css?v=84">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -45,6 +45,7 @@
         <button class="wtool" id="addPhoto" type="button">＋ photo</button>
         <button class="wtool edit" id="editBoard" type="button">✎ edit</button>
       </div>
+      <div class="board-stage veil-load" id="boardStage">
       <div class="board" id="board"></div>
       <div class="board-empty" id="boardEmpty" style="display:none">
         <svg class="be-ic" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -54,6 +55,11 @@
         </svg>
         <div class="be-title">nothing pinned yet</div>
         <div class="be-sub">tap ＋ to pin your first little thing 🌸</div>
+      </div>
+      <div class="load-veil" id="boardLoad" aria-hidden="true">
+        <svg class="lv-bloom" viewBox="0 0 150 150" aria-hidden="true"><ellipse cx="75" cy="20" rx="12" ry="19" fill="#c0425a" opacity=".82" transform="rotate(0 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#d4607a" opacity=".82" transform="rotate(45 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#b03050" opacity=".82" transform="rotate(90 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#e07090" opacity=".82" transform="rotate(135 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#c0425a" opacity=".82" transform="rotate(180 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#d4607a" opacity=".82" transform="rotate(225 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#b03050" opacity=".82" transform="rotate(270 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#e07090" opacity=".82" transform="rotate(315 75 75)"/></svg>
+        <span class="lv-cap">loading&hellip;</span>
+      </div>
       </div>
       <button class="more-room" id="moreRoom" type="button">＋ more room</button>
     </section>
@@ -70,8 +76,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=83"></script>
-<script src="js/board.js?v=83"></script>
-<script src="js/native.js?v=83"></script>
+<script src="js/common.js?v=84"></script>
+<script src="js/board.js?v=84"></script>
+<script src="js/native.js?v=84"></script>
 </body>
 </html>
