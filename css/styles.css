@@ -1203,6 +1203,16 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 .load-veil.show { opacity: 1; pointer-events: auto; transition: opacity .25s ease; }
 .load-veil.gone { opacity: 0 !important; pointer-events: none; transition: opacity .18s ease; }
 .load-veil.on-cream { background: rgba(250,244,228,.74); }
+/* periods has no textured surface behind it (the rose wash is painted only after data),
+   so it gets a full-screen warm rose splash instead of a translucent box over a dark page */
+.load-veil.on-rose {
+  position: fixed; z-index: 5000; -webkit-backdrop-filter: none; backdrop-filter: none;
+  background:
+    radial-gradient(120% 90% at 50% 16%, rgba(192,66,90,.30), transparent 60%),
+    radial-gradient(100% 82% at 50% 106%, rgba(139,32,64,.34), transparent 62%),
+    #120810;
+}
+.load-veil.on-rose .lv-cap { color: #e4b7be; }
 .load-veil .lv-bloom { width: 52px; height: 52px; transform-origin: 50% 50%; animation: veilBloom 1.9s ease-in-out infinite; filter: drop-shadow(0 3px 9px rgba(0,0,0,.25)); }
 .load-veil .lv-cap { font-family: 'Caveat', cursive; font-size: 16px; color: #e4b7be; }
 .load-veil.on-cream .lv-cap { color: #8a5a2b; }

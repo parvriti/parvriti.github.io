@@ -335,7 +335,7 @@
         cdb.collection('deviceTokens').doc(token).set({
           person: person, token: token, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }).then(function () { if (announce) toast('🔔 notifications on'); }).catch(function () { if (announce) toast("couldn't turn on notifications, try again"); });
-      }).catch(function () { if (announce) toast('could not turn on notifications'); });
+      }).catch(function () { if (announce) toast("couldn't turn on notifications, try again"); });
     } catch (e) {}
   }
   function buildNotifPrompt(messaging, person) {

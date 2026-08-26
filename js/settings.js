@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v84';
+  var VERSION = 'v85';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -85,7 +85,7 @@
     saveTimer = setTimeout(function () {
       if (!DOC) return;
       var p = save._pending; save._pending = null;
-      DOC.set(p, { merge: true }).then(function () { toast('saved'); }).catch(function () { toast('could not save'); });
+      DOC.set(p, { merge: true }).then(function () { toast('saved'); }).catch(function () { toast("couldn't save, try again"); });
     }, 260);
   }
 

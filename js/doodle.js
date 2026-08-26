@@ -189,7 +189,7 @@ function doFill(e) {
   dEnd._drew = true;
   var ref = ddb.collection('canvasStrokes').doc();
   undoStack.push({ cid: cid, ref: ref });
-  ref.set({ type: 'fill', png: png, x: r.bx, y: r.by, by: me(), at: serverTime(), cid: cid }).catch(function () { toast('could not save that fill, check your connection'); });
+  ref.set({ type: 'fill', png: png, x: r.bx, y: r.by, by: me(), at: serverTime(), cid: cid }).catch(function () { toast("couldn't save that fill, check your connection"); });
   if (window.parvritiNotify && !dEnd._sent) { clearTimeout(dEnd._nt); dEnd._nt = setTimeout(sendDoodleNudge, 40000); }
 }
 function dStart(e) {
@@ -221,7 +221,7 @@ function commitStroke() {
   if (drawColor !== ERASE) dEnd._drew = true;   // an erase-only session shouldn't say "left you a doodle"
   var ref = ddb.collection('canvasStrokes').doc();
   undoStack.push({ cid: cid, ref: ref });
-  ref.set({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }).catch(function () { toast('could not save that stroke, check your connection'); });
+  ref.set({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }).catch(function () { toast("couldn't save that stroke, check your connection"); });
 }
 function dEnd(e) {
   if (!drawing || (e && e.pointerId != null && e.pointerId !== activePtr)) return;
@@ -273,7 +273,7 @@ function wipeAll(passes) {
       jobs.push(batch.commit());
     }
     return Promise.all(jobs).then(function () { if (passes > 1) wipeAll(passes - 1); else toast('cleared the pad'); });
-  }).catch(function () { toast('could not clear'); });
+  }).catch(function () { toast("couldn't clear, try again"); });
 }
 
 if (window.__parvritiAuthed) startDoodle();

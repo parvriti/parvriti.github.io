@@ -548,9 +548,9 @@
       if (window.parvritiHaptic) window.parvritiHaptic();
       saveLog(t, DEFAULT_LEN, false).then(function () {
         toastUndo('Period logged 🌸', function () {
-          deleteLog(iso(t)).then(function () { toast('undone'); }).catch(function () { toast('could not undo'); });
+          deleteLog(iso(t)).then(function () { toast('undone'); }).catch(function () { toast("couldn't undo, try again"); });
         });
-      }).catch(function () { toast('could not save'); });
+      }).catch(function () { toast("couldn't save, try again"); });
     });
     fab.addEventListener('pointerleave', function () { if (!held) { clearBtn(); resetRing(); } });
     fab.addEventListener('pointercancel', function () { clearBtn(); resetRing(); });
@@ -621,7 +621,7 @@
       } else {
         saveLog(picked, DEFAULT_LEN, false).then(function () {
           closePick(); toast('logged ' + fmt(picked));
-        }).catch(function () { toast('could not save'); });
+        }).catch(function () { toast("couldn't save, try again"); });
       }
     });
   })();
@@ -872,7 +872,7 @@
       var id = edId;
       patchLog(id, { len: +b.dataset.len }).then(function () {
         toast('lasted ' + b.dataset.len + ' days'); openEdit(id);
-      }).catch(function () { toast('could not save'); });
+      }).catch(function () { toast("couldn't save, try again"); });
     });
     $('cyEdChange').addEventListener('click', function () {
       var L = findLog(edId); if (!L) return;
@@ -882,7 +882,7 @@
       var id = edId; if (!id) return;
       patchLog(id, { longOk: true }).then(function () {
         toast('counted as a real long cycle'); openEdit(id);
-      }).catch(function () { toast('could not save'); });
+      }).catch(function () { toast("couldn't save, try again"); });
     });
     $('cyEdInsert').addEventListener('click', function () {
       var id = edId, i = findIdx(id); if (i < 0) return;
@@ -896,7 +896,7 @@
       for (var k = 1; k <= n; k++) jobs.push(saveLog(addD(start, Math.round(k * step)), DEFAULT_LEN, false));
       Promise.all(jobs).then(function () {
         toast('added ' + n + ' estimated start' + (n > 1 ? 's' : '')); openEdit(id);
-      }).catch(function () { toast('could not save'); });
+      }).catch(function () { toast("couldn't save, try again"); });
     });
     $('cyEdDel').addEventListener('click', function () {
       var id = edId, L = findLog(id); if (!L || LOGS.length < 2) return;
@@ -904,9 +904,9 @@
       deleteLog(id).then(function () {
         closeEdit();
         toastUndo('Period removed', function () {
-          saveLog(snap.start, snap.len, snap.longOk).then(function () { toast('brought it back'); }).catch(function () { toast('could not undo'); });
+          saveLog(snap.start, snap.len, snap.longOk).then(function () { toast('brought it back'); }).catch(function () { toast("couldn't undo, try again"); });
         });
-      }).catch(function () { toast('could not remove'); });
+      }).catch(function () { toast("couldn't remove it, try again"); });
     });
 
     /* press and hold a row. Delegated so it survives every re-render. */
@@ -957,8 +957,8 @@
       /* iOS can refuse a programmatic download, so fall back to the clipboard */
       if (navigator.clipboard) navigator.clipboard.writeText(csv)
         .then(function () { toast('copied as CSV'); })
-        .catch(function () { toast('could not export'); });
-      else toast('could not export');
+        .catch(function () { toast("couldn't export, try again"); });
+      else toast("couldn't export, try again");
     }
   });
 

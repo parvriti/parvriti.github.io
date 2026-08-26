@@ -510,7 +510,7 @@ function togglePlay(btn) {
   const ic = btn.querySelector('.voice-ic'), lbl = btn.querySelector('.voice-lbl');
   if (a.paused) {
     a.play().then(function () { btn.classList.add('playing'); ic.textContent = '❚❚'; lbl.textContent = 'Playing…'; })
-      .catch(function () { btn.classList.remove('playing'); ic.textContent = '▶'; lbl.textContent = 'could not play, tap to try again'; });
+      .catch(function () { btn.classList.remove('playing'); ic.textContent = '▶'; lbl.textContent = "couldn't play, tap to try again"; });
   } else { a.pause(); }
 }
 (function () {
@@ -621,7 +621,7 @@ function saveForm(ev) {
 function delEntry(entry) {
   if (!entry || entry.seed || !entry.id || !db) return;
   if (!window.confirm('Delete this note? This cannot be undone.')) return;
-  db.collection('notes').doc(entry.id).delete().catch(function (e) { console.warn(e); alert('Could not delete right now, please try again.'); });
+  db.collection('notes').doc(entry.id).delete().catch(function (e) { console.warn(e); alert("couldn't delete right now, try again"); });
 }
 
 /* =====================  live refresh  ===================== */

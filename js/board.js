@@ -87,7 +87,7 @@ function slotOf(it) { return (typeof it.slot === 'number') ? it.slot : 0; }
 /* group every item by its slot - a slot with more than one item is a STACK */
 function cellsBySlot() {
   var m = {};
-  items.forEach(function (it) { var s = slotOf(it); (m[s] = m[s] || []).push(it); });
+  liveItems().forEach(function (it) { var s = slotOf(it); (m[s] = m[s] || []).push(it); });
   Object.keys(m).forEach(function (s) { m[s].sort(function (a, b) { return millis(a.createdAt) - millis(b.createdAt); }); });
   return m;
 }
@@ -113,6 +113,13 @@ function dropCell(cx, cy) {   // the exact grid cell a point lands in (clamped)
 
 var dragActive = false;   // true while a tile is being dragged; pauses snapshot rebuilds so the drag isn't destroyed mid-move
 var boardLoaded = false, boardVeil = null;   // loading veil state (first snapshot ends it)
+var justPinned = [];   // pins I just added, kept painted until their own doc echoes back (serverTimestamp is null for ~½s, so an orderBy snapshot omits them and the tile would blink out)
+function liveItems() {   // items plus any just-pinned tile not yet echoed back
+  if (!justPinned.length) return items;
+  var have = {}; items.forEach(function (it) { if (it.cid) have[it.cid] = true; });
+  var extra = justPinned.filter(function (p) { return !have[p.cid]; });
+  return extra.length ? items.concat(extra) : items;
+}
 /* ── live feed ── */
 function startItems() {
   boardVeil = window.parvritiLoadVeil ? window.parvritiLoadVeil('boardLoad') : null;
@@ -120,6 +127,11 @@ function startItems() {
   try {
     rdb.collection('roomItems').orderBy('createdAt', 'asc').onSnapshot(function (snap) {
       items = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (justPinned.length) {   // drop just-pinned tiles that have now echoed back (cid present), or expired after ~10s
+        var echoed = {}, cutoff = Date.now() - 10000;
+        items.forEach(function (it) { if (it.cid) echoed[it.cid] = true; });
+        justPinned = justPinned.filter(function (p) { return !echoed[p.cid] && p._t > cutoff; });
+      }
       if (dragActive) return;   // a drag is in progress: keep items fresh but don't rebuild the DOM now; end() re-renders
       var first = !boardLoaded;
       if (first) { boardLoaded = true; var st = document.getElementById('boardStage'); if (st) st.classList.remove('veil-load'); }
@@ -131,7 +143,7 @@ function startItems() {
 
 /* ── render ── */
 function noteNumbers() {
-  var order = items.slice().sort(function (a, b) { return millis(a.createdAt) - millis(b.createdAt); });
+  var order = liveItems().slice().sort(function (a, b) { return millis(a.createdAt) - millis(b.createdAt); });
   var num = {}, k = 0;
   order.forEach(function (it) { if (it.type !== 'photo') { k++; num[it.id] = k; } });
   return num;
@@ -231,7 +243,7 @@ function renderBoard() {
 
   if (pending) renderPending();
   var empty = document.getElementById('boardEmpty');
-  if (empty) empty.style.display = (!boardLoaded || items.length || pending) ? 'none' : '';   // never flash the empty invite before the first load
+  if (empty) empty.style.display = (!boardLoaded || liveItems().length || pending) ? 'none' : '';   // never flash the empty invite before the first load or while a pin is settling
 }
 
 /* ── dragging (placement + edit-move); drop resolves to the cell under the tile ── */
@@ -324,17 +336,24 @@ function commitPending() {
   var cells = cellsBySlot(), stacking = !!(cells[pending.slot] && cells[pending.slot].length);
   var isPhoto = pending.type === 'photo';
   var by = pending.by, other = by === 'parv' ? 'riti' : 'parv';   // the pin's author -> notify the other
-  var doc = { type: pending.type, by: pending.by, rot: pending.rot, slot: pending.slot, createdAt: serverTime() };
+  var cid = 'p' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+  var doc = { type: pending.type, by: pending.by, rot: pending.rot, slot: pending.slot, cid: cid, createdAt: serverTime() };
   if (isPhoto) doc.img = pending.img; else { doc.text = pending.text; doc.color = pending.color; }
   var saved = pending;   // keep the composed pin so a failed write can restore it instead of losing it
+  // keep the tile painted through the ~½s serverTimestamp echo gap so it doesn't blink out
+  var localItem = { id: '__pin_' + cid, cid: cid, type: doc.type, by: doc.by, rot: doc.rot, slot: doc.slot, createdAt: Date.now(), _t: Date.now() };
+  if (isPhoto) localItem.img = doc.img; else { localItem.text = doc.text; localItem.color = doc.color; }
+  justPinned.push(localItem);
   rdb.collection('roomItems').add(doc)
     .then(function () {
       toast(stacking ? 'stacked 🌸' : (isPhoto ? 'pinned a moment 📷' : 'pinned 🌸'));
       if (window.parvritiNotify) window.parvritiNotify(other, (by === 'parv' ? 'Parv' : 'Riti') + (isPhoto ? ' pinned a photo 📌' : ' pinned a reason 📌'), '', 'https://parvriti.github.io/board.html?n=1', 'board');
     })
     .catch(function () {
-      if (!pending) { pending = saved; renderBoard(); }   // nothing new placed since: put the tile back so it can be retried
-      toast('could not pin, tap ✓ to try again');
+      justPinned = justPinned.filter(function (p) { return p.cid !== cid; });   // write failed: drop the optimistic tile
+      if (!pending) { pending = saved; }   // nothing new placed since: put the tile back so it can be retried
+      renderBoard();
+      toast("couldn't pin, tap ✓ to try again");
     });
   pending = null; renderBoard();
 }
@@ -387,14 +406,14 @@ function openStack(stack) {
   ov.querySelectorAll('.sv-unstack').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var slot = firstEmpty();
-      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).update({ slot: slot }).then(function () { toast('pulled it out'); }).catch(function () { toast('could not pull it out, try again'); });
+      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).update({ slot: slot }).then(function () { toast('pulled it out'); }).catch(function () { toast("couldn't pull it out, try again"); });
       ov._close();
     });
   });
   ov.querySelectorAll('.sv-del').forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (!window.confirm('Take this down for good?')) return;
-      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).delete().catch(function () { toast('could not take it down, try again'); });
+      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).delete().catch(function () { toast("couldn't take it down, try again"); });
       ov._close();
     });
   });
@@ -403,14 +422,14 @@ function openStack(stack) {
 /* ── removals ── */
 function askRemove(it) {
   if (!window.confirm(it.type === 'photo' ? 'Take this photo down?' : 'Take this note down?')) return;
-  if (rdb) rdb.collection('roomItems').doc(it.id).delete().catch(function () { toast('could not take it down, try again'); });
+  if (rdb) rdb.collection('roomItems').doc(it.id).delete().catch(function () { toast("couldn't take it down, try again"); });
 }
 function askRemoveStack(stack) {
   if (!window.confirm('Take down all ' + stack.length + ' in this stack?')) return;
   if (!rdb) return;
   var batch = rdb.batch();
   stack.forEach(function (it) { batch.delete(rdb.collection('roomItems').doc(it.id)); });
-  batch.commit().catch(function () { toast('could not take them down, try again'); });
+  batch.commit().catch(function () { toast("couldn't take them down, try again"); });
 }
 
 /* ── compose a reason ── */
@@ -439,12 +458,12 @@ function handlePhoto(file) {
     var cw = Math.round(img.width * s), ch = Math.round(img.height * s);
     var c = document.createElement('canvas'); c.width = cw; c.height = ch;
     c.getContext('2d').drawImage(img, 0, 0, cw, ch);
-    var url; try { url = c.toDataURL('image/jpeg', 0.72); } catch (e) { URL.revokeObjectURL(img.src); toast('could not read that photo'); return; }
+    var url; try { url = c.toDataURL('image/jpeg', 0.72); } catch (e) { URL.revokeObjectURL(img.src); toast("couldn't read that photo, try again"); return; }
     if (url.length > 980000) { toast('that photo is a bit large, try another'); URL.revokeObjectURL(img.src); return; }
     URL.revokeObjectURL(img.src);
     startPlacing({ type: 'photo', img: url, by: me() });
   };
-  img.onerror = function () { URL.revokeObjectURL(img.src); toast('could not read that photo'); };
+  img.onerror = function () { URL.revokeObjectURL(img.src); toast("couldn't read that photo, try again"); };
   img.src = URL.createObjectURL(file);
 }
 
