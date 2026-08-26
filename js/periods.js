@@ -418,7 +418,8 @@
 
     $('cyPhName').textContent = PHNAME[ph];
     $('cyDayCap').textContent = isNone ? '' : 'cycle day';
-    if (day !== shownDay) { tweenDay(shownDay, day); shownDay = day || shownDay; }   // only pop/tween when the day actually changed (was popping on every snapshot)
+    if (day !== shownDay) { tweenDay(shownDay, day); }   // tween only on a real change (don't re-pop every snapshot)
+    shownDay = day;   // track the real day even through a transient isNone (0), so returning to the SAME day still repaints the number instead of sticking on "?"
     setPhaseIcon(ph, changed);
     if (changed) {
       var pn = $('cyPhName');
@@ -441,7 +442,8 @@
         // the window has come and gone: never show past dates as an upcoming prediction
         $('cyRangeLbl').textContent = 'past her expected window';
         $('cyRange').textContent = 'was ' + winFrom + ' to ' + winTo;
-        $('cyAway').textContent = 'longer than usual so far';
+        // match the dial's tone: 'late' (day <= LONGEST) is reassuring like HINT.late; only true overdue reads as unusual
+        $('cyAway').textContent = (day <= LONGEST) ? 'a longer cycle, normal for her' : 'longer than usual so far';
         $('cyIn').textContent = over; $('cyInLbl').textContent = (over === 1 ? 'day over' : 'days over');
       } else {
         $('cyRangeLbl').textContent = 'next period may occur between';
@@ -599,7 +601,8 @@
       var picked = pkSel;
       for (var i = 0; i < LOGS.length; i++)
         if (iso(LOGS[i].start) === iso(picked) && LOGS[i].id !== pkEditId) { toast(fmt(picked) + ' is already logged'); return; }
-      if (inSpan(picked, pkEditId)) { toast(fmt(picked) + ' falls inside a logged period'); return; }
+      var tLen = (pkMode === 'edit' && pkEditId && findLog(pkEditId)) ? findLog(pkEditId).len : DEFAULT_LEN;   // moving keeps the period's real length so an overlap isn't missed
+      if (inSpan(picked, pkEditId, tLen)) { toast(fmt(picked) + ' falls inside a logged period'); return; }
       if (pkMode === 'edit' && pkEditId) {
         var L = findLog(pkEditId); if (!L) { closePick(); return; }
         moveLog(pkEditId, picked, L.len, L.longOk).then(function () {
@@ -617,14 +620,15 @@
   // true if a new start at t would OVERLAP an already-logged period (either direction) — that
   // fabricates a bogus short cycle. The exact same-start day is caught separately by the "already
   // logged" guard, so both checks skip day 0.
-  function inSpan(t, exceptId) {
+  function inSpan(t, exceptId, tLen) {
     var ts = iso(t);
+    var newLen = tLen || DEFAULT_LEN;   // a moved period keeps its own length; a new one is DEFAULT_LEN
     for (var i = 0; i < LOGS.length; i++) {
       var L = LOGS[i];
       if (exceptId && L.id === exceptId) continue;
       var len = L.len || DEFAULT_LEN, lStart = iso(L.start);
       for (var k = 1; k < len; k++) if (iso(addD(L.start, k)) === ts) return true;         // t sits inside L's span
-      for (var j = 1; j < DEFAULT_LEN; j++) if (iso(addD(t, j)) === lStart) return true;    // L's start sits inside t's new span (backfilling just before L)
+      for (var j = 1; j < newLen; j++) if (iso(addD(t, j)) === lStart) return true;        // L's start sits inside t's new span (backfilling just before L)
     }
     return false;
   }

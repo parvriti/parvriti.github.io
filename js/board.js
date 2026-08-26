@@ -248,11 +248,24 @@ function highlightDrop(cx, cy, dragEl) {
 }
 function makeDraggable(el, onDrop) {
   var sx, sy, ox, oy, moved, dragging = false;
+  function end() {
+    if (!dragging) return;
+    dragging = false; dragActive = false; el.classList.remove('dragging');
+    window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+    clearHighlights();
+    if (!moved || !el.isConnected) { renderBoard(); return; }   // no move, or the tile got rebuilt out from under the drag: just resync
+    var cs = cellSize(), g = gap(), sz = cs - g;
+    var nx = parseFloat(el.style.left), ny = parseFloat(el.style.top);
+    onDrop(nx + sz / 2, ny + sz / 2);
+  }
   el.addEventListener('pointerdown', function (e) {
     if (e.target.closest && e.target.closest('.tdel')) return;
     e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {}
     dragging = true; dragActive = true; moved = false; el.classList.add('dragging');
     sx = e.clientX; sy = e.clientY; ox = parseFloat(el.style.left); oy = parseFloat(el.style.top);
+    // window-level net: a release anywhere - or after the tile is destroyed (e.g. a mid-drag resize) -
+    // still runs end(), so dragActive can never stick true and freeze live snapshot rebuilds.
+    window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
   });
   el.addEventListener('pointermove', function (e) {
     if (!dragging) return;
@@ -262,16 +275,6 @@ function makeDraggable(el, onDrop) {
     var cs = cellSize(), g = gap(), sz = cs - g;
     highlightDrop(nx + sz / 2, ny + sz / 2, el);
   });
-  function end() {
-    if (!dragging) return; dragging = false; dragActive = false; el.classList.remove('dragging');
-    clearHighlights();
-    if (!moved) { renderBoard(); return; }
-    var cs = cellSize(), g = gap(), sz = cs - g;
-    var nx = parseFloat(el.style.left), ny = parseFloat(el.style.top);
-    onDrop(nx + sz / 2, ny + sz / 2);
-  }
-  el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', end);
 }
 function batchSetSlot(ids, slot) {
   if (!rdb) return;
@@ -483,7 +486,7 @@ function startBoard() {
   var ed = document.getElementById('editBoard'); if (ed) ed.addEventListener('click', toggleEdit);
   var mr = document.getElementById('moreRoom'); if (mr) mr.addEventListener('click', addMoreRoom);
   var pi = document.getElementById('photoInput'); if (pi) pi.addEventListener('change', function () { if (this.files && this.files[0]) handlePhoto(this.files[0]); this.value = ''; });
-  window.addEventListener('resize', function () { clearTimeout(_rezT); _rezT = setTimeout(renderBoard, 160); });
+  window.addEventListener('resize', function () { clearTimeout(_rezT); _rezT = setTimeout(function () { if (dragActive) return; renderBoard(); }, 160); });   // don't rebuild mid-drag (it would destroy the dragged tile); end() re-renders on release
   startItems();
 }
 if (window.__parvritiAuthed) startBoard();

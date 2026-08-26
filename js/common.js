@@ -197,6 +197,17 @@
         }, 200);
       }
     } catch (e) {}
+    /* Escape hatch: the sign-in button is invisible until '.ready' is added, and ONLY the
+       auth callbacks add it. If onAuthStateChanged never fires (blocked IndexedDB in a
+       private / lockdown window, corrupted persistence), the user is stranded on a
+       button-less splash with no way in. After a short wait, if we still are not authed,
+       force the gate interactive. Leaves the returning flag alone, so a merely-slow auth
+       still resolves and unlocks normally; harmless if unlock/revealGate already ran. */
+    setTimeout(function () {
+      if (window.__parvritiAuthed) return;
+      var gg = document.getElementById('authGate');
+      if (gg) { gg.classList.remove('gate-quiet'); gg.classList.add('ready'); }
+    }, 2500);
     /* one sign-in path, shared by "Continue with Google" and the rejected
        screen's "Use another account" so they can never drift apart. */
     function doSignIn() {
