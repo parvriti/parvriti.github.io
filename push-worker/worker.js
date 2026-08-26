@@ -35,6 +35,9 @@ export default {
     // "Arrive home" iPhone automations hit this; auth is a per-person secret,
     // NOT a Firebase token, because a Shortcut cannot mint one.
     if (path === '/automation/home') return handleHomeArrival(request, env);
+    // A Home Screen / Lock Screen / Watch Shortcut sends the "thinking of you" heart
+    // here; auth is the same per-person secret (a Shortcut cannot mint a Firebase token).
+    if (path === '/automation/heartbeat') return handleHeartbeat(request, env);
     // everything else is the site's own "send a push to the other person" call.
     return handlePush(request, env);
   },
@@ -96,6 +99,47 @@ async function handlePush(request, env) {
     if (res.ok) sent++;
     else if (res.dead) await deleteDoc(d.name, accessToken);
   }
+  return json({ ok: true, sent });
+}
+
+/* ══════════════ "thinking of you" heartbeat (POST /automation/heartbeat) ══════════════
+   The in-app love button needs a signed-in page; a Home Screen / Lock Screen / Watch
+   Shortcut cannot mint a Firebase token, so this takes the SAME per-person secret the
+   home Shortcut uses. Identity is the matched secret, never a body field, so the sender
+   cannot be spoofed. It sends the identical heart the in-app button sends -
+   "<sender> is thinking of you 💗" to the PARTNER - and honours muteAll + the recipient's
+   n_heart toggle, exactly like the in-app path (handlePush type 'heart').
+   Set HEARTBEAT_SECRET_RITI / _PARV to use dedicated secrets; otherwise it falls back to
+   HOME_SECRET_RITI / _PARV, so no new secret is needed to turn this on. */
+async function handleHeartbeat(request, env) {
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  const secret = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!secret) { console.log('heart: missing key'); return json({ error: 'unauthorized' }, 401); }
+  let sender = null;
+  if (timingSafeEqual(secret, env.HEARTBEAT_SECRET_RITI || env.HOME_SECRET_RITI || '')) sender = 'riti';
+  else if (timingSafeEqual(secret, env.HEARTBEAT_SECRET_PARV || env.HOME_SECRET_PARV || '')) sender = 'parv';
+  if (!sender) { console.log('heart: bad key'); return json({ error: 'unauthorized' }, 401); }
+
+  const recipient = sender === 'riti' ? 'parv' : 'riti';
+  let sa;
+  try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { console.log('heart: no service account'); return json({ error: 'server' }, 500); }
+  const accessToken = await getAccessToken(sa);
+  if (!accessToken) { console.log('heart: no access token'); return json({ error: 'server' }, 500); }
+
+  const gate = await getNotif(accessToken);
+  if (gate.muteAll) { console.log('heart: muted-all'); return json({ ok: true, muted: 'all' }); }
+  if (gate.n['n_heart_' + recipient] === false) { console.log('heart: ' + recipient + ' opted out'); return json({ ok: true, muted: 'heart' }); }
+
+  const title = (sender === 'parv' ? 'Parv' : 'Riti') + ' is thinking of you 💗';
+  const link = SITE + '/index.html?moment=heart&who=' + sender;
+  const devices = await getTokens(recipient, accessToken);
+  let sent = 0;
+  for (const d of devices) {
+    const res = await sendPush(accessToken, d.token, title, '', link);
+    if (res.ok) sent++;
+    else if (res.dead) await deleteDoc(d.name, accessToken);
+  }
+  console.log('heart: ' + sender + ' -> ' + recipient + ' sent ' + sent + '/' + devices.length);
   return json({ ok: true, sent });
 }
 
