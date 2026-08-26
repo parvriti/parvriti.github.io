@@ -24,9 +24,9 @@
   'use strict';
 
   /* ── the model ─────────────────────────────────────────────────────── */
-  var DEFAULT_LEN = 4;   // true for every one of her logged periods so far
+  var DEFAULT_LEN = 4;   // model default period length (days); admin-tunable in Settings
   var RANGE       = 2;   // plus or minus 2 days, so a 5 day window
-  var EXPECT      = 31;  // her typical cycle. FLAT, set deliberately.
+  var EXPECT      = 31;  // model default cycle length (days), FLAT; admin-tunable in Settings
   var RING_DAYS   = 40;  // visual span of the dial
   var FLAG_AT     = 50;  /* a gap this long is probably a missed period. FIXED
                             on purpose: deriving it from her longest cycle
@@ -200,7 +200,7 @@
     var u = window.__parvritiUser;
     if (!u) { location.replace('index.html'); return; }
     periodsVeil = window.parvritiLoadVeil ? window.parvritiLoadVeil('periodsLoad') : null;
-    try { db = firebase.firestore(); } catch (e) { fail('Firestore did not load.'); return; }
+    try { db = firebase.firestore(); } catch (e) { fail("couldn't load, try again"); return; }
 
     /* Visibility curtain (Settings → Visibility). Default: Parv sees it, Riti
        does not. A URL must not open for anyone the matrix hides. Not a wall:
@@ -250,7 +250,7 @@
       });
       recompute(); ready = true;
       arrive();
-    }, function () { fail('Could not read her history.'); });
+    }, function () { fail("couldn't load, try again"); });
   }
   function fail(msg) {
     ready = true; LOGS = []; recompute();
@@ -627,7 +627,7 @@
   })();
 
   function findLog(id) { for (var i = 0; i < LOGS.length; i++) if (LOGS[i].id === id) return LOGS[i]; return null; }
-  // true if a new start at t would OVERLAP an already-logged period (either direction) — that
+  // true if a new start at t would OVERLAP an already-logged period (either direction) - that
   // fabricates a bogus short cycle. The exact same-start day is caught separately by the "already
   // logged" guard, so both checks skip day 0.
   function inSpan(t, exceptId, tLen) {
@@ -914,7 +914,7 @@
     function cancel() { clearTimeout(pT); if (pRow) { pRow.classList.remove('pressing'); pRow = null; } }
     var list = $('cyDrList');
     list.addEventListener('pointerdown', function (e) {
-      if (!canEdit) return;   // read-only for Riti — no press-and-hold edit
+      if (!canEdit) return;   // read-only for Riti - no press-and-hold edit
       var row = e.target.closest('.cy-prow'); if (!row) return;
       pRow = row; pY = e.clientY; row.classList.add('pressing');
       pT = setTimeout(function () { var id = row.dataset.id; cancel(); openEdit(id); }, 450);

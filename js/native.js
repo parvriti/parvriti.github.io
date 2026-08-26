@@ -1,12 +1,11 @@
 /* =====================================================================
-   native.js — the "native app" shell layered on the UNTOUCHED components.
+   native.js - the "native app" shell layered on the UNTOUCHED components.
    Additive only; changes no component and no backend.
      · iPhone  → bottom tab bar + frosted corner buttons.
      · iPad/Mac → a LEFT SIDEBAR (nav + Settings + theme toggle).
-   Tab visibility is computed with the SAME canSee rules + settings/app doc
-   that common.js uses, so each person's restrictions (e.g. Riti's Periods/
-   Settings) are preserved exactly. NOTE: canSee below is a deliberate mirror
-   of common.js's — keep the two in sync if that logic ever changes.
+   Tab visibility is computed here: native.js is the sole owner of canSee now
+   (common.js no longer builds any nav). It reads the same settings/app doc, so
+   each person's restrictions (e.g. Riti's Periods/Settings) are preserved exactly.
    ===================================================================== */
 (function () {
   'use strict';
@@ -29,7 +28,7 @@
       applyTheme(root.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
       return;
     }
-    // Any nav link (tab bar / sidebar / corner gear) is an AUTHORIZED entry — sign-in
+    // Any nav link (tab bar / sidebar / corner gear) is an AUTHORIZED entry - sign-in
     // already gated us in, so mark riti_open before it navigates so common.js's inner-page
     // guard doesn't bounce a direct tab tap back to Home (same as the old gear did).
     var link = e.target.closest('.proto-tab, .ps-item, .proto-corner');

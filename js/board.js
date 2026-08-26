@@ -210,7 +210,7 @@ function renderBoard() {
   if (pending || editing) {
     for (var s = 0; s < R * COLS; s++) {
       if (cells[s] && cells[s].length) continue;
-      if (pending && !pending._committing && pending.slot === s) continue;
+      if (pending && pending.slot === s) continue;
       var gh = document.createElement('div'); gh.className = 'cellghost'; gh.dataset.slot = s;
       placeEl(gh, s); b.appendChild(gh);
     }
@@ -285,8 +285,13 @@ function makeDraggable(el, onDrop) {
     highlightDrop(nx + sz / 2, ny + sz / 2, el);
   });
 }
+/* a just-pinned tile carries a placeholder id ('__pin_<cid>') for the ~½s until its real
+   doc echoes back. Firestore update()/delete() on that id would spuriously fail (or no-op),
+   so hold any edit/stack/delete on it until it has settled. */
+function isSaving(id) { return typeof id === 'string' && id.indexOf('__pin_') === 0; }
 function batchSetSlot(ids, slot) {
   if (!rdb) return;
+  if (ids.some(isSaving)) { renderBoard(); toast('still saving, give it a sec'); return; }
   var batch = rdb.batch();
   ids.forEach(function (id) { batch.update(rdb.collection('roomItems').doc(id), { slot: slot }); });
   batch.commit().catch(function (e) { console.warn('move', e); renderBoard(); toast("couldn't move it, try again"); });
@@ -332,7 +337,7 @@ function renderPending() {
 }
 function commitPending() {
   if (!pending) return;
-  if (!rdb) { toast('no connection'); return; }
+  if (!rdb) { toast("couldn't pin, check your connection"); return; }
   var cells = cellsBySlot(), stacking = !!(cells[pending.slot] && cells[pending.slot].length);
   var isPhoto = pending.type === 'photo';
   var by = pending.by, other = by === 'parv' ? 'riti' : 'parv';   // the pin's author -> notify the other
@@ -405,6 +410,7 @@ function openStack(stack) {
   track.addEventListener('scroll', function () { requestAnimationFrame(upd); }, { passive: true });
   ov.querySelectorAll('.sv-unstack').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (isSaving(btn.dataset.id)) { toast('still saving, give it a sec'); ov._close(); return; }
       var slot = firstEmpty();
       if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).update({ slot: slot }).then(function () { toast('pulled it out'); }).catch(function () { toast("couldn't pull it out, try again"); });
       ov._close();
@@ -412,6 +418,7 @@ function openStack(stack) {
   });
   ov.querySelectorAll('.sv-del').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (isSaving(btn.dataset.id)) { toast('still saving, give it a sec'); ov._close(); return; }
       if (!window.confirm('Take this down for good?')) return;
       if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).delete().catch(function () { toast("couldn't take it down, try again"); });
       ov._close();
@@ -421,10 +428,12 @@ function openStack(stack) {
 
 /* ── removals ── */
 function askRemove(it) {
+  if (isSaving(it.id)) { toast('still saving, give it a sec'); return; }
   if (!window.confirm(it.type === 'photo' ? 'Take this photo down?' : 'Take this note down?')) return;
   if (rdb) rdb.collection('roomItems').doc(it.id).delete().catch(function () { toast("couldn't take it down, try again"); });
 }
 function askRemoveStack(stack) {
+  if (stack.some(function (it) { return isSaving(it.id); })) { toast('still saving, give it a sec'); return; }
   if (!window.confirm('Take down all ' + stack.length + ' in this stack?')) return;
   if (!rdb) return;
   var batch = rdb.batch();

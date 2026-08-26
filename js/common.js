@@ -49,7 +49,7 @@
           // Signed in, but not one of us. Grab the address before signOut(), which
           // fires this handler again with user === null a tick later.
           var rejectedEmail = user.email || '';
-          auth.signOut();
+          auth.signOut().catch(function () {});
           showRejection(rejectedEmail);
         } else {
           revealGate('');
@@ -65,7 +65,7 @@
     clearTimeout(quietTimer);
     var g = document.getElementById('authGate');
     if (g && g.parentNode) g.parentNode.removeChild(g);
-    // Remember "returning" ONLY for a real signed-in user — not the Firebase-failed-to-load
+    // Remember "returning" ONLY for a real signed-in user - not the Firebase-failed-to-load
     // fallback unlock() (which passes no user). That keeps the gate-quiet skip meaning
     // "an allowed account signed in on this device before".
     if (user && user.email) { try { localStorage.setItem('parvritiReturning', '1'); } catch (e) {} }
@@ -99,7 +99,7 @@
         if (sessionStorage.getItem('riti_open') !== '1') {
           // A notification tap is an authorized entry (sign-in already gated us in
           // above). Its deep-link URL carries open= / moment= / n=, so enter
-          // straight to the page rather than bouncing to the front door — which on
+          // straight to the page rather than bouncing to the front door - which on
           // a cold (terminated-app) launch would drop the deep-link. A plain manual
           // visit with no such marker still returns to Home.
           if (/[?&](open|moment|n)=/.test(INITIAL_SEARCH)) sessionStorage.setItem('riti_open', '1');
@@ -145,16 +145,22 @@
      AFTER the render, so the hand-off is exact - never an empty flash, never a lingering wait. */
   function buildLoadVeil(id) {
     var v = document.getElementById(id);
-    var finished = false, t = null;
-    if (v) t = setTimeout(function () { if (!finished && v) v.classList.add('show'); }, 120);
+    var finished = false, t = null, maxT = null;
+    function showErr(msg) {
+      finished = true; if (t) clearTimeout(t); if (maxT) clearTimeout(maxT);
+      if (!v) return;
+      v.classList.remove('gone'); v.classList.add('show', 'err');
+      var c = v.querySelector('.lv-cap'); if (c && msg) c.textContent = msg;
+    }
+    if (v) {
+      t = setTimeout(function () { if (!finished && v) v.classList.add('show'); }, 120);
+      // cold offline load (no persistence by design) can leave the snapshot neither firing nor erroring;
+      // don't let "loading…" sit forever - surface the error after a long wait. done() cancels this well before.
+      maxT = setTimeout(function () { if (!finished) showErr("couldn't load, check your connection"); }, 15000);
+    }
     return {
-      done: function () { finished = true; if (t) clearTimeout(t); if (v) v.classList.add('gone'); },
-      fail: function (msg) {
-        finished = true; if (t) clearTimeout(t);
-        if (!v) return;
-        v.classList.add('show', 'err');
-        var c = v.querySelector('.lv-cap'); if (c && msg) c.textContent = msg;
-      }
+      done: function () { finished = true; if (t) clearTimeout(t); if (maxT) clearTimeout(maxT); if (v) v.classList.add('gone'); },
+      fail: function (msg) { showErr(msg); }
     };
   }
   window.parvritiLoadVeil = buildLoadVeil;
@@ -209,8 +215,8 @@
       if (localStorage.getItem('parvritiReturning') === '1') {
         g.classList.add('gate-quiet');
         // Fast path (local-persistence auth ≈ tens of ms): stays transparent the whole time,
-        // so the tab just opens — no splash. Safety: if auth is slow to resolve, don't leave a
-        // blank shell lingering; fade the branded splash in as a placeholder (no sign-in button —
+        // so the tab just opens - no splash. Safety: if auth is slow to resolve, don't leave a
+        // blank shell lingering; fade the branded splash in as a placeholder (no sign-in button -
         // auth may still succeed). unlock()/revealGate() cancel this.
         quietTimer = setTimeout(function () {
           var gg = document.getElementById('authGate');
@@ -282,7 +288,7 @@
     if (!e || e.code === 'auth/no-auth-event') return;
     if (e.code === 'auth/operation-not-allowed') gateMsg('Google sign-in is not enabled yet in Firebase.');
     else if (e.code === 'auth/unauthorized-domain') gateMsg('This domain needs adding to Firebase authorized domains.');
-    else gateMsg(e.message || 'Sign-in failed, please try again.');
+    else gateMsg(e.message || "couldn't sign in, try again");
     revealGate('');
   }
 
@@ -363,21 +369,24 @@
     p.classList.remove('show');
     setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 400);
   }
-  /* open-when.js calls this when a note is saved; heartbeat calls it too */
+  /* open-when.js calls this when a note is saved; heartbeat calls it too.
+     Returns a promise that RESOLVES to true (sent) / false (couldn't) - it never
+     rejects, so the fire-and-forget callers stay unaffected while the Settings
+     test ping can await the real outcome. */
   window.parvritiNotify = function (to, title, text, url, type) {
     try {
-      if (PUSH_ENDPOINT.indexOf('REPLACE') === 0) return;
-      if (typeof firebase === 'undefined' || !firebase.auth) return;
+      if (PUSH_ENDPOINT.indexOf('REPLACE') === 0) return Promise.resolve(false);
+      if (typeof firebase === 'undefined' || !firebase.auth) return Promise.resolve(false);
       var user = firebase.auth().currentUser;
-      if (!user) return;
-      user.getIdToken().then(function (idt) {
-        fetch(PUSH_ENDPOINT, {
+      if (!user) return Promise.resolve(false);
+      return user.getIdToken().then(function (idt) {
+        return fetch(PUSH_ENDPOINT, {
           method: 'POST', keepalive: true,   // still completes if fired from a pagehide handler (doodle-and-leave nudge)
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
           body: JSON.stringify({ to: to, title: title, body: text || '', url: url || 'https://parvriti.github.io/open-when.html', type: type || '' })
-        }).catch(function () {});
-      }).catch(function () {});
-    } catch (e) {}
+        }).then(function (r) { return !!(r && r.ok); }, function () { return false; });
+      }, function () { return false; });
+    } catch (e) { return Promise.resolve(false); }
   };
 
   /* ══════════════ real-time: presence · typing · heartbeat ping ══════════════ */
@@ -547,9 +556,9 @@
   }
   function renderHomeState(el, other) {
     if (!el) return;
-    // Trust the arrive/leave automations — they flip home/away (and together) on
+    // Trust the arrive/leave automations - they flip home/away (and together) on
     // real events now. This cap is only a LAST-RESORT for a totally-missed Leave,
-    // so it must sit ABOVE a normal continuous stay — and Parv + Riti are both
+    // so it must sit ABOVE a normal continuous stay - and Parv + Riti are both
     // home a lot (full days, long weekends). 12h wrongly flipped a genuinely-home
     // 20h stay to "away"; 72h clears a 3-day stay.
     var STALE = 72 * 3600 * 1000;

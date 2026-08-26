@@ -1,5 +1,5 @@
 /* =====================================================================
-   push-worker — a tiny Cloudflare Worker that sends a push notification
+   push-worker - a tiny Cloudflare Worker that sends a push notification
    to the OTHER person's devices.
 
    It is the one piece that has to live on a server, because a phone can
@@ -148,14 +148,14 @@ async function handleHeartbeat(request, env) {
    their homes. WHO arrived is decided ONLY by which secret matched, so a
    client cannot spoof identity with a body field. The Shortcut also sends a
    coarse { "home": "parv-gurugram" | "parv-rohtak" | "riti-noida" | "riti-gurugram" }
-   label (unique per place, so the two Gurugram homes never collide) — never
-   coordinates — used only to answer "are we together?" (same place, both
+   label (unique per place, so the two Gurugram homes never collide) - never
+   coordinates - used only to answer "are we together?" (same place, both
    present) and never put in the notification.
 
    Default rule is "apart, one per day":
      • this arrival puts you TOGETHER (partner's last arrival is the SAME place,
        recent, and after their last leave) -> stay silent, you're in the same
-       room. A stale partner arrival is treated as unknown and DOES ping — a
+       room. A stale partner arrival is treated as unknown and DOES ping - a
        redundant ping beats a missed one;
      • otherwise -> notify, but at most the FIRST arrival per IST day, so a
        daytime travel arrival still pings while errand in/out doesn't spam.
@@ -169,7 +169,7 @@ const DEDUP_MS = 10 * 60 * 1000;   // 10 minutes
 /* Unique per-place labels, so his Gurugram and her Gurugram never collide (both
    sending bare "gurugram" used to read as "together" when they were actually
    apart). Each phone's Arrive automation sends the label for the place it fires
-   at. The two shared spots — parv-gurugram and riti-noida — have an automation
+   at. The two shared spots - parv-gurugram and riti-noida - have an automation
    on BOTH phones, which is the ONLY way the worker can ever know you're together
    there. A place unknown to the sender is dropped. */
 const HOMES = {
@@ -312,13 +312,13 @@ async function handleHomeArrival(request, env) {
   if (!cfg.enabled || cfg.rule === 'off') { console.log('home: off'); return json({ ok: true, muted: 'off' }); }
   if (home && cfg.homes[home] === false) { console.log('home: ' + home + ' muted'); return json({ ok: true, muted: 'home' }); }
 
-  // "apart" rule: if this arrival puts you together, stay silent — no point
+  // "apart" rule: if this arrival puts you together, stay silent - no point
   // announcing "got home safe" to someone already in the same room.
   if (cfg.rule === 'apart' && together) {
     console.log('home: together at ' + home + ', silent');
     return json({ ok: true, muted: 'together' });
   }
-  // "evening" — only after the cutoff hour
+  // "evening" - only after the cutoff hour
   if (cfg.rule === 'evening' && istHour(now) < cfg.afterHour) { console.log('home: before ' + cfg.afterHour + ':00 IST'); return json({ ok: true, muted: 'early' }); }
   // at most one ping per IST day
   if (cfg.onePerDay && state.sentDay === istDay(now)) { console.log('home: already sent today'); return json({ ok: true, muted: 'already-today' }); }
@@ -368,7 +368,7 @@ async function setArrival(person, obj, accessToken) {
   } catch (e) {}
 }
 
-/* homeState/<person> = { atHome, since } — the ONLY home data the app reads (via
+/* homeState/<person> = { atHome, since } - the ONLY home data the app reads (via
    a read-only rule). Just a boolean + timestamp, never a location. Written here
    on every arrive (true) and leave (false). */
 async function setHomeState(person, atHome, ms, accessToken) {
@@ -380,7 +380,7 @@ async function setHomeState(person, atHome, ms, accessToken) {
   } catch (e) {}
 }
 
-/* homeState/together = { together, since } — a shared boolean (never a location)
+/* homeState/together = { together, since } - a shared boolean (never a location)
    that BOTH apps read to show the "Together right now" line. Written true on an
    arrival that puts you at the same place as your partner, false on every leave
    and on any arrival that does not. The same read-only /homeState rule covers it. */
@@ -443,7 +443,7 @@ async function celebrationMark(id, accessToken) {
    current phase server-side from settings/app + the latest logged period (the same
    model periods.js draws on-screen). For EACH person it is gated on THEIR OWN Periods
    visibility (Parv sees Periods by default; Riti only if she turned it on) plus their
-   own toggles — all OFF by default — plus the master mute. At most one period heads-up
+   own toggles - all OFF by default - plus the master mute. At most one period heads-up
    per cycle and one note per phase per cycle (a cycleNudges marker guards repeats).
    Tapping opens straight to the Periods tab. No location; nothing stored but the marker. */
 const CY_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];   // 'Sep' to match periods.js SHORTM (the app the notification opens)
@@ -465,7 +465,7 @@ function cyPhase(day, len, expect) {
   return 'due';
 }
 /* the four phases detected by a day-to-day transition. Menstrual is handled separately
-   below (it is not a "transition" — day 1's previous day is also menstrual): it fires
+   below (it is not a "transition" - day 1's previous day is also menstrual): it fires
    once per cycle on the first 9am tick where the period is logged and still ongoing, so
    it lands whether the drop was tapped before or after 9am (the copy says "has started"
    rather than "today", so it reads right on day 1 or day 2). */
@@ -636,7 +636,7 @@ async function getOwNotif(accessToken) {
   return d;
 }
 
-/* "A time capsule just unlocked" — a morning nudge on the day a sealed Open-When note ripens
+/* "A time capsule just unlocked" - a morning nudge on the day a sealed Open-When note ripens
    (they get pinged when it's sealed, then otherwise forget it's waiting). Rides the same 09:00 IST
    cron. Queries notes whose openDate == today, pushes the recipient (note.side) ONCE, deduped by a
    capsule-<noteId> marker in cycleNudges, respecting muteAll + the recipient's own n_openwhen. Tap

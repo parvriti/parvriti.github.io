@@ -1,8 +1,8 @@
 /* =====================================================================
-   settings.js — the control panel.
+   settings.js - the control panel.
 
    Reads/writes a single flat doc, settings/app. Parv (admin) edits everything;
-   Riti gets a restricted view — only HER own notification + visibility cells,
+   Riti gets a restricted view - only HER own notification + visibility cells,
    Parv's shown greyed + read-only, and the admin-only cards (got-home logic,
    cycle, mute) hidden. The push-worker reads the hs and n_ keys; periods.js
    reads the cy keys. This is a curtain; the real boundary is the Firestore rules
@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v86';
+  var VERSION = 'v87';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -20,7 +20,7 @@
     n_doodle_riti: true, n_doodle_parv: true, n_heart_riti: true, n_heart_parv: true,
     n_home_riti: true, n_home_parv: true, n_away_riti: true, n_away_parv: true,
     muteAll: false,
-    // visibility matrix (v_<page>_<user>) — defaults mirror today's reality
+    // visibility matrix (v_<page>_<user>) - defaults mirror today's reality
     v_openwhen_riti: true, v_openwhen_parv: true,
     v_board_riti: true, v_board_parv: true, v_doodles_riti: true, v_doodles_parv: true,
     v_periods_riti: false, v_periods_parv: true, v_settings_riti: false, v_settings_parv: true,
@@ -54,7 +54,7 @@
     if (boot._on) return; boot._on = true;
     var u = window.__parvritiUser;
     if (!u) { location.replace('index.html'); return; }
-    try { db = firebase.firestore(); } catch (e) { toast('Firestore did not load'); return; }
+    try { db = firebase.firestore(); } catch (e) { toast("couldn't load, try again"); return; }
     DOC = db.collection('settings').doc('app');
     var start = function () {
       isAdmin = (u.person === 'parv');
@@ -85,7 +85,11 @@
     saveTimer = setTimeout(function () {
       if (!DOC) return;
       var p = save._pending; save._pending = null;
-      DOC.set(p, { merge: true }).then(function () { toast('saved'); }).catch(function () { toast("couldn't save, try again"); });
+      DOC.set(p, { merge: true }).then(function () { toast('saved'); }).catch(function () {
+        toast("couldn't save, try again");
+        // a failed write must not leave an optimistic toggle showing as saved: resync to server truth
+        DOC.get().then(function (s) { if (s && s.exists) { cfg = merge(DEFAULTS, s.data()); bind(); } }).catch(function () {});
+      });
     }, 260);
   }
 
@@ -117,7 +121,7 @@
     if (lead) lead.classList.toggle('gated', cfg.v_periods_parv === false);
   }
 
-  /* the two matrices (notifications + visibility) — plain aria-checked cells */
+  /* the two matrices (notifications + visibility) - plain aria-checked cells */
   function bindMatrix() {
     var cells = document.querySelectorAll('.mx-cell[data-key]');
     for (var i = 0; i < cells.length; i++) {
@@ -203,8 +207,8 @@
     document.querySelectorAll('.mx-cell[data-key]').forEach(function (cell) {
       cell.addEventListener('click', function () {
         if (cell.classList.contains('locked')) { toast('you can’t hide your own Settings'); return; }
-        if (cell.classList.contains('gated')) { toast('turn on the Periods tab first'); return; }
         if (cell.classList.contains('ro')) { toast('only Parv can change this'); return; }
+        if (cell.classList.contains('gated')) { toast('turn on the Periods tab first'); return; }
         var k = cell.getAttribute('data-key');
         var on = cell.getAttribute('aria-checked') !== 'true';
         cell.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -229,8 +233,10 @@
   function testPing(to) {
     if (!window.parvritiNotify) { toast('push not ready'); return; }
     var who = to === 'riti' ? 'Riti' : 'you';
-    window.parvritiNotify(to, 'Test ping 🌸', 'from Settings · everything works', 'https://parvriti.github.io/index.html');
-    toast('sent a test to ' + who);
+    toast('sending a test to ' + who + '…');
+    var r = window.parvritiNotify(to, 'Test ping 🌸', 'from Settings · everything works', 'https://parvriti.github.io/index.html');
+    if (r && r.then) r.then(function (ok) { toast(ok ? 'sent a test to ' + who : "couldn't send the test, try again"); });
+    else toast('sent a test to ' + who);
   }
 
   function forceRefresh() {

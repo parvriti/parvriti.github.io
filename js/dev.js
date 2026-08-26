@@ -1,8 +1,8 @@
 /* =====================================================================
-   dev.js — the admin-only Developer panel (dev.html).
+   dev.js - the admin-only Developer panel (dev.html).
 
    A vitals dashboard for the builder (Parv). Everything is computed ON OPEN
-   with a single read-only crawl of the collections — no continuous tracking,
+   with a single read-only crawl of the collections - no continuous tracking,
    no `usage` collection, no cron, nothing running on any other page. Storage
    is MEASURED; egress + daily ops are honest, clearly-labelled ESTIMATES
    (byte counts are JSON-length proxies, ~±20% vs Firestore's real wire size).
@@ -140,7 +140,7 @@
     });
     $('stoTable').innerHTML = rows;
 
-    renderEstimates(total);
+    renderEstimates();
     renderLimits();
   }
 

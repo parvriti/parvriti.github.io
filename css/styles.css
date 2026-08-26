@@ -1307,7 +1307,10 @@ body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px
 .pad-wrap { margin: 0 auto; max-width: 470px; }
 .pad { position: relative; border-radius: 8px; padding: 14px 14px 12px; background: linear-gradient(180deg,#fbf5e6,#efe4cc); box-shadow: 0 16px 30px rgba(0,0,0,.5); transform: rotate(-.6deg); }
 .pad .clip { position: absolute; left: 50%; top: -13px; transform: translateX(-50%); width: 56px; height: 20px; border-radius: 5px; background: linear-gradient(180deg,#d9dde2,#9aa2ab); box-shadow: 0 4px 7px rgba(0,0,0,.4); }
-.pad canvas { width: 100%; height: 60vh; max-height: 620px; display: block; border-radius: 5px; background: #fffdf6; cursor: crosshair; box-shadow: inset 0 0 0 1px rgba(120,90,50,.18); touch-action: none; }
+/* 4:5 to match the canvas buffer (720x900), so a drawing keeps identical proportions on every
+   device (iPad -> iPhone) and pxy() scales X/Y by the same factor. .pad-wrap caps width at 470px,
+   so height stays well under the old 620px. height:auto also keeps the ratio if aspect-ratio is unsupported. */
+.pad canvas { width: 100%; aspect-ratio: 4 / 5; height: auto; display: block; border-radius: 5px; background: #fffdf6; cursor: crosshair; box-shadow: inset 0 0 0 1px rgba(120,90,50,.18); touch-action: none; }
 .pad .tools { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; }
 .tool-row { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }   /* nowrap = the split is identical on iPhone / iPad / Mac (never re-wraps by width) */
 .swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,.7); box-shadow: 0 2px 5px rgba(0,0,0,.3); }
@@ -1868,7 +1871,7 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
 .set-note { font-size: 11.5px; font-style: italic; color: #8a5a62; padding: 12px 2px 2px; line-height: 1.45; }
 .set-foot { text-align: center; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 12px; color: #6a3c45; padding: 8px 0 20px; }
 
-/* switch — smooth spring on the knob */
+/* switch - smooth spring on the knob */
 .set-sw {
   position: relative; flex: 0 0 auto;
   width: 48px; height: 28px; border-radius: 999px; cursor: pointer;
@@ -1974,7 +1977,7 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
 .mx-cell.ro .mx-dot { opacity: .38; box-shadow: none; }
 .mx-cell.ro:active .mx-dot { transform: none; }
 /* cycle reminder cell self-muted until that person's Periods tab is on (still tappable
-   so a tap can say why). Uses the same dot, just greyed — theme-independent. */
+   so a tap can say why). Uses the same dot, just greyed - theme-independent. */
 .mx-cell.gated { cursor: default; }
 .mx-cell.gated .mx-dot { opacity: .24; box-shadow: none; filter: grayscale(1); }
 .mx-cell.gated:active .mx-dot { transform: none; }
@@ -2022,7 +2025,7 @@ body[data-page="periods"] .tab.active { background: linear-gradient(135deg,#f452
 body[data-page="periods"] .tt-btn { color: #6a7189; }
 body[data-page="periods"] .tt-btn:active { color: #20264a; background: rgba(32,38,74,.06); }
 
-/* ═══════════════════ Developer panel (dev.html) — admin vitals ═══════════════════ */
+/* ═══════════════════ Developer panel (dev.html) - admin vitals ═══════════════════ */
 .dev-hint { font-size: .78rem; color: #9a8a8e; text-align: center; margin: -4px 0 14px; letter-spacing: .01em; }
 .dev-tag { font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px;
   background: rgba(63,181,107,.16); color: #7fd6a0; margin-left: 9px; vertical-align: middle; font-weight: 500; }

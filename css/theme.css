@@ -1,5 +1,5 @@
 /* =====================================================================
-   theme.css — light/dark theme + native shell, layered on the UNTOUCHED
+   theme.css - light/dark theme + native shell, layered on the UNTOUCHED
    components (paired with js/native.js). Loaded AFTER css/styles.css.
    Additive only (no component markup or backend touched):
      1) NATIVE SHELL: bottom tab bar, frosted corners, smooth transitions,
@@ -64,7 +64,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 .proto-left { left: 14px; } .proto-right { right: 14px; }
 
 /* ═══════════════════════════════════════════════════════════════════
-   LIGHT THEME — Periods richness (real fills + dark ink) across the app.
+   LIGHT THEME - Periods richness (real fills + dark ink) across the app.
    Warm-rose reading of it (not the clinical navy), so the letters stay
    romantic. Board/Doodles keep their cork-wood world; Periods keeps its
    own light design.
@@ -112,7 +112,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] body.celebrate .note-title {
   background: linear-gradient(90deg, #a9760a, #b0304a, #a9760a); }
 
-/* OPEN WHEN — envelopes + parchment already read as rich; only recolour the surrounds */
+/* OPEN WHEN - envelopes + parchment already read as rich; only recolour the surrounds */
 :root[data-theme="light"] .ow-kicker { color: var(--l-ink3); }
 :root[data-theme="light"] .ow-title { color: #8b2040; }
 :root[data-theme="light"] .ow-note { color: var(--l-ink2); }
@@ -129,7 +129,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .otd-k { color: var(--l-deep); }
 :root[data-theme="light"] .otd-t { color: #5a3540; }
 
-/* SETTINGS — real white cards, dark ink (the strongest richness upgrade) */
+/* SETTINGS - real white cards, dark ink (the strongest richness upgrade) */
 :root[data-theme="light"] .set-top { background: linear-gradient(#fbf1f1 74%, rgba(251,241,241,0)) !important; }
 :root[data-theme="light"] .set-h1 { color: var(--l-ink); }
 :root[data-theme="light"] .set-back { background: #fff; border-color: var(--l-line); color: #b0405a; }
@@ -144,12 +144,12 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .set-sw-dot { background: #d99aa8; }
 /* the two light .set-sw / .set-sw-dot overrides above (:root is a pseudo-class, so specificity is
    0,3,0) tied/out-ranked the base checked-state, so an ON switch kept the OFF light-pink track and
-   muted knob — on/off differed only by knob position. Restore the ON track + white knob, using the
+   muted knob - on/off differed only by knob position. Restore the ON track + white knob, using the
    friendlier light-mode pink (below) so all the toggle controls read as one warm pink, not maroon. */
 :root[data-theme="light"] .set-sw[aria-checked="true"] { background: linear-gradient(135deg,#e46a86,#c0425a) !important; border-color: transparent !important; }
 :root[data-theme="light"] .set-sw[aria-checked="true"] .set-sw-dot { background: #fff !important; }
 
-/* --- LIGHT MODE control-fill lightening (user: "lighter the tone" — warm friendly pink, not the
+/* --- LIGHT MODE control-fill lightening (user: "lighter the tone" - warm friendly pink, not the
    near-maroon #c0425a→#7a1f3a the base uses in both themes). Dark mode keeps the original palette. --- */
 /* the "When to ping" segmented control: brighter active pill + clearly-white text */
 :root[data-theme="light"] .set-seg button.on {
@@ -175,7 +175,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .set-devlink .set-dev-go { color: var(--l-ink3); }
 
 /* DEV PANEL (dev.html): its text colours (#f0dfe2 values, #e2cfd3 labels, etc.) are dark-theme
-   light inks — on the white light cards they were near-invisible. Re-ink them for light, and give
+   light inks - on the white light cards they were near-invisible. Re-ink them for light, and give
    the meter tracks a visible light fill (their rgba(255,255,255,.07) track vanished on white). */
 :root[data-theme="light"] .dev-meter-top span:first-child { color: var(--l-ink); }
 :root[data-theme="light"] .dev-col-l, :root[data-theme="light"] .dev-op-l { color: var(--l-ink); }
@@ -184,7 +184,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .dev-col-sub { color: var(--l-ink3); }
 :root[data-theme="light"] .dev-cap, :root[data-theme="light"] .dev-hint { color: var(--l-ink2); }
 :root[data-theme="light"] .dev-bar { background: #f1e2e5; }
-/* the MEASURED / ESTIMATE badges were light green/amber ink on their own light tint — deepen the
+/* the MEASURED / ESTIMATE badges were light green/amber ink on their own light tint - deepen the
    ink for light mode so they read. */
 :root[data-theme="light"] .dev-tag { color: #1f8f56; }
 :root[data-theme="light"] .dev-tag.est { color: #a8730f; }
@@ -203,7 +203,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .room-toast, :root[data-theme="light"] .mini-toast { background: rgba(52,28,37,.92); color: #ffe4ea; border-color: rgba(192,66,90,.4); }
 
 /* ═══════════════════════════════════════════════════════════════════
-   DARK PERIODS — redesign the light-only Periods tab for dark mode.
+   DARK PERIODS - redesign the light-only Periods tab for dark mode.
    Re-tokenise + override the hardcoded white literals from the map.
    ═══════════════════════════════════════════════════════════════════ */
 :root[data-theme="dark"] body[data-page="periods"] {
@@ -281,10 +281,10 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
    white number on the same dark chip as the others. Restore the accent fill for the selected one. */
 :root[data-theme="dark"] body[data-page="periods"] .cy-seg button.on {
   background: var(--cy-accent) !important; color: #fff !important; border-color: transparent !important; }
-/* "Remove this period": #c02a3a red on the dark maroon fill was too low-contrast — lift to a
+/* "Remove this period": #c02a3a red on the dark maroon fill was too low-contrast - lift to a
    light red that carries on dark while keeping the destructive tone. */
 :root[data-theme="dark"] body[data-page="periods"] .cy-eddel { color: #ff8a92; }
-/* "change" button sat on the same #251722 as its date row and lost its affordance — give it a
+/* "change" button sat on the same #251722 as its date row and lost its affordance - give it a
    touch of lift so it reads as a button. */
 :root[data-theme="dark"] body[data-page="periods"] .cy-edline button { background: rgba(255,255,255,.07) !important; }
 /* defensive: the long-cycle flag box uses dark amber ink meant for a pale amber fill; if it ever
@@ -320,7 +320,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .room-foot { color: rgba(90,58,30,.55); }
 :root[data-theme="light"] .pad-wrap .pad { box-shadow: 0 12px 26px rgba(90,58,30,.22); }
 
-/* --- LIGHT MODE: the Board tile-open overlay (.room-ov — big-note / big-photo / stack viewer)
+/* --- LIGHT MODE: the Board tile-open overlay (.room-ov - big-note / big-photo / stack viewer)
    used a hardcoded DARK radial backdrop, so tapping a note in light mode dropped a dark box over
    the whole page. Give it a soft cream-rose scrim in light, and darken the close-✕ (its light-peach
    default was for the dark scrim). --- */
@@ -336,13 +336,13 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 /* ALL THEMES: the letter reader + New/Edit form (both .ow-reader.active, z-index 300), the unseal
    ceremony (.ow-unseal, z-index 340) and the board tile overlay (.room-ov, z-index 400) all sit
    BELOW the native shell (bar/corners z-index 500, sidebar z-index 600). Left unhidden, the shell
-   covered their content — the frosted bar over the bottom of a letter, the sidebar over the left of
+   covered their content - the frosted bar over the bottom of a letter, the sidebar over the left of
    a centered reader/photo, and worst, the bar over the form's Save/Cancel row. Hide the whole shell
    while any of them is open (they leave the DOM on close, so it returns automatically). */
 body:has(.ow-reader.active) :is(.proto-tabbar, .proto-sidebar, .proto-corner),
 body:has(.ow-unseal) :is(.proto-tabbar, .proto-sidebar, .proto-corner),
 body:has(.room-ov) :is(.proto-tabbar, .proto-sidebar, .proto-corner) { display: none !important; }
-/* LIGHT MODE: the board composer (+ reason) card is a dark-brown box with cream ink — on the new
+/* LIGHT MODE: the board composer (+ reason) card is a dark-brown box with cream ink - on the new
    light scrim it read as a dark incursion. Give it a white card with dark ink (the cream textarea
    + pink submit already carry across both themes). */
 :root[data-theme="light"] .composer-card { background: #fff; border-color: var(--l-line); box-shadow: var(--l-sh); }
@@ -353,7 +353,7 @@ body:has(.room-ov) :is(.proto-tabbar, .proto-sidebar, .proto-corner) { display: 
    bottom-right, covering the "clear" button and the "draw something silly together" caption.
    The FAB owns the bottom-RIGHT, so EDGE-align both to the bottom-LEFT of the pad (clear's default
    margin-left:auto pushed it right into the FAB; the caption defaulted to text-align:right). This
-   keeps them cleanly edge-aligned and fully clear of the FAB — not floated in the middle. --- */
+   keeps them cleanly edge-aligned and fully clear of the FAB - not floated in the middle. --- */
 body[data-page="doodles"] .pad .clear { margin: 0; }   /* clear is a trash icon in the tool row now, no auto margin */
 body[data-page="doodles"] .pad .by { text-align: left; }
 

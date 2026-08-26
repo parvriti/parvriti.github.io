@@ -188,8 +188,8 @@ function timeAgo(ms) {
   const d = Math.floor(h / 24); if (d < 7) return d + (d === 1 ? ' day ago' : ' days ago');
   return fmtDate(new Date(ms).toISOString().slice(0, 10));
 }
-/* Read receipt: a note counts as "read" only when its RECIPIENT — the person
-   whose tab it lives on (e.side) — opens it, never its author. So a note Parv
+/* Read receipt: a note counts as "read" only when its RECIPIENT - the person
+   whose tab it lives on (e.side) - opens it, never its author. So a note Parv
    wrote for Riti reads when Riti opens it; a note Riti wrote for Parv reads
    when Parv opens it. The receipt names that recipient. */
 function seedReadKey(e) { return e.side + '_' + e.emotion; }
@@ -453,7 +453,9 @@ function renderEntry() {
   // (e.g. this note's own read-receipt write) re-runs renderEntry for the SAME entry; without
   // this guard it would pause+rewind the voice note she just tapped play on.
   const a = document.getElementById('owAudio');
-  const vkey = sealed ? '' : (e.voiceFile ? 'f:' + e.voiceFile : (e.voice ? 'b:' + (e.id || e.emotion) + ':' + e.date : ''));
+  // Include the clip's own fingerprint (file URL, or the base64 length) so re-recording a voice on
+  // an already-open note reloads the new clip instead of replaying the old one (id + date don't change).
+  const vkey = sealed ? '' : (e.voiceFile ? 'f:' + e.voiceFile : (e.voice ? 'b:' + (e.id || e.emotion) + ':' + e.date + ':' + e.voice.length : ''));
   if (vkey !== loadedVoiceKey) {
     a.pause(); a.currentTime = 0;
     if (!sealed && e.voiceFile) a.src = e.voiceFile;
@@ -576,12 +578,18 @@ function saveForm(ev) {
   const err = document.getElementById('owFormErr');
   const body = document.getElementById('owInBody').value.replace(/\s+$/, '');
   if (!body.trim()) { err.textContent = 'Write a few words 💛'; return false; }
-  if (!db) { err.textContent = 'No connection right now, give it a second and try again.'; return false; }
+  if (!db) { err.textContent = "couldn't reach the server, try again"; return false; }
   const done = function () { closeAdd(); };
-  const fail = function (e) { console.warn(e); err.textContent = 'Could not save, please try again.'; };
+  const fail = function (e) { console.warn(e); err.textContent = "couldn't save, try again"; };
 
   const voice = recData || null;
   const voiceType = recData ? recType : null;
+  // Firestore caps a doc at ~1 MB. Voice can be ~900 KB, so a long body plus a clip can overflow
+  // it and the write would fail with only a generic error - reject early with a clear reason.
+  if (body.length + (voice ? voice.length : 0) > 990000) {
+    err.textContent = 'This note is a bit too big to save' + (voice ? ' with the voice clip' : '') + '. Shorten it a little 💛';
+    return false;
+  }
   const openRaw = document.getElementById('owInOpen') ? document.getElementById('owInOpen').value : '';
   const openDate = (openRaw && openRaw > todayStr()) ? openRaw : null;   // only seal a future date
 
@@ -714,7 +722,7 @@ function finishRec() {
   const fr = new FileReader();
   fr.onloadend = function () {
     const b64 = String(fr.result).split(',')[1] || '';
-    if (b64.length > 900000) { hint.textContent = 'That clip is a bit long to save. Please keep it under ~45 seconds.'; resetRecorderUI(); return; }
+    if (b64.length > 900000) { hint.textContent = 'That clip is a bit long to save. Try keeping it a little shorter 💛'; resetRecorderUI(); return; }
     recData = b64;
     showRecState('have');
     hint.textContent = fmtSec(recSeconds) + ' recorded';
