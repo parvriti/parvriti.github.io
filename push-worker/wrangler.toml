@@ -1,0 +1,24 @@
+# Cloudflare Worker config for the parvriti push worker.
+#
+# Without this file, `wrangler deploy` (v4+) cannot tell that worker.js is the
+# entry point and fails trying to deploy static assets ("Could not detect a
+# directory containing static files").
+#
+# The [triggers] crons below MUST stay in sync with worker.js's scheduled()
+# handler. A deploy reconciles the schedules to match this list, so removing a
+# line here would DELETE that cron from the live worker:
+#   "30 18 * * *" = 00:00 IST -> birthday / anniversary wish
+#   "30 3 * * *"  = 09:00 IST -> cycle heads-up + capsule-unlock nudges
+#
+# Secrets (SERVICE_ACCOUNT, HOME_SECRET_RITI, HOME_SECRET_PARV, FIREBASE_API_KEY)
+# live as encrypted secrets on Cloudflare and are NOT managed here; a deploy
+# leaves them untouched. Local dev reads them from .dev.vars (gitignored).
+name = "parvriti-push"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+# The app never uses per-version preview URLs; keep them off so the only public
+# surface is the one workers.dev route. Applies on the next deploy.
+preview_urls = false
+
+[triggers]
+crons = ["30 18 * * *", "30 3 * * *"]

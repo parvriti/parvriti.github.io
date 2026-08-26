@@ -13,6 +13,10 @@ riti-letters-ocr.txt
 *firebase-adminsdk*.json
 *service-account*.json
 
+# wrangler local build cache — regenerated on every deploy, never committed
+.wrangler/
+push-worker/.wrangler/
+
 # personal room photos — never public; they live in Firestore instead
 our_pics/
 room-thumbs/
