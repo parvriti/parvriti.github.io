@@ -699,7 +699,9 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
   width: 88px; height: auto; display: block; margin: 0 auto 22px; overflow: visible;
   opacity: 1; transform: rotate(3.5deg); transform-origin: 50% 58%;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.5));
-  animation: authEnvDrop 320ms ease both, authEnvShudder 150ms ease 470ms forwards;
+  /* land (drop + shudder), then hand off to a slow ambient float so it feels like
+     a letter suspended, not a static graphic - matches the flower's idle motion */
+  animation: authEnvDrop 320ms ease both, authEnvShudder 150ms ease 470ms forwards, authEnvFloat 6s ease-in-out 760ms infinite;
 }
 /* transform-origin in SVG user units (viewBox coords), not %, via transform-box */
 .auth-stamp {
@@ -719,13 +721,8 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px; color: #c49aa1; white-space: nowrap; letter-spacing: .3px;
   background: rgba(233,160,168,.07); border: 1px solid rgba(233,160,168,.16);
-  border-radius: 6px; padding: 4px 11px; margin-bottom: 20px;
+  border-radius: 6px; padding: 4px 11px; margin-bottom: 26px;
   opacity: 1; transform: none; animation: authLineUp 300ms ease 530ms both;
-}
-.auth-reject-note {
-  font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #d3a9b0;
-  line-height: 1.5; margin-bottom: 24px;
-  opacity: 1; transform: none; animation: authLineUp 300ms ease 590ms both;
 }
 .auth-reuse {
   display: inline-flex; align-items: center; justify-content: center;
@@ -735,7 +732,7 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
   -webkit-appearance: none; touch-action: manipulation;
   opacity: 1; transform: none;
   transition: transform .16s ease, background .2s ease, border-color .2s ease;
-  animation: authLineUp 300ms ease 650ms both;
+  animation: authLineUp 300ms ease 590ms both;
 }
 @media (hover:hover){ .auth-reuse:hover { background: rgba(255,255,255,.1); border-color: rgba(233,160,168,.7); } }
 .auth-reuse:active { transform: scale(.97); }
@@ -756,10 +753,14 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
   100% { opacity: 1; transform: rotate(-14deg) scale(1); }
 }
 @keyframes authLineUp { 0% { opacity: 0; transform: translateY(7px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes authEnvFloat {   /* slow suspended-letter drift + faint breath, around the resting 3.5deg tilt */
+  0%, 100% { transform: translateY(0) rotate(3.5deg) scale(1); }
+  50%      { transform: translateY(-5px) rotate(4.4deg) scale(1.015); }
+}
 /* reduced motion: no animation, but the tilt stays (base transforms above) - the
    envelope must not snap upright, and the lines must not stay hidden. */
 @media (prefers-reduced-motion: reduce) {
-  .auth-reject-env, .auth-stamp, .auth-reject-head, .auth-reject-email, .auth-reject-note, .auth-reuse { animation: none !important; }
+  .auth-reject-env, .auth-stamp, .auth-reject-head, .auth-reject-email, .auth-reuse { animation: none !important; }
 }
 
 /* ══════════════ on this day ══════════════ */

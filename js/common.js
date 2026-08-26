@@ -177,7 +177,6 @@
         '</svg>' +
         '<div class="auth-reject-head">No one here by that name</div>' +
         '<div class="auth-reject-email" id="authRejectEmail"></div>' +
-        '<div class="auth-reject-note">It\'s only for the two of us ❤️</div>' +
         '<button type="button" class="auth-reuse" id="authReuse">Use another account</button>' +
       '</div>';
     body.appendChild(g);
