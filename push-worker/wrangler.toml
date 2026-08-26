@@ -20,5 +20,15 @@ compatibility_date = "2024-11-01"
 # surface is the one workers.dev route. Applies on the next deploy.
 preview_urls = false
 
+# FIREBASE_API_KEY is the PUBLIC Firebase web key (already in js/common.js and
+# firebase-messaging-sw.js). verifyCaller() uses it to check a caller's ID token.
+# It is a plaintext dashboard Variable, NOT an encrypted secret, so a `wrangler
+# deploy` DROPS it unless declared here - which silently breaks every in-app push
+# (403 'FIREBASE_API_KEY missing'). Declaring it makes CLI deploys carry it.
+# NEVER put SERVICE_ACCOUNT / HOME_SECRET_* / HEARTBEAT_SECRET_* here - those stay
+# encrypted secrets set via `wrangler secret put` / the dashboard.
+[vars]
+FIREBASE_API_KEY = "AIzaSyBW_EMfKIkIJDNSMPUp6UeHOGtIdv26Wpk"
+
 [triggers]
 crons = ["30 18 * * *", "30 3 * * *"]
