@@ -688,6 +688,80 @@ body.side-parv .ow-rec-hint { color: #6f8fd0; }
 .auth-g { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #fff; color: #4285f4; font-family: Arial, sans-serif; font-weight: 700; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .auth-msg { font-family: 'DM Sans', sans-serif; font-size: 12px; color: #e59aa8; margin-top: 18px; min-height: 16px; }
 
+/* ── rejected sign-in: a Google account that isn't one of ours ──
+   A returned envelope with a RETURN stamp. Shown by adding .rejected to the gate
+   (common.js showRejection); unlock() removes the whole gate, block included. */
+.auth-reject { display: none; text-align: center; max-width: 320px; width: 100%; }
+.auth-gate.rejected .auth-inner { display: none; }
+.auth-gate.rejected .auth-reject { display: block; }
+/* overflow:visible so the stamp isn't clipped as it thumps in from scale(1.6) */
+.auth-reject-env {
+  width: 88px; height: auto; display: block; margin: 0 auto 22px; overflow: visible;
+  opacity: 1; transform: rotate(3.5deg); transform-origin: 50% 58%;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.5));
+  animation: authEnvDrop 320ms ease both, authEnvShudder 150ms ease 470ms forwards;
+}
+/* transform-origin in SVG user units (viewBox coords), not %, via transform-box */
+.auth-stamp {
+  opacity: 1; transform: rotate(-14deg);
+  transform-box: view-box; transform-origin: 88px 27px;
+  animation: authStampThump 190ms cubic-bezier(.3,1.4,.5,1) 310ms both;
+}
+/* head + email are one unit: the email is the address on the returned envelope,
+   so it sits tight under the line (8px) in a soft slip, then a wider gap (20px). */
+.auth-reject-head {
+  font-family: 'Cormorant Garamond', serif; font-weight: 600; font-style: italic;
+  font-size: 25px; line-height: 1.2; color: #f4dede; text-wrap: balance; margin-bottom: 8px;
+  opacity: 1; transform: none; animation: authLineUp 300ms ease 470ms both;
+}
+.auth-reject-email {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; color: #c49aa1; white-space: nowrap; letter-spacing: .3px;
+  background: rgba(233,160,168,.07); border: 1px solid rgba(233,160,168,.16);
+  border-radius: 6px; padding: 4px 11px; margin-bottom: 20px;
+  opacity: 1; transform: none; animation: authLineUp 300ms ease 530ms both;
+}
+.auth-reject-note {
+  font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #d3a9b0;
+  line-height: 1.5; margin-bottom: 24px;
+  opacity: 1; transform: none; animation: authLineUp 300ms ease 590ms both;
+}
+.auth-reuse {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 500; color: #f0d5d9;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(233,160,168,.4);
+  border-radius: 40px; padding: 11px 24px; cursor: pointer;
+  -webkit-appearance: none; touch-action: manipulation;
+  opacity: 1; transform: none;
+  transition: transform .16s ease, background .2s ease, border-color .2s ease;
+  animation: authLineUp 300ms ease 650ms both;
+}
+@media (hover:hover){ .auth-reuse:hover { background: rgba(255,255,255,.1); border-color: rgba(233,160,168,.7); } }
+.auth-reuse:active { transform: scale(.97); }
+@keyframes authEnvDrop {
+  0%   { opacity: 0; transform: translateY(-20px) rotate(0deg); }
+  70%  { opacity: 1; transform: translateY(2px) rotate(4.4deg); }
+  100% { opacity: 1; transform: translateY(0) rotate(3.5deg); }
+}
+@keyframes authEnvShudder {   /* the envelope jolts ~1deg when the stamp lands */
+  0%   { transform: translateY(0) rotate(3.5deg); }
+  35%  { transform: translateY(0) rotate(2.4deg); }
+  70%  { transform: translateY(0) rotate(4.2deg); }
+  100% { transform: translateY(0) rotate(3.5deg); }
+}
+@keyframes authStampThump {   /* thumps down oversized + off-axis, lands square-ish */
+  0%   { opacity: 0; transform: rotate(-26deg) scale(1.6); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: rotate(-14deg) scale(1); }
+}
+@keyframes authLineUp { 0% { opacity: 0; transform: translateY(7px); } 100% { opacity: 1; transform: translateY(0); } }
+/* reduced motion: no animation, but the tilt stays (base transforms above) - the
+   envelope must not snap upright, and the lines must not stay hidden. */
+@media (prefers-reduced-motion: reduce) {
+  .auth-reject-env, .auth-stamp, .auth-reject-head, .auth-reject-email, .auth-reject-note, .auth-reuse { animation: none !important; }
+}
+
 /* ══════════════ on this day ══════════════ */
 .ow-otd { margin: 0 auto 18px; max-width: 520px; }
 .otd-card {

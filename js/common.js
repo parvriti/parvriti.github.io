@@ -46,8 +46,11 @@
         if (user && ALLOWED.indexOf((user.email || '').toLowerCase()) !== -1) {
           unlock(user);
         } else if (user) {
+          // Signed in, but not one of us. Grab the address before signOut(), which
+          // fires this handler again with user === null a tick later.
+          var rejectedEmail = user.email || '';
           auth.signOut();
-          revealGate('This little world is only for the three of us 💛');
+          showRejection(rejectedEmail);
         } else {
           revealGate('');
         }
@@ -159,6 +162,23 @@
         '<div class="auth-sub">A little world of ours. Sign in to come in.</div>' +
         '<button type="button" class="auth-google" id="authGoogle"><span class="auth-g"><svg viewBox="0 0 48 48" width="16" height="16" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg></span>Continue with Google</button>' +
         '<div class="auth-msg" id="authMsg"></div>' +
+      '</div>' +
+      '<div class="auth-reject" role="group" aria-label="This account is not recognized">' +
+        '<svg class="auth-reject-env" viewBox="0 0 120 92" aria-hidden="true">' +
+          '<rect x="12" y="22" width="96" height="56" rx="6" fill="#170b10" stroke="#e8cfc9" stroke-width="3.2"/>' +
+          '<path d="M13.5 24 L60 55 L106.5 24" fill="none" stroke="#e8cfc9" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '<path d="M14 76 L46 53 M106 76 L74 53" fill="none" stroke="#e8cfc9" stroke-width="2.2" stroke-linecap="round" opacity=".5"/>' +
+          '<g class="auth-stamp">' +
+            '<rect x="68" y="9" width="40" height="36" rx="3" fill="#2a0d12" stroke="#df6274" stroke-width="2.4" stroke-dasharray="0.5 3.4" stroke-linecap="round"/>' +
+            '<rect x="72" y="13" width="32" height="28" rx="2" fill="none" stroke="#df6274" stroke-width="1.5"/>' +
+            '<text x="88" y="25" text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="7.4" font-weight="700" letter-spacing="1.1" fill="#f0919e">RETURN</text>' +
+            '<path d="M79 31 h18 M81 35 h14" stroke="#df6274" stroke-width="1.5" stroke-linecap="round"/>' +
+          '</g>' +
+        '</svg>' +
+        '<div class="auth-reject-head">No one here by that name</div>' +
+        '<div class="auth-reject-email" id="authRejectEmail"></div>' +
+        '<div class="auth-reject-note">It\'s only for the two of us ❤️</div>' +
+        '<button type="button" class="auth-reuse" id="authReuse">Use another account</button>' +
       '</div>';
     body.appendChild(g);
     // Someone who has signed in on this device before doesn't need the full "Only for us."
@@ -178,7 +198,9 @@
         }, 200);
       }
     } catch (e) {}
-    g.querySelector('#authGoogle').addEventListener('click', function () {
+    /* one sign-in path, shared by "Continue with Google" and the rejected
+       screen's "Use another account" so they can never drift apart. */
+    function doSignIn() {
       gateMsg('');
       if (!auth) { gateMsg('Sign-in is not available right now.'); return; }
       var provider = new firebase.auth.GoogleAuthProvider();
@@ -196,7 +218,9 @@
         }
         gateError(e);
       });
-    });
+    }
+    g.querySelector('#authGoogle').addEventListener('click', doSignIn);
+    var reuse = g.querySelector('#authReuse'); if (reuse) reuse.addEventListener('click', doSignIn);
   }
   function revealGate(msg) {
     clearTimeout(quietTimer);
@@ -204,9 +228,25 @@
     // auth genuinely needs them, so the "returning" assumption was wrong: show the real gate.
     try { localStorage.removeItem('parvritiReturning'); } catch (e) {}
     if (g) { g.classList.remove('gate-quiet'); g.classList.add('ready'); }
+    // The if(msg) guard keeps revealGate('') from wiping a real error set by
+    // gateError() just before it. revealGate never touches the .rejected class,
+    // so the rejection screen (below) also survives a revealGate('') call.
     if (msg) gateMsg(msg);
   }
   function gateMsg(t) { var m = document.getElementById('authMsg'); if (m) m.textContent = t || ''; }
+  /* A signed-in Google account that isn't one of ours. Instead of a body-copy line,
+     flip the gate to a "return to sender" screen. The face is a CLASS (.rejected),
+     not a clearable message, so it deliberately survives the SECOND onAuthStateChanged
+     that signOut() triggers a tick later with user === null (that path calls
+     revealGate(''), which never removes .rejected). A successful sign-in tears the
+     whole thing down: unlock() removes #authGate, and the reject block is its child. */
+  function showRejection(email) {
+    var em = document.getElementById('authRejectEmail');
+    if (em) em.textContent = email || '';   // textContent, so the address can't inject markup
+    var g = document.getElementById('authGate');
+    if (g) g.classList.add('rejected');   // add before reveal, same tick, so the reject face is what paints
+    revealGate('');   // cancel gate-quiet, drop the "returning" flag, reveal - without clearing the face
+  }
   function gateError(e) {
     if (!e || e.code === 'auth/no-auth-event') return;
     if (e.code === 'auth/operation-not-allowed') gateMsg('Google sign-in is not enabled yet in Firebase.');
