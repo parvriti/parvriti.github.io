@@ -1203,6 +1203,10 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
 .load-veil.show { opacity: 1; pointer-events: auto; transition: opacity .25s ease; }
 .load-veil.gone { opacity: 0 !important; pointer-events: none; transition: opacity .18s ease; }
 .load-veil.on-cream { background: rgba(250,244,228,.74); }
+/* the board's cork wall is warm caramel; a light parchment tint keeps the loading area
+   warm + bright (like doodle's pad) instead of the dark veil that muddied the cork */
+.load-veil.on-cork { background: rgba(226,198,156,.80); }
+.load-veil.on-cork .lv-cap { color: #5a3a1e; }
 /* periods has no textured surface behind it (the rose wash is painted only after data),
    so it gets a full-screen warm rose splash instead of a translucent box over a dark page */
 .load-veil.on-rose {
