@@ -247,8 +247,12 @@ function renderOnThisDay() {
   const yrs = y - parseInt(m.date.split('-')[0], 10);
   const when = yrs === 1 ? 'a year ago today' : yrs + ' years ago today';
   const more = matches.length > 1 ? ' <span class="otd-more">+' + (matches.length - 1) + ' more</span>' : '';
+  // the tab a note lives on is the RECIPIENT; the author is the other person. Only say
+  // "you wrote" when the viewer really is that author, else name them (Pavu / Riti).
+  const authorSide = m.side === 'riti' ? 'parv' : 'riti';
+  const wrote = (mePerson() === authorSide) ? 'you wrote' : (authorSide === 'parv' ? 'Pavu' : 'Riti') + ' wrote';
   host.style.display = '';
-  host.innerHTML = '<button type="button" class="otd-card"><div class="otd-k">🌸 On this day, ' + when + more + '</div><div class="otd-t">you wrote “' + escapeHtml(m.title) + '”</div></button>';
+  host.innerHTML = '<button type="button" class="otd-card"><div class="otd-k">🌸 On this day, ' + when + more + '</div><div class="otd-t">' + wrote + ' “' + escapeHtml(m.title) + '”</div></button>';
   host.querySelector('.otd-card').addEventListener('click', function () {
     if (currentSide !== m.side) setSide(m.side);
     var env = envelopesFor(m.side).find(function (e) { return e.emotion === m.emotion; });   // open straight to the surfaced note, not entry 0
@@ -506,7 +510,7 @@ function togglePlay(btn) {
   const ic = btn.querySelector('.voice-ic'), lbl = btn.querySelector('.voice-lbl');
   if (a.paused) {
     a.play().then(function () { btn.classList.add('playing'); ic.textContent = '❚❚'; lbl.textContent = 'Playing…'; })
-      .catch(function () { lbl.textContent = 'voice note coming soon 💛'; });
+      .catch(function () { btn.classList.remove('playing'); ic.textContent = '▶'; lbl.textContent = 'could not play, tap to try again'; });
   } else { a.pause(); }
 }
 (function () {
@@ -617,7 +621,7 @@ function saveForm(ev) {
 function delEntry(entry) {
   if (!entry || entry.seed || !entry.id || !db) return;
   if (!window.confirm('Delete this note? This cannot be undone.')) return;
-  db.collection('notes').doc(entry.id).delete().catch(function (e) { console.warn(e); });
+  db.collection('notes').doc(entry.id).delete().catch(function (e) { console.warn(e); alert('Could not delete right now, please try again.'); });
 }
 
 /* =====================  live refresh  ===================== */

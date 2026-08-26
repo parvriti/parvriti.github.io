@@ -35,6 +35,7 @@
 
   var LOGS = [];         // [{id, start:Date, len:int, longOk:bool}]
   var LONGEST = EXPECT, SHORTEST = EXPECT, LONGEST_EVER = EXPECT, lastStart = null;
+  var HAS_CYCLES = false;   // true once there is at least one real completed-cycle gap (not the EXPECT fallback)
   var db = null, ready = false, canEdit = false;   // canEdit becomes true for whoever can see the tab (Parv always; Riti once she enables Periods)
 
   /* ── dates. All local, so the day never flips at 05:30 IST ─────────── */
@@ -63,6 +64,7 @@
       var c = cycleLen(i);
       if (c < FLAG_AT || LOGS[i].longOk) usable.push(c);
     }
+    HAS_CYCLES = usable.length > 0;   // capture before the fallback, so the stats can hide the fake 31/31
     if (!usable.length) usable = [EXPECT];
     var recent = usable.slice(-10);
     LONGEST = Math.max.apply(null, recent);
@@ -424,17 +426,30 @@
     }
 
     if (isNone) {
+      $('cyRangeLbl').textContent = 'next period may occur between';
       $('cyRange').textContent = 'not yet';
       $('cyAway').textContent = 'one start date is all it needs';
       $('cyIn').textContent = '?'; $('cyInLbl').textContent = 'days';
     } else {
-      $('cyRange').textContent = fmt(addD(lastStart, EXPECT - RANGE - 1)) + ' to ' + fmt(addD(lastStart, EXPECT + RANGE - 1));
-      $('cyAway').textContent = 'a ' + (RANGE * 2 + 1) + ' day window, not a date';
-      var away = EXPECT - day;
-      if (day > LONGEST) { $('cyIn').textContent = (day - EXPECT); $('cyInLbl').textContent = 'days over'; }
-      else if (away > RANGE) { $('cyIn').textContent = away; $('cyInLbl').textContent = 'days away'; }
-      else if (away < -RANGE) { $('cyIn').textContent = (-away); $('cyInLbl').textContent = 'days long'; }
-      else { $('cyIn').textContent = 'now'; $('cyInLbl').textContent = 'any day'; }
+      // window = cycle days (EXPECT-RANGE)..(EXPECT+RANGE), the SAME boundaries phaseFor uses,
+      // so the pill can never contradict the dial (e.g. "0 days over" while it says "period due").
+      var open = EXPECT - RANGE, close = EXPECT + RANGE;
+      var winFrom = fmt(addD(lastStart, open - 1)), winTo = fmt(addD(lastStart, close - 1));
+      var away = EXPECT - day;      // days until the expected start
+      var over = day - close;       // days past the predicted window (>=1 only once truly late)
+      if (over >= 1) {
+        // the window has come and gone: never show past dates as an upcoming prediction
+        $('cyRangeLbl').textContent = 'past her expected window';
+        $('cyRange').textContent = 'was ' + winFrom + ' to ' + winTo;
+        $('cyAway').textContent = 'longer than usual so far';
+        $('cyIn').textContent = over; $('cyInLbl').textContent = (over === 1 ? 'day over' : 'days over');
+      } else {
+        $('cyRangeLbl').textContent = 'next period may occur between';
+        $('cyRange').textContent = winFrom + ' to ' + winTo;
+        $('cyAway').textContent = 'a ' + (RANGE * 2 + 1) + ' day window, not a date';
+        if (away > RANGE) { $('cyIn').textContent = away; $('cyInLbl').textContent = (away === 1 ? 'day away' : 'days away'); }
+        else { $('cyIn').textContent = 'now'; $('cyInLbl').textContent = 'any day'; }
+      }
     }
 
     var lv = levelsFor(ph, day), mets = document.querySelectorAll('.cy-met');
@@ -737,9 +752,9 @@
     } else $('cyDrSub').textContent = 'nothing logged yet';
     $('cyDrStats').innerHTML =
       '<div class="cy-dst"><b>' + P.length + '</b><span>logged</span></div>'
-      + '<div class="cy-dst"><b>' + SHORTEST + '</b><span>shortest</span></div>'
+      + '<div class="cy-dst"><b>' + (HAS_CYCLES ? SHORTEST : '·') + '</b><span>shortest</span></div>'
       + '<div class="cy-dst"><b>' + EXPECT + '</b><span>typical</span></div>'
-      + '<div class="cy-dst"><b>' + LONGEST_EVER + '</b><span>longest</span></div>';
+      + '<div class="cy-dst"><b>' + (HAS_CYCLES ? LONGEST_EVER : '·') + '</b><span>longest</span></div>';
     renderHistory(P, $('cyDrQ').value);
     /* Anything already on screen must be redrawn from the new snapshot, or it
        keeps showing pre-edit values. The edit sheet is the one that bit: change
@@ -795,10 +810,11 @@
     edId = id;
     var L = LOGS[i], cyc = cycleLen(i);
     $('cyEdDate').textContent = longDate(L.start);
+    var edEnd = addD(L.start, L.len - 1);   // predicted bleeding end; only past-tense once today is past it
     $('cyEdMeta').textContent =
-      (cyc === null ? 'her current cycle, day ' + (diffD(today(), L.start) + 1)
-        : 'the cycle that followed ran ' + cyc + ' days')
-      + ' · ended ' + fmt(addD(L.start, L.len - 1));
+      (cyc === null
+        ? 'her current cycle, day ' + (diffD(today(), L.start) + 1) + (today() <= edEnd ? ' · likely lasts to ' + fmt(edEnd) : ' · lasted to ' + fmt(edEnd))
+        : 'the cycle that followed ran ' + cyc + ' days · ended ' + fmt(edEnd));
     $('cyEdStart').textContent = fmt(L.start) + ' ' + L.start.getFullYear();
     $('cyEdSeg').innerHTML = [3, 4, 5, 6].map(function (n) {
       return '<button type="button" data-len="' + n + '"' + (n === L.len ? ' class="on"' : '') + '>' + n + '</button>';
@@ -922,7 +938,7 @@
       a.href = url; a.download = 'cycle-history-' + iso(today()) + '.csv';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
-      toast('exported ' + LOGS.length + ' periods');
+      toast('exported ' + LOGS.length + (LOGS.length === 1 ? ' period' : ' periods'));
     } catch (e) {
       /* iOS can refuse a programmatic download, so fall back to the clipboard */
       if (navigator.clipboard) navigator.clipboard.writeText(csv)

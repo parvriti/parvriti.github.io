@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v81';
+  var VERSION = 'v82';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -153,7 +153,7 @@
       return h + ' ' + ap;
     }
     if (unit === 'hrs') return v + 'h';
-    return v + ' ' + unit;   // "31 days"
+    return v + ' ' + (v === 1 ? unit.replace(/s$/, '') : unit);   // "31 days" / "1 day"
   }
   function drawStep(el, v) {
     if (!el) return;

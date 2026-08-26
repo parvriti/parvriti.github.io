@@ -114,7 +114,15 @@ function dropCell(cx, cy) {   // the exact grid cell a point lands in (clamped)
 var dragActive = false;   // true while a tile is being dragged; pauses snapshot rebuilds so the drag isn't destroyed mid-move
 /* ── live feed ── */
 function startItems() {
-  if (!rdb) { renderBoard(); return; }
+  if (!rdb) {   // no connection: say so, don't show the "nothing pinned yet, tap + " invite as if the wall were just empty
+    var be = document.getElementById('boardEmpty');
+    if (be) {
+      var t = be.querySelector('.be-title'), s = be.querySelector('.be-sub');
+      if (t) t.textContent = "can't reach the wall right now";
+      if (s) s.textContent = 'check your connection and reopen 🌸';
+    }
+    renderBoard(); return;
+  }
   try {
     rdb.collection('roomItems').orderBy('createdAt', 'asc').onSnapshot(function (snap) {
       items = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
@@ -318,13 +326,16 @@ function commitPending() {
   var by = pending.by, other = by === 'parv' ? 'riti' : 'parv';   // the pin's author -> notify the other
   var doc = { type: pending.type, by: pending.by, rot: pending.rot, slot: pending.slot, createdAt: serverTime() };
   if (isPhoto) doc.img = pending.img; else { doc.text = pending.text; doc.color = pending.color; }
-  pending._committing = true;
+  var saved = pending;   // keep the composed pin so a failed write can restore it instead of losing it
   rdb.collection('roomItems').add(doc)
     .then(function () {
       toast(stacking ? 'stacked 🌸' : (isPhoto ? 'pinned a moment 📷' : 'pinned 🌸'));
       if (window.parvritiNotify) window.parvritiNotify(other, (by === 'parv' ? 'Parv' : 'Riti') + (isPhoto ? ' pinned a photo 📌' : ' pinned a reason 📌'), '', 'https://parvriti.github.io/board.html?n=1', 'board');
     })
-    .catch(function () { toast('could not pin'); });
+    .catch(function () {
+      if (!pending) { pending = saved; renderBoard(); }   // nothing new placed since: put the tile back so it can be retried
+      toast('could not pin, tap ✓ to try again');
+    });
   pending = null; renderBoard();
 }
 function cancelPending() { pending = null; renderBoard(); toast('threw it away'); }
@@ -376,14 +387,14 @@ function openStack(stack) {
   ov.querySelectorAll('.sv-unstack').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var slot = firstEmpty();
-      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).update({ slot: slot }).then(function () { toast('pulled it out'); }).catch(function () {});
+      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).update({ slot: slot }).then(function () { toast('pulled it out'); }).catch(function () { toast('could not pull it out, try again'); });
       ov._close();
     });
   });
   ov.querySelectorAll('.sv-del').forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (!window.confirm('Take this down for good?')) return;
-      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).delete().catch(function () {});
+      if (rdb) rdb.collection('roomItems').doc(btn.dataset.id).delete().catch(function () { toast('could not take it down, try again'); });
       ov._close();
     });
   });
@@ -392,14 +403,14 @@ function openStack(stack) {
 /* ── removals ── */
 function askRemove(it) {
   if (!window.confirm(it.type === 'photo' ? 'Take this photo down?' : 'Take this note down?')) return;
-  if (rdb) rdb.collection('roomItems').doc(it.id).delete().catch(function () {});
+  if (rdb) rdb.collection('roomItems').doc(it.id).delete().catch(function () { toast('could not take it down, try again'); });
 }
 function askRemoveStack(stack) {
   if (!window.confirm('Take down all ' + stack.length + ' in this stack?')) return;
   if (!rdb) return;
   var batch = rdb.batch();
   stack.forEach(function (it) { batch.delete(rdb.collection('roomItems').doc(it.id)); });
-  batch.commit().catch(function () {});
+  batch.commit().catch(function () { toast('could not take them down, try again'); });
 }
 
 /* ── compose a reason ── */
