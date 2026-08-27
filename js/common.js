@@ -317,7 +317,7 @@
   /* ── install the app (offline + home-screen icon) ── */
   function registerSW() {
     if (!('serviceWorker' in navigator)) return;
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () {}); });
   }
 
   /* ══════════════ push notifications (reaches a closed phone) ══════════════ */
