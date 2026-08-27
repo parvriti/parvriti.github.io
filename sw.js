@@ -1,26 +1,36 @@
 /* =====================================================================
    sw.js - service worker for the "For Toti" app
 
-   Strategy: network-first for our own files (so a fresh deploy always
-   wins and the ?v= cache-busting keeps working), with the cached copy
-   used only when the network is unavailable (offline / no signal).
-   Cross-origin things (fonts, Firebase SDK) are cache-first so they're
-   there offline once they've loaded at least once.
+   Strategy (own origin): navigations + versioned ?v= assets are CACHE-FIRST
+   for an instant paint. The precache is filled atomically at install with
+   cache:'reload' (bypassing the HTTP cache, which could otherwise hand back
+   a max-age-fresh STALE copy). manifest/icons stay network-first. Cross-origin
+   (fonts, Firebase SDK) are cache-first; Firebase auth/Firestore is never
+   touched. A deploy bumps CACHE; activate purges the old one, so the next
+   navigation is fresh - one stale nav right after a deploy, by design.
    ===================================================================== */
-var CACHE = 'parvriti-v96';
+var CACHE = 'parvriti-v97';
 var CORE = [
   'index.html', 'open-when.html', 'board.html', 'doodles.html', 'periods.html', 'settings.html', 'dev.html',
-  'css/styles.css?v=96', 'css/theme.css?v=96',
-  'js/common.js?v=96', 'js/open-when.js?v=96', 'js/board.js?v=96', 'js/doodle.js?v=96',
-  'js/periods.js?v=96', 'js/settings.js?v=96', 'js/dev.js?v=96', 'js/native.js?v=96',
+  'css/styles.css?v=97', 'css/theme.css?v=97',
+  'js/common.js?v=97', 'js/open-when.js?v=97', 'js/board.js?v=97', 'js/doodle.js?v=97',
+  'js/periods.js?v=97', 'js/settings.js?v=97', 'js/dev.js?v=97', 'js/native.js?v=97',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.json'
 ];
 
 self.addEventListener('install', function (e) {
   self.skipWaiting();
+  // Atomic precache with cache:'reload': fetch each entry from ORIGIN (not the HTTP cache, which
+  // under max-age could return a stale copy) and store it. No per-entry catch - any miss rejects the
+  // whole install, so the new SW never activates and the old SW keeps its intact cache; the browser
+  // retries on the next update check. (Explicit fetch loop rather than cache.addAll, so the reload
+  // cache mode can't be dropped by an addAll that re-creates the request internally.)
   e.waitUntil(caches.open(CACHE).then(function (c) {
     return Promise.all(CORE.map(function (u) {
-      return c.add(u).catch(function () {});   // never let one miss break install
+      return fetch(new Request(u, { cache: 'reload' })).then(function (res) {
+        if (!res || !res.ok) throw new Error('precache ' + u + ' ' + (res && res.status));
+        return c.put(u, res.clone());
+      });
     }));
   }));
 });
@@ -32,6 +42,39 @@ self.addEventListener('activate', function (e) {
     }).then(function () { return self.clients.claim(); })
   );
 });
+
+// Navigations: serve the precached shell instantly. The shell is query-independent, so match the
+// bare document by pathname (ignoring ?open/?moment/?n/?celebrate, which the page reads at runtime).
+function shellFirst(url) {
+  var path = url.pathname; if (path === '/' || path === '') path = '/index.html';   // start_url is index.html
+  var shellKey = new Request(url.origin + path);
+  return caches.open(CACHE).then(function (cache) {
+    return cache.match(shellKey, { ignoreSearch: true }).then(function (cached) {
+      if (cached) return cached;
+      return fetch(new Request(shellKey, { cache: 'reload' })).then(function (res) {   // cold cache (rare): fresh
+        if (res && res.ok) cache.put(shellKey, res.clone());
+        return res;
+      });
+    });
+  });
+}
+// Versioned ?v= assets: immutable per deploy (a new deploy is a fresh key), so cache-first.
+function assetFirst(req) {
+  return caches.match(req).then(function (hit) {
+    if (hit) return hit;
+    return fetch(req).then(function (res) {
+      if (res && res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
+      return res;
+    }).catch(function () { return caches.match(req, { ignoreSearch: true }); });   // offline: any cached version
+  });
+}
+// Unversioned own-origin (manifest, icons): network-first, cache as fallback.
+function networkFirst(req) {
+  return fetch(req).then(function (res) {
+    if (res && res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
+    return res;
+  }).catch(function () { return caches.match(req, { ignoreSearch: true }); });
+}
 
 self.addEventListener('fetch', function (e) {
   var req = e.request;
@@ -46,13 +89,12 @@ self.addEventListener('fetch', function (e) {
   if (isFirebaseApi) return;
 
   if (url.origin === self.location.origin) {
-    // our files: network first, fall back to cache when offline
-    e.respondWith(
-      fetch(req).then(function (res) {
-        if (res && res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
-        return res;
-      }).catch(function () { return caches.match(req, { ignoreSearch: true }); })   // deep-linked URLs (?moment=/?open=/?n=) still resolve to the cached shell offline
-    );
+    // 1) navigations -> cache-first from the precached shell (instant paint)
+    if (req.mode === 'navigate') { e.respondWith(shellFirst(url)); return; }
+    // 2) versioned ?v= assets -> cache-first
+    if (url.searchParams.has('v')) { e.respondWith(assetFirst(req)); return; }
+    // 3) everything else own-origin (manifest, icons) -> network-first
+    e.respondWith(networkFirst(req));
   } else {
     // fonts / Firebase SDK: cache first, refresh in the background
     e.respondWith(
