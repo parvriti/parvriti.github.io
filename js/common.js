@@ -638,7 +638,8 @@
     var occ = celebOccasion();
     if (!occ) return;
     body.classList.add('celebrating');
-    if (page !== 'home') return;   // Step 1: Home takeover only (tab decor comes in a later pass)
+    try { celebAmbient(occ); } catch (e) {}   // all-day ambient decor, every page, BEHIND all content
+    if (page !== 'home') return;   // the full-screen takeover opening is Home only
     var quick = false;
     if (!occ.forced) {
       var key = 'celebSeen_' + occ.kind + '_' + new Date().toDateString();
@@ -734,6 +735,35 @@
     setTimeout(launch, quick ? 100 : 200); setTimeout(launch, 650); setTimeout(launch, 1100);
     FX.emit({ every: 44, acc: 0, until: null, fn: launch });
     FX.emit({ every: 20, acc: 0, until: null, fn: function () { FX.confetti(FX.rnd(0, W), -10, { c: FX.pick(cols), vy: FX.rnd(0.5, 1.2), g: 0.015 }); } });
+  }
+  /* all-day ambient: a fixed layer BELOW the app content (z-index -1), so it shows only where the
+     page is empty and is covered by every card / pad / cork / FAB / nav. Lightweight CSS animation,
+     no all-day canvas loop. Occasion-coloured; reads on both themes. */
+  function ambientCfg(kind) {
+    if (kind === 'pavu') return { cols: ['#5b8cff', '#ffd76a', '#a9c4ff', '#dbe6ff'], glyphs: ['💙', '✨', '❄️', '🌟'], confRatio: 0.6 };
+    if (kind === 'anniv') return { cols: ['#ff7d9c', '#ffd9a0', '#ffb3c8', '#fff0d8'], glyphs: ['🌸', '🌹', '💗', '🌷'], confRatio: 0.55 };
+    return { cols: ['#ff4f8b', '#ffd76a', '#ff9ec2', '#fff0f4'], glyphs: ['🌸', '🌷', '💗', '🌺'], confRatio: 0.55 };
+  }
+  function celebAmbient(occ) {
+    if (document.getElementById('celebAmbient')) return;
+    var c = ambientCfg(occ.kind), amb = document.createElement('div'), r = Math.random, h = '', i;
+    amb.id = 'celebAmbient'; amb.className = 'celeb-amb'; amb.setAttribute('aria-hidden', 'true');
+    var n = 16; try { n = Math.max(14, Math.min(30, Math.round(window.innerWidth / 26))); } catch (e) {}   // a touch denser on iPad/Mac
+    for (i = 0; i < n; i++) {
+      var left = (r() * 100).toFixed(1), dur = (7 + r() * 8).toFixed(1), del = (-r() * 15).toFixed(1);
+      if (r() < c.confRatio) h += '<span class="ca-bit" style="left:' + left + '%;width:' + (4 + r() * 5).toFixed(0) + 'px;height:' + (7 + r() * 7).toFixed(0) + 'px;background:' + c.cols[(r() * c.cols.length) | 0] + ';animation-duration:' + dur + 's;animation-delay:' + del + 's"></span>';
+      else h += '<span class="ca-petal" style="left:' + left + '%;font-size:' + (11 + r() * 9).toFixed(0) + 'px;animation-duration:' + dur + 's;animation-delay:' + del + 's">' + c.glyphs[(r() * c.glyphs.length) | 0] + '</span>';
+    }
+    [['4%', '60%', 26], ['92%', '68%', 22], ['7%', '86%', 24], ['88%', '40%', 20]].forEach(function (b) {
+      h += '<span class="ca-bloom" style="left:' + b[0] + ';top:' + b[1] + ';font-size:' + b[2] + 'px">' + c.glyphs[(r() * c.glyphs.length) | 0] + '</span>';
+    });
+    // Insert it EARLY in the DOM (right after the .bg-base backdrop) at z-index 0: it paints above the
+    // backdrop (so the decor is visible) but below every later-in-DOM page element (cards, pad, cork,
+    // text, FAB, nav), so it shows only in empty areas and can never cover content.
+    amb.innerHTML = h;
+    var bg = document.querySelector('.bg-base');
+    if (bg && bg.parentNode) bg.parentNode.insertBefore(amb, bg.nextSibling);
+    else document.body.insertBefore(amb, document.body.firstChild);
   }
 
   /* ══════════════ tiny synthesized sound + haptics ══════════════ */
