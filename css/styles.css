@@ -1339,6 +1339,15 @@ body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px
 .tool-row { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 4px; }   /* nowrap = the split is identical on iPhone / iPad / Mac (never re-wraps by width) */
 .swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,.7); box-shadow: 0 2px 5px rgba(0,0,0,.3); }
 .swatch.sel { transform: scale(1.18); box-shadow: 0 0 0 2px #4a2c1a, 0 2px 5px rgba(0,0,0,.3); }
+/* custom-colour swatch: a segmented colour wheel (static CSS gradient = zero interaction, can't lag);
+   tapping the hidden native <input type=color> opens iOS's own (GPU-smooth) picker. Centre hole holds
+   the current custom colour (var --cc); a + shows until one is picked. */
+.swatch-wheel { position: relative; overflow: hidden; padding: 0; -webkit-appearance: none; appearance: none;
+  background: conic-gradient(#e24b4a 0 30deg,#e07a3e 30deg 60deg,#e0a83e 60deg 90deg,#cbd24a 90deg 120deg,#7cbf4a 120deg 150deg,#3fae6a 150deg 180deg,#2fae9e 180deg 210deg,#3f8fce 210deg 240deg,#3f6cd0 240deg 270deg,#7a5fd0 270deg 300deg,#b04fc0 300deg 330deg,#d44f8f 330deg 360deg); }
+.swatch-wheel input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; margin: 0; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.swatch-wheel::after { content: '+'; position: absolute; inset: 30%; border-radius: 50%; background: var(--cc,#fffdf6); border: 1.5px solid #efe6d2;
+  display: flex; align-items: center; justify-content: center; font: 600 11px/1 'DM Sans',sans-serif; color: #a89a80; pointer-events: none; }
+.swatch-wheel.picked::after { content: ''; background: var(--cc,#fffdf6); }
 .nib { width: 24px; height: 24px; border-radius: 50%; position: relative; cursor: pointer; background: rgba(74,44,20,.12); border: 2px solid transparent; }
 .nib::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; background: #4a2c1a; }
 .nib.s1::after { width: 4px; height: 4px; } .nib.s2::after { width: 8px; height: 8px; } .nib.s3::after { width: 13px; height: 13px; }

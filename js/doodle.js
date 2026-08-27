@@ -48,13 +48,31 @@ function startDoodle() {
     if (fillBtn) fillBtn.classList.toggle('on', t === 'fill');
     drawColor = (t === 'erase') ? ERASE : penColor;
   }
-  document.querySelectorAll('.swatch').forEach(function (sw) {
+  document.querySelectorAll('.swatch:not(.swatch-wheel)').forEach(function (sw) {
     sw.addEventListener('click', function () {
       if (drawing) return;   // a second finger must not recolour the stroke already in progress (commit stores one colour, so it would recolour retroactively)
       document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });
       sw.classList.add('sel'); penColor = sw.dataset.c; setTool('draw');   // picking a colour returns to the pen
     });
   });
+  // custom colour: the wheel swatch wraps a native <input type=color>. iOS opens its OWN (GPU-smooth)
+  // picker - no hand-rolled canvas wheel to lag. The chosen hex flows through the exact same `color`
+  // field as every preset, so it syncs to the other person with zero model change. Remembered per device.
+  (function () {
+    var cc = document.getElementById('customColor'), sw = document.getElementById('customSwatch');
+    if (!cc || !sw) return;
+    try { var saved = localStorage.getItem('doodleCustomColor'); if (saved && /^#[0-9a-f]{6}$/i.test(saved)) { cc.value = saved; sw.style.setProperty('--cc', saved); sw.classList.add('picked'); } } catch (e) {}
+    function apply() {
+      if (drawing) return;
+      var v = cc.value;
+      document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });
+      sw.classList.add('sel', 'picked'); sw.style.setProperty('--cc', v);
+      penColor = v; setTool('draw');
+      try { localStorage.setItem('doodleCustomColor', v); } catch (e) {}
+    }
+    cc.addEventListener('input', apply);    // live while dragging in the native picker
+    cc.addEventListener('change', apply);   // and on close (fallback)
+  })();
   document.querySelectorAll('.nib').forEach(function (nb) {
     nb.addEventListener('click', function () {   // nib sets size for pen AND eraser
       if (drawing) return;   // don't resize the stroke already in progress mid-way
