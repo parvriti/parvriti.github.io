@@ -755,7 +755,7 @@
      no all-day canvas loop. Occasion-coloured; reads on both themes. */
   function ambientCfg(kind) {
     if (kind === 'pavu') return { cols: ['#5b8cff', '#ffd76a', '#a9c4ff', '#dbe6ff'], glyphs: ['🎂', '🎉', '🕯️', '🎈', '💙', '✨', '❄️', '🌟'], words: ['P', 'पर्व'], wcol: '#a9c4ff' };
-    if (kind === 'anniv') return { cols: ['#ff7d9c', '#ffd9a0', '#ffb3c8', '#fff0d8'], glyphs: ['💍', '💗', '🌹', '🌸', '🥂', '🎉', '✨', '🌷'], words: ['रिति', 'पर्व', 'RITI', 'PARV', '♥'], wcol: '#ffb3c8' };
+    if (kind === 'anniv') return { cols: ['#ff7d9c', '#ffd9a0', '#ffb3c8', '#fff0d8'], glyphs: ['💍', '💗', '🌹', '🌸', '🥂', '🎉', '✨', '🌷'], words: ['रिति', 'पर्व', 'RITI', 'PARV', 'R', 'P', '♥'], wcol: '#ffb3c8' };
     return { cols: ['#ff4f8b', '#ffd76a', '#ff9ec2', '#fff0f4'], glyphs: ['🎂', '🎉', '🕯️', '🎈', '🌸', '🌷', '💗', '✨'], words: ['RITI', 'R', 'रिति'], wcol: '#ff9ec2' };
   }
   function celebAmbient(occ) {
