@@ -930,6 +930,7 @@ body.side-parv .np-yes { background: linear-gradient(135deg, #3a5ba0, #1a2f5c); 
 .celeb-amb { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .celeb-amb span { position: absolute; top: -6%; }
 .celeb-amb .ca-bit { border-radius: 1px; opacity: .7; animation: caFall linear infinite; }
+:root[data-theme="light"] .celeb-amb .ca-bit { box-shadow: 0 0 2px rgba(70,20,40,.4); }   /* faint edge so near-white confetti reads on the cream page */
 .celeb-amb .ca-petal { opacity: .8; animation: caFall linear infinite; }
 .celeb-amb .ca-word { font-family: 'Cormorant Garamond', 'Tiro Devanagari Hindi', serif; font-style: italic; font-weight: 600; opacity: .42; letter-spacing: .02em; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.3); animation: caFall linear infinite; }
 .celeb-amb .ca-bloom { top: auto; opacity: .5; animation: caSway 3.4s ease-in-out infinite alternate; }

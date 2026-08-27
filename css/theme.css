@@ -407,7 +407,7 @@ body[data-page="periods"] .cy-hint { padding-right: 76px; }
      content column (body is padded 240px for the sidebar). Without this they float ~120px left of
      the column, drifting toward the sidebar. Shift by half the sidebar so every notification -
      board/doodle/settings (room-toast), heartbeat (mini-toast), periods (cy-toast), the opt-in
-     prompt, the presence pill and the celebration banner - sits centered under the content. */
+     prompt (notif-prompt) and the presence pill (pres-pill) - sits centered under the content. */
   .room-toast, .mini-toast, .cy-toast, .notif-prompt, .pres-pill {
     left: calc(50% + 120px) !important;
   }

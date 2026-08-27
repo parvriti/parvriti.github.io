@@ -640,6 +640,8 @@
     body.classList.add('celebrating');
     try { celebAmbient(occ); } catch (e) {}   // all-day ambient decor, every page, BEHIND all content
     if (page !== 'home') return;   // the full-screen takeover opening is Home only
+    if (celebrate._shown) return;   // run the takeover at most once per load - onAuthStateChanged can refire after it dismissed
+    celebrate._shown = true;
     var quick = false;
     if (!occ.forced) {
       var key = 'celebSeen_' + occ.kind + '_' + new Date().toDateString();
