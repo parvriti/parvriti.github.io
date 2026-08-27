@@ -684,11 +684,11 @@
   }
   /* a full party-popper confetti blast that fills the screen, then thins to a drift */
   function celebBlast(FX, cols) {
-    var W = FX.W(), H = FX.H(), o = [[W * 0.08, H], [W * 0.28, H * 1.02], [W * 0.5, H * 1.02], [W * 0.72, H * 1.02], [W * 0.92, H]];
-    o.forEach(function (p) { for (var i = 0; i < 46; i++) { var ang = FX.rnd(-2.5, -0.64), sp = FX.rnd(8, 16); FX.confetti(p[0], p[1], { c: FX.pick(cols), vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, g: 0.16, longp: 0.32, life: FX.rnd(130, 240) }); } });
-    for (var j = 0; j < 90; j++) { var a = FX.rnd(0, 6.28), s = FX.rnd(3, 12); FX.confetti(W * 0.5, H * 0.42, { c: FX.pick(cols), vx: Math.cos(a) * s, vy: Math.sin(a) * s - 3.5, g: 0.15, life: FX.rnd(130, 240) }); }
-    FX.emit({ every: 1, acc: 0, until: 900, fn: function () { for (var k = 0; k < 3; k++) FX.confetti(FX.rnd(0, W), -8, { c: FX.pick(cols), vy: FX.rnd(2.5, 6), g: 0.05, life: FX.rnd(120, 200) }); } });
-    FX.emit({ every: 4, acc: 0, until: 2200, fn: function () { FX.confetti(FX.rnd(0, W), -8, { c: FX.pick(cols), vy: FX.rnd(1.5, 4), g: 0.04 }); } });
+    var W = FX.W(), H = FX.H(), o = [[W * 0.1, H], [W * 0.3, H * 1.02], [W * 0.5, H * 1.02], [W * 0.7, H * 1.02], [W * 0.9, H]];
+    o.forEach(function (p) { for (var i = 0; i < 24; i++) { var ang = FX.rnd(-2.5, -0.64), sp = FX.rnd(8, 16); FX.confetti(p[0], p[1], { c: FX.pick(cols), vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, g: 0.16, longp: 0.32, life: FX.rnd(130, 240) }); } });
+    for (var j = 0; j < 46; j++) { var a = FX.rnd(0, 6.28), s = FX.rnd(3, 12); FX.confetti(W * 0.5, H * 0.42, { c: FX.pick(cols), vx: Math.cos(a) * s, vy: Math.sin(a) * s - 3.5, g: 0.15, life: FX.rnd(130, 240) }); }
+    FX.emit({ every: 4, acc: 0, until: 700, fn: function () { FX.confetti(FX.rnd(0, W), -8, { c: FX.pick(cols), vy: FX.rnd(2.5, 6), g: 0.05, life: FX.rnd(120, 200) }); } });
+    FX.emit({ every: 8, acc: 0, until: 1800, fn: function () { FX.confetti(FX.rnd(0, W), -8, { c: FX.pick(cols), vy: FX.rnd(1.5, 4), g: 0.04 }); } });
   }
   function runTakeover(occ, quick) {
     if (document.getElementById('celebOverlay')) return;
