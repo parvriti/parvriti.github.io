@@ -101,16 +101,7 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .day-counter b { color: var(--l-accent); }
 :root[data-theme="light"] .last-seen, :root[data-theme="light"] .home-state { color: var(--l-ink2); }
 :root[data-theme="light"] .last-seen .ls-note { color: #8c6672; }   /* "last opened ..." was a dark-theme pale blush -> invisible on cream; readable dusty mauve, still softer than the main line */
-/* CELEBRATION takeover (birthdays / anniversary): the banner + gold-gradient title are built for the
-   dark page and washed out on cream. Deepen them for light so the most important days stay legible. */
-:root[data-theme="light"] .celebrate-banner {
-  background: linear-gradient(120deg, rgba(240,205,120,.6), rgba(240,178,193,.5));
-  border-color: rgba(198,148,58,.7); box-shadow: 0 8px 22px rgba(180,130,40,.24); }
-:root[data-theme="light"] .cb-text { color: #7a4a10; }
-:root[data-theme="light"] body.celebrate .headline,
-:root[data-theme="light"] body.celebrate .ow-title,
-:root[data-theme="light"] body.celebrate .note-title {
-  background: linear-gradient(90deg, #a9760a, #b0304a, #a9760a); }
+/* The celebration takeover is its own full-screen dark world, so it needs no light-theme override. */
 
 /* OPEN WHEN - envelopes + parchment already read as rich; only recolour the surrounds */
 :root[data-theme="light"] .ow-kicker { color: var(--l-ink3); }
@@ -417,7 +408,7 @@ body[data-page="periods"] .cy-hint { padding-right: 76px; }
      the column, drifting toward the sidebar. Shift by half the sidebar so every notification -
      board/doodle/settings (room-toast), heartbeat (mini-toast), periods (cy-toast), the opt-in
      prompt, the presence pill and the celebration banner - sits centered under the content. */
-  .room-toast, .mini-toast, .cy-toast, .notif-prompt, .pres-pill, .celebrate-banner {
+  .room-toast, .mini-toast, .cy-toast, .notif-prompt, .pres-pill {
     left: calc(50% + 120px) !important;
   }
   /* content uses the width; grids go multi-column; reading surfaces stay comfortable */

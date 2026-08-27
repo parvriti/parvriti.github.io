@@ -898,28 +898,31 @@ body.side-parv .np-yes { background: linear-gradient(135deg, #3a5ba0, #1a2f5c); 
 .mini-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ══════════════ anniversary / birthday takeover ══════════════ */
-.celebrate-banner {
-  position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%;
-  transform: translateX(-50%) translateY(-16px); z-index: 57; opacity: 0; max-width: 92vw;
-  display: flex; align-items: center; gap: 9px;
-  background: linear-gradient(120deg, rgba(212,175,55,.22), rgba(192,66,90,.22));
-  border: 1px solid rgba(226,190,110,.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  padding: 9px 17px; border-radius: 40px; transition: opacity .6s ease, transform .6s ease;
-  box-shadow: 0 6px 22px rgba(180,130,40,.3);
-}
-.celebrate-banner.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.cb-emoji { font-size: 18px; flex: none; }
-.cb-text { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px; color: #f6e6c8; }
-body.celebrate .headline, body.celebrate .ow-title, body.celebrate .note-title {
-  background: linear-gradient(90deg, #e8c874, #f4dede, #e8c874);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-}
-.petal-fall { position: fixed; inset: 0; z-index: 54; pointer-events: none; overflow: hidden; }
-.petal-fall .pf { position: absolute; top: -8%; animation-name: petalDrop; animation-timing-function: linear; animation-iteration-count: infinite; opacity: .85; }
-@keyframes petalDrop { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; } 10% { opacity: .85; } 100% { transform: translateY(112vh) rotate(360deg); opacity: .7; } }
+/* full-screen takeover: its own dark world, so it holds over either theme. Fonts capped with min()
+   so they read on iPhone, iPad and Mac ratios alike. */
+/* appears instantly at full opacity (a fade-in transition stalls against the always-repainting canvas
+   inside it); the letters + confetti animate in on top. Only the fade-out transitions, and finish()
+   removes the node on a timer regardless, so it always clears. */
+.celeb-ov { position: fixed; inset: 0; z-index: 9000; opacity: 1; overflow: hidden; }
+.celeb-ov.out { opacity: 0; transition: opacity .8s ease; }
+.celeb-riti { background: radial-gradient(120% 90% at 50% 0%, #2c0a1e, #140510 72%); }
+.celeb-pavu { background: radial-gradient(120% 90% at 50% 0%, #0d1436, #070a1e 72%); }
+.celeb-anniv { background: radial-gradient(120% 80% at 50% 12%, #3a1626, #200a14 54%, #100509); }
+.celeb-fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
+.celeb-stage { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 6vw; }
+.celeb-stage.graffiti .cg { font-family: 'Permanent Marker', 'Caveat', cursive; line-height: .95; text-transform: uppercase; opacity: 0; text-shadow: 3px 4px 0 rgba(0,0,0,.5); }
+.celeb-stage.graffiti .cg1 { font-size: min(11vw, 62px); transform: rotate(-3deg); }
+.celeb-stage.graffiti.riti .cg2 { font-size: min(9vw, 50px); transform: rotate(1.5deg); }
+.celeb-stage.graffiti.riti .cg3 { font-size: min(17vw, 104px); transform: rotate(-2deg); -webkit-text-stroke: 2px rgba(0,0,0,.35); margin-top: 1.4vh; }
+.celeb-stage.graffiti.pavu .cg2 { font-size: min(14vw, 92px); transform: rotate(1.5deg); -webkit-text-stroke: 2px rgba(0,0,0,.3); }
+.celeb-stage.graffiti .cg.in { animation: celebSpray .4s ease-out forwards; }
+@keyframes celebSpray { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+.celeb-stage.anniv .ca-title { font-family: 'Great Vibes', cursive; font-size: min(15vw, 88px); line-height: 1; color: #ffdca6; text-shadow: 0 2px 22px rgba(255,158,194,.5); opacity: 0; }
+.celeb-stage.anniv .ca-years { font-family: 'DM Sans', sans-serif; font-weight: 600; letter-spacing: .3em; font-size: min(3.6vw, 15px); color: #ffb3c8; margin-top: 3vh; opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .celeb-stage.graffiti .cg.in { animation: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .love-fab, .love-heart, .pres-dot, .petal-fall .pf, .heartbeat { animation: none !important; }
+  .love-fab, .love-heart, .pres-dot, .heartbeat { animation: none !important; }
 }
 .ow-voice { text-align: center; margin: 2px 0 20px; }
 .voice-btn {

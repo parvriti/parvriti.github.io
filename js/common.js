@@ -615,46 +615,125 @@
     }, 1600);
   }
 
-  /* ══════════════ anniversary / birthday takeover ══════════════ */
+  /* ══════════════ celebrations: birthdays (confetti blast) + anniversary (fireworks) ══════════════
+     Dormant every normal day. Fires only on the three dates, or when forced with
+     ?celebrate=riti|pavu|anniv (or ?celebrate=off) for QA on any day. Step 1 = Home takeover only.
+     Called from unlock() inside a try/catch, and every entry point here re-guards, so a hiccup can
+     never break a page. */
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
-  function ord(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-  function occasionToday() {
-    var d = new Date(), md = pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()), y = d.getFullYear();
-    if (md === '07-29') { var n = y - 2019; return { emoji: '💍', text: 'Happy anniversary, meri jaan. ' + (n >= 1 ? ord(n) + ' year of us.' : 'Us.') }; }
-    if (md === '04-20') return { emoji: '🎂', text: 'Happy birthday, meri Riti. Today the whole world is yours.' };
-    if (md === '12-10') return { emoji: '🎂', text: 'Happy birthday, mera Pavu.' };
-    return null;
+  function celebOccasion() {
+    var forced = null;
+    try { forced = new URLSearchParams(INITIAL_SEARCH).get('celebrate'); } catch (e) {}
+    if (forced === 'off') return null;
+    var kind = (forced === 'riti' || forced === 'pavu' || forced === 'anniv') ? forced : null;
+    if (!kind) {
+      var d = new Date(), md = pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+      if (md === '04-20') kind = 'riti'; else if (md === '12-10') kind = 'pavu'; else if (md === '07-29') kind = 'anniv';
+    }
+    if (!kind) return null;
+    var y = new Date().getFullYear() - 2019; if (y < 1) y = 1;
+    return { kind: kind, years: y, forced: !!forced };
   }
   function celebrate() {
-    var occ = occasionToday();
+    var occ = celebOccasion();
     if (!occ) return;
-    body.classList.add('celebrate');
-    spawnPetals();
-    if (document.getElementById('celebrateBanner')) return;
-    var bn = document.createElement('div');
-    bn.id = 'celebrateBanner'; bn.className = 'celebrate-banner';
-    bn.innerHTML = '<span class="cb-emoji">' + occ.emoji + '</span><span class="cb-text">' + occ.text + '</span>';
-    body.appendChild(bn);
-    setTimeout(function () { bn.classList.add('show'); }, 500);
-    // greet, then step out of the way (the gold title + petals stay all day)
-    setTimeout(function () {
-      bn.classList.remove('show');
-      setTimeout(function () { if (bn.parentNode) bn.parentNode.removeChild(bn); }, 800);
-    }, 7000);
-  }
-  function spawnPetals() {
-    if (document.querySelector('.petal-fall')) return;
-    var layer = document.createElement('div'); layer.className = 'petal-fall'; body.appendChild(layer);
-    var glyphs = ['🌸', '🌹', '💗', '🌺'];
-    for (var i = 0; i < 18; i++) {
-      var s = document.createElement('span');
-      s.className = 'pf'; s.textContent = glyphs[i % glyphs.length];
-      s.style.left = (Math.random() * 100) + '%';
-      s.style.animationDuration = (5 + Math.random() * 5) + 's';
-      s.style.animationDelay = (Math.random() * 5) + 's';
-      s.style.fontSize = (14 + Math.random() * 16) + 'px';
-      layer.appendChild(s);
+    body.classList.add('celebrating');
+    if (page !== 'home') return;   // Step 1: Home takeover only (tab decor comes in a later pass)
+    var quick = false;
+    if (!occ.forced) {
+      var key = 'celebSeen_' + occ.kind + '_' + new Date().toDateString();
+      try { quick = localStorage.getItem(key) === '1'; localStorage.setItem(key, '1'); } catch (e) {}
     }
+    try { runTakeover(occ, quick); } catch (e) {}
+  }
+  /* compact particle engine on a full-screen canvas */
+  function celebEngine(cv) {
+    var ctx = cv.getContext('2d'), W = 0, H = 0, dpr = 1, ps = [], em = [], raf = null, run = false, last = 0;
+    function size() { dpr = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    size(); window.addEventListener('resize', size);
+    function rnd(a, b) { return a + Math.random() * (b - a); }
+    function pick(a) { return a[(Math.random() * a.length) | 0]; }
+    function confetti(x, y, o) { o = o || {}; var lng = Math.random() < (o.longp || 0);
+      ps.push({ t: 'c', x: x, y: y, vx: (o.vx != null ? o.vx : rnd(-1.4, 1.4)), vy: (o.vy != null ? o.vy : rnd(-2, 1)), g: (o.g != null ? o.g : 0.05),
+        w: lng ? 2.4 : rnd(3, 7), h: lng ? rnd(12, 22) : rnd(5, 10), rot: rnd(0, 6), vr: rnd(-0.4, 0.4), c: o.c, life: o.life || rnd(140, 240), ph: rnd(0, 6) }); }
+    function spark(x, y, c, s) { var a = rnd(0, 6.28); ps.push({ t: 's', x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, g: 0.05, r: rnd(1.4, 2.8), c: c, life: rnd(38, 66) }); }
+    function firework(x, y, c) { for (var i = 0; i < 46; i++) spark(x, y, c, rnd(1.6, 4.6)); for (var j = 0; j < 8; j++) confetti(x, y, { c: c, vy: rnd(-1, 1), g: 0.03, life: rnd(60, 110) }); }
+    function rocket(x, c, toY) { ps.push({ t: 'r', x: x, y: H + 8, vx: rnd(-0.3, 0.3), vy: -rnd(6, 8), g: 0.03, c: c, toY: toY, ex: false, life: 260 }); }
+    function step(dt) {
+      for (var e = em.length - 1; e >= 0; e--) { var m = em[e]; m.acc += dt; while (m.acc >= m.every) { m.acc -= m.every; m.fn(); } if (m.until != null) { m.until -= dt; if (m.until <= 0) em.splice(e, 1); } }
+      ctx.clearRect(0, 0, W, H);
+      for (var i = ps.length - 1; i >= 0; i--) { var p = ps[i]; p.life -= dt;
+        if (p.t === 'r') { p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; ctx.globalAlpha = 1; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, 6.28); ctx.fill();
+          if ((p.vy >= -0.4 || p.y <= p.toY) && !p.ex) { p.ex = true; firework(p.x, p.y, p.c); p.life = 0; } if (p.life <= 0) ps.splice(i, 1); continue; }
+        if (p.g) p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.rot != null) p.rot += p.vr * dt;
+        var a = p.life < 40 ? Math.max(0, p.life / 40) : 1; ctx.globalAlpha = a;
+        if (p.t === 'c') { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * (0.6 + 0.4 * Math.abs(Math.sin(p.ph)))); ctx.restore(); }
+        else { ctx.globalAlpha = a * a; ctx.fillStyle = p.c; ctx.shadowBlur = 8; ctx.shadowColor = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill(); ctx.shadowBlur = 0; }
+        if (p.life <= 0 || p.y > H + 40) ps.splice(i, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+    function loop(ts) { if (!run) return; var dt = last ? Math.min(2.5, (ts - last) / 16.667) : 1; last = ts; step(dt); raf = requestAnimationFrame(loop); }
+    return {
+      W: function () { return W; }, H: function () { return H; }, rnd: rnd, pick: pick, confetti: confetti, rocket: rocket,
+      emit: function (o) { em.push(o); },
+      start: function () { if (!run) { run = true; last = 0; raf = requestAnimationFrame(loop); } },
+      stop: function () { run = false; if (raf) cancelAnimationFrame(raf); ps = []; em = []; try { window.removeEventListener('resize', size); } catch (e) {} }
+    };
+  }
+  /* a full party-popper confetti blast that fills the screen, then thins to a drift */
+  function celebBlast(FX, cols) {
+    var W = FX.W(), H = FX.H(), o = [[W * 0.08, H], [W * 0.28, H * 1.02], [W * 0.5, H * 1.02], [W * 0.72, H * 1.02], [W * 0.92, H]];
+    o.forEach(function (p) { for (var i = 0; i < 46; i++) { var ang = FX.rnd(-2.5, -0.64), sp = FX.rnd(8, 16); FX.confetti(p[0], p[1], { c: FX.pick(cols), vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, g: 0.16, longp: 0.32, life: FX.rnd(130, 240) }); } });
+    for (var j = 0; j < 90; j++) { var a = FX.rnd(0, 6.28), s = FX.rnd(3, 12); FX.confetti(W * 0.5, H * 0.42, { c: FX.pick(cols), vx: Math.cos(a) * s, vy: Math.sin(a) * s - 3.5, g: 0.15, life: FX.rnd(130, 240) }); }
+    FX.emit({ every: 1, acc: 0, until: 900, fn: function () { for (var k = 0; k < 3; k++) FX.confetti(FX.rnd(0, W), -8, { c: FX.pick(cols), vy: FX.rnd(2.5, 6), g: 0.05, life: FX.rnd(120, 200) }); } });
+    FX.emit({ every: 4, acc: 0, until: 2200, fn: function () { FX.confetti(FX.rnd(0, W), -8, { c: FX.pick(cols), vy: FX.rnd(1.5, 4), g: 0.04 }); } });
+  }
+  function runTakeover(occ, quick) {
+    if (document.getElementById('celebOverlay')) return;
+    var reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches; } catch (e) {}
+    var ov = document.createElement('div'); ov.id = 'celebOverlay'; ov.className = 'celeb-ov celeb-' + occ.kind;
+    var cv = document.createElement('canvas'); cv.className = 'celeb-fx';
+    var stage = document.createElement('div'); stage.className = 'celeb-stage';
+    ov.appendChild(cv); ov.appendChild(stage); body.appendChild(ov);
+    var FX = celebEngine(cv); FX.start();
+    if (occ.kind === 'anniv') annivScene(stage, FX, occ, quick, reduce);
+    else birthdayScene(stage, FX, occ, quick, reduce);
+    var life = quick ? 2800 : 6400, done = false;
+    function finish() { if (done) return; done = true; ov.classList.add('out'); setTimeout(function () { try { FX.stop(); } catch (e) {} if (ov.parentNode) ov.parentNode.removeChild(ov); }, 900); }
+    var hold = false; try { hold = /[?&]hold\b/.test(INITIAL_SEARCH); } catch (e) {}   // QA aid: ?celebrate=riti&hold keeps it up
+    if (!hold) setTimeout(finish, life);
+    ov.addEventListener('click', finish);   // tap to dismiss early
+  }
+  function birthdayScene(stage, FX, occ, quick, reduce) {
+    var riti = occ.kind === 'riti';
+    var cols = riti ? ['#ff4f8b', '#ffd76a', '#ff9ec2', '#ffffff', '#ff77a8'] : ['#5b8cff', '#ffd76a', '#a9c4ff', '#ffffff', '#8fb0ff'];
+    stage.className = 'celeb-stage graffiti ' + occ.kind;
+    stage.innerHTML = '<div class="cg cg1" style="color:#ffd76a">HAPPY</div>' +
+      '<div class="cg cg2" style="color:' + (riti ? '#ff9ec2' : '#5b8cff') + '">BIRTHDAY</div>' +
+      (riti ? '<div class="cg cg3" style="color:#ff4f8b">RITI</div>' : '');
+    var els = stage.querySelectorAll('.cg');
+    if (reduce) { Array.prototype.forEach.call(els, function (n) { n.classList.add('in'); }); celebBlast(FX, cols); return; }
+    var delays = [120, 340, 640];
+    Array.prototype.forEach.call(els, function (n, i) { setTimeout(function () { n.classList.add('in'); }, delays[i] || 300); });
+    setTimeout(function () { celebBlast(FX, cols); }, quick ? 200 : 1000);
+  }
+  function annivScene(stage, FX, occ, quick, reduce) {
+    var cols = ['#ff7d9c', '#ffd9a0', '#ffb3c8', '#ffffff', '#f7c873'];   // Rose Champagne
+    stage.className = 'celeb-stage anniv';
+    stage.innerHTML = '<div class="ca-title">Happy Anniversary</div><div class="ca-years">' + occ.years + ' YEARS OF US</div>';
+    var t = stage.querySelector('.ca-title'), yr = stage.querySelector('.ca-years');
+    if (reduce) { t.style.opacity = 1; yr.style.opacity = 1; }
+    else {
+      t.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 800, delay: 400, fill: 'forwards' });
+      yr.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, delay: 1100, fill: 'forwards' });
+    }
+    var W = FX.W(), H = FX.H();
+    function launch() { FX.rocket(FX.rnd(W * 0.2, W * 0.8), FX.pick(cols), FX.rnd(H * 0.14, H * 0.42)); }
+    if (reduce) { for (var i = 0; i < 6; i++) launch(); return; }
+    setTimeout(launch, quick ? 100 : 200); setTimeout(launch, 650); setTimeout(launch, 1100);
+    FX.emit({ every: 44, acc: 0, until: null, fn: launch });
+    FX.emit({ every: 20, acc: 0, until: null, fn: function () { FX.confetti(FX.rnd(0, W), -10, { c: FX.pick(cols), vy: FX.rnd(0.5, 1.2), g: 0.015 }); } });
   }
 
   /* ══════════════ tiny synthesized sound + haptics ══════════════ */
