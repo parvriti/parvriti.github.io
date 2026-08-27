@@ -1260,6 +1260,10 @@ body[data-page="board"] .col, body[data-page="doodles"] .col { max-width: 560px;
   box-shadow: 0 7px 14px rgba(0,0,0,.32); transform: rotate(var(--r,0deg)); transition: transform .16s, box-shadow .16s; z-index: 2; }
 @media (hover:hover){ .tile:not(.dragging):not(.editing):hover { transform: rotate(0deg) scale(1.07); box-shadow: 0 12px 22px rgba(0,0,0,.45); z-index: 6; } }
 .tile.dragging { z-index: 24; transform: rotate(0deg) scale(1.08); box-shadow: 0 18px 34px rgba(0,0,0,.55); cursor: grabbing; }
+/* Draggable states (edit-move + placement): touch-action:none so a touch drag isn't stolen by the
+   browser as a page scroll, which fires pointercancel and drops the tile mid-drag. View-mode tiles
+   keep the default so you can still scroll the board by swiping over them. */
+.tile.editing, .stackwrap.editing, .tile.pending { touch-action: none; }
 .tile .tack { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); width: 13px; height: 13px; border-radius: 50%; z-index: 3;
   background: radial-gradient(circle at 36% 30%, #fff, #e0637f 42%, #a8203e); box-shadow: 0 3px 5px rgba(0,0,0,.45); }
 .tile .tack.b { background: radial-gradient(circle at 36% 30%, #fff, #6f9bff 42%, #244fb0); }

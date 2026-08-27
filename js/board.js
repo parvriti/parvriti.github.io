@@ -248,22 +248,15 @@ function renderBoard() {
 
 /* ── dragging (placement + edit-move); drop resolves to the cell under the tile ── */
 function clearHighlights() { document.querySelectorAll('.hot, .stack-target').forEach(function (e) { e.classList.remove('hot', 'stack-target'); }); }
-function highlightDrop(cx, cy, dragEl) {
-  var slot = dropCell(cx, cy);
-  document.querySelectorAll('.cellghost').forEach(function (g) { g.classList.toggle('hot', +g.dataset.slot === slot); });
-  document.querySelectorAll('.tile[data-slot], .stackwrap[data-slot]').forEach(function (t) {
-    t.classList.toggle('stack-target', +t.dataset.slot === slot && t !== dragEl && !t.classList.contains('dragging'));
-  });
-}
 function makeDraggable(el, onDrop) {
   var sx, sy, ox, oy, moved, dragging = false;
+  var cs = 0, sz = 0, R = 0, ghosts = null, targets = null;   // geometry + highlight nodes, cached at pointerdown
   function end() {
     if (!dragging) return;
     dragging = false; dragActive = false; el.classList.remove('dragging');
     window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
     clearHighlights();
     if (!moved || !el.isConnected) { renderBoard(); return; }   // no move, or the tile got rebuilt out from under the drag: just resync
-    var cs = cellSize(), g = gap(), sz = cs - g;
     var nx = parseFloat(el.style.left), ny = parseFloat(el.style.top);
     onDrop(nx + sz / 2, ny + sz / 2);
   }
@@ -272,6 +265,12 @@ function makeDraggable(el, onDrop) {
     e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {}
     dragging = true; dragActive = true; moved = false; el.classList.add('dragging');
     sx = e.clientX; sy = e.clientY; ox = parseFloat(el.style.left); oy = parseFloat(el.style.top);
+    // Cache everything the move loop needs ONCE, so pointermove does no forced-layout reads
+    // (cellSize/gap/rowCount all read clientWidth) and no querySelectorAll - that per-move work was
+    // the jank; without it the synchronous move stays smooth on touch even over a full wall.
+    cs = cellSize(); sz = cs - gap(); R = rowCount();
+    ghosts = document.querySelectorAll('.cellghost');
+    targets = document.querySelectorAll('.tile[data-slot], .stackwrap[data-slot]');
     // window-level net: a release anywhere - or after the tile is destroyed (e.g. a mid-drag resize) -
     // still runs end(), so dragActive can never stick true and freeze live snapshot rebuilds.
     window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
@@ -281,8 +280,11 @@ function makeDraggable(el, onDrop) {
     var nx = ox + (e.clientX - sx), ny = oy + (e.clientY - sy);
     if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 4) moved = true;
     el.style.left = nx + 'px'; el.style.top = ny + 'px';
-    var cs = cellSize(), g = gap(), sz = cs - g;
-    highlightDrop(nx + sz / 2, ny + sz / 2, el);
+    var c = Math.max(0, Math.min(COLS - 1, Math.floor((nx + sz / 2) / cs)));
+    var r = Math.max(0, Math.min(R - 1, Math.floor((ny + sz / 2) / cs)));
+    var slot = r * COLS + c;
+    for (var i = 0; i < ghosts.length; i++) ghosts[i].classList.toggle('hot', +ghosts[i].dataset.slot === slot);
+    for (var j = 0; j < targets.length; j++) { var t = targets[j]; t.classList.toggle('stack-target', +t.dataset.slot === slot && t !== el && !t.classList.contains('dragging')); }
   });
 }
 /* a just-pinned tile carries a placeholder id ('__pin_<cid>') for the ~½s until its real
