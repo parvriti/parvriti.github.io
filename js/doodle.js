@@ -68,10 +68,9 @@ function startDoodle() {
       document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });
       sw.classList.add('sel', 'picked'); sw.style.setProperty('--cc', v);
       penColor = v; setTool('draw');
-      try { localStorage.setItem('doodleCustomColor', v); } catch (e) {}
     }
-    cc.addEventListener('input', apply);    // live while dragging in the native picker
-    cc.addEventListener('change', apply);   // and on close (fallback)
+    cc.addEventListener('input', apply);    // live while dragging in the native picker (pen + swatch update)
+    cc.addEventListener('change', function () { apply(); try { localStorage.setItem('doodleCustomColor', cc.value); } catch (e) {} });   // persist ONCE on close, not on every live tick
   })();
   document.querySelectorAll('.nib').forEach(function (nb) {
     nb.addEventListener('click', function () {   // nib sets size for pen AND eraser
