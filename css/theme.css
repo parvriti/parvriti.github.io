@@ -412,6 +412,14 @@ body[data-page="periods"] .cy-hint { padding-right: 76px; }
   .proto-sidebar { display: flex; }
   body { padding-left: 240px !important; padding-bottom: 24px !important; }
   .love-fab, .cy-fab { bottom: calc(env(safe-area-inset-bottom) + 22px) !important; }
+  /* Toasts + centered popups are position:fixed, so their left:50% is the VIEWPORT centre, not the
+     content column (body is padded 240px for the sidebar). Without this they float ~120px left of
+     the column, drifting toward the sidebar. Shift by half the sidebar so every notification -
+     board/doodle/settings (room-toast), heartbeat (mini-toast), periods (cy-toast), the opt-in
+     prompt, the presence pill and the celebration banner - sits centered under the content. */
+  .room-toast, .mini-toast, .cy-toast, .notif-prompt, .pres-pill, .celebrate-banner {
+    left: calc(50% + 120px) !important;
+  }
   /* content uses the width; grids go multi-column; reading surfaces stay comfortable */
   .col, .screen { max-width: min(100%, 700px) !important; }
   .ow-grid { grid-template-columns: repeat(4, 1fr) !important; }
