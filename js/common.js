@@ -102,7 +102,7 @@
           // straight to the page rather than bouncing to the front door - which on
           // a cold (terminated-app) launch would drop the deep-link. A plain manual
           // visit with no such marker still returns to Home.
-          if (/[?&](open|moment|n)=/.test(INITIAL_SEARCH)) sessionStorage.setItem('riti_open', '1');
+          if (/[?&](open|moment|n|celebrate)=/.test(INITIAL_SEARCH)) sessionStorage.setItem('riti_open', '1');
           else { location.replace('index.html'); return; }
         }
       } catch (e) {}
@@ -697,26 +697,39 @@
     var cv = document.createElement('canvas'); cv.className = 'celeb-fx';
     var stage = document.createElement('div'); stage.className = 'celeb-stage';
     ov.appendChild(cv); ov.appendChild(stage); body.appendChild(ov);
-    var FX = celebEngine(cv); FX.start();
-    if (occ.kind === 'anniv') annivScene(stage, FX, occ, quick, reduce);
-    else birthdayScene(stage, FX, occ, quick, reduce);
-    var life = quick ? 2800 : 6400, done = false;
-    function finish() { if (done) return; done = true; ov.classList.add('out'); setTimeout(function () { try { FX.stop(); } catch (e) {} if (ov.parentNode) ov.parentNode.removeChild(ov); }, 900); }
+    var life = quick ? 2800 : 6400, done = false, FX = null;
+    function finish() { if (done) return; done = true; ov.classList.add('out'); setTimeout(function () { try { if (FX) FX.stop(); } catch (e) {} if (ov.parentNode) ov.parentNode.removeChild(ov); }, 900); }
     var hold = false; try { hold = /[?&]hold\b/.test(INITIAL_SEARCH); } catch (e) {}   // QA aid: ?celebrate=riti&hold keeps it up
     if (!hold) setTimeout(finish, life);
-    ov.addEventListener('click', finish);   // tap to dismiss early
+    ov.addEventListener('click', finish);   // wire the timer + tap-to-dismiss BEFORE the engine/scene, so a hiccup can never trap a black overlay
+    try {
+      FX = celebEngine(cv); if (!reduce) FX.start();
+      if (occ.kind === 'anniv') annivScene(stage, FX, occ, quick, reduce);
+      else birthdayScene(stage, FX, occ, quick, reduce);
+    } catch (e) { finish(); }
   }
   function birthdayScene(stage, FX, occ, quick, reduce) {
     var riti = occ.kind === 'riti';
     var cols = riti ? ['#ff4f8b', '#ffd76a', '#ff9ec2', '#ffffff', '#ff77a8'] : ['#5b8cff', '#ffd76a', '#a9c4ff', '#ffffff', '#8fb0ff'];
     stage.className = 'celeb-stage graffiti ' + occ.kind;
+    // spray-paint drips hang under the final big line (RITI for Riti, BIRTHDAY for Pavu)
+    var dcol = [cols[0], cols[1], cols[2]], drips = '';
+    for (var d = 0; d < 4; d++) drips += '<span class="cg-drip" style="left:' + (18 + d * 22) + '%;height:' + Math.round(16 + Math.random() * 24) + 'px;background:' + dcol[d % 3] + '"></span>';
+    var last = riti
+      ? '<div class="cg-wrap"><div class="cg cg3" style="color:#ff4f8b">RITI</div>' + drips + '</div>'
+      : '<div class="cg-wrap"><div class="cg cg2" style="color:#5b8cff">BIRTHDAY</div>' + drips + '</div>';
     stage.innerHTML = '<div class="cg cg1" style="color:#ffd76a">HAPPY</div>' +
-      '<div class="cg cg2" style="color:' + (riti ? '#ff9ec2' : '#5b8cff') + '">BIRTHDAY</div>' +
-      (riti ? '<div class="cg cg3" style="color:#ff4f8b">RITI</div>' : '');
-    var els = stage.querySelectorAll('.cg');
-    if (reduce) { Array.prototype.forEach.call(els, function (n) { n.classList.add('in'); }); celebBlast(FX, cols); return; }
+      (riti ? '<div class="cg cg2" style="color:#ff9ec2">BIRTHDAY</div>' : '') + last;
+    var els = stage.querySelectorAll('.cg'), drs = stage.querySelectorAll('.cg-drip');
+    function dripsIn() { Array.prototype.forEach.call(drs, function (dr, i) { setTimeout(function () { dr.style.transform = 'scaleY(1)'; }, i * 110); }); }
+    if (reduce) {
+      Array.prototype.forEach.call(els, function (n) { n.classList.add('in'); });
+      Array.prototype.forEach.call(drs, function (dr) { dr.style.transform = 'scaleY(1)'; });
+      return;   // reduced motion: show the lettering + drips, no canvas confetti blast
+    }
     var delays = [120, 340, 640];
     Array.prototype.forEach.call(els, function (n, i) { setTimeout(function () { n.classList.add('in'); }, delays[i] || 300); });
+    setTimeout(dripsIn, quick ? 480 : 900);
     setTimeout(function () { celebBlast(FX, cols); }, quick ? 200 : 1000);
   }
   function annivScene(stage, FX, occ, quick, reduce) {
@@ -731,13 +744,14 @@
     }
     var W = FX.W(), H = FX.H();
     function launch() { FX.rocket(FX.rnd(W * 0.2, W * 0.8), FX.pick(cols), FX.rnd(H * 0.14, H * 0.42)); }
-    if (reduce) { for (var i = 0; i < 6; i++) launch(); return; }
+    if (reduce) return;   // reduced motion: show the text, no fireworks
     setTimeout(launch, quick ? 100 : 200); setTimeout(launch, 650); setTimeout(launch, 1100);
     FX.emit({ every: 44, acc: 0, until: null, fn: launch });
     FX.emit({ every: 20, acc: 0, until: null, fn: function () { FX.confetti(FX.rnd(0, W), -10, { c: FX.pick(cols), vy: FX.rnd(0.5, 1.2), g: 0.015 }); } });
   }
-  /* all-day ambient: a fixed layer BELOW the app content (z-index -1), so it shows only where the
-     page is empty and is covered by every card / pad / cork / FAB / nav. Lightweight CSS animation,
+  /* all-day ambient: a fixed layer at z-index 0 (see .celeb-amb) - above the opaque body backdrop so
+     it shows, yet below every content wrapper (positioned + later in the DOM) so it stays behind the
+     cards / pad / cork / FAB / nav and shows only where the page is empty. Lightweight CSS animation,
      no all-day canvas loop. Occasion-coloured; reads on both themes. */
   function ambientCfg(kind) {
     if (kind === 'pavu') return { cols: ['#5b8cff', '#ffd76a', '#a9c4ff', '#dbe6ff'], glyphs: ['🎂', '🎉', '🕯️', '🎈', '💙', '✨', '❄️', '🌟'], words: ['P', 'पर्व'], wcol: '#a9c4ff' };

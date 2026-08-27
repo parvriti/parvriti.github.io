@@ -917,20 +917,25 @@ body.side-parv .np-yes { background: linear-gradient(135deg, #3a5ba0, #1a2f5c); 
 .celeb-stage.graffiti.pavu .cg2 { font-size: min(14vw, 92px); transform: rotate(1.5deg); -webkit-text-stroke: 2px rgba(0,0,0,.3); }
 .celeb-stage.graffiti .cg.in { animation: celebSpray .4s ease-out forwards; }
 @keyframes celebSpray { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+.celeb-stage.graffiti .cg-wrap { position: relative; display: inline-block; }
+.celeb-stage.graffiti .cg-drip { position: absolute; top: 96%; width: 6px; border-radius: 0 0 6px 6px; transform-origin: top; transform: scaleY(0); transition: transform .6s cubic-bezier(.3,.7,.3,1); box-shadow: 0 1px 3px rgba(0,0,0,.35); }
 .celeb-stage.anniv .ca-title { font-family: 'Great Vibes', cursive; font-size: min(15vw, 88px); line-height: 1; color: #ffdca6; text-shadow: 0 2px 22px rgba(255,158,194,.5); opacity: 0; }
 .celeb-stage.anniv .ca-years { font-family: 'DM Sans', sans-serif; font-weight: 600; letter-spacing: .3em; font-size: min(3.6vw, 15px); color: #ffb3c8; margin-top: 3vh; opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .celeb-stage.graffiti .cg.in { animation: none; } }
-/* all-day ambient: BELOW the app content (z-index -1) + pointer-events none, so it can never cover a
-   card, the pad, the cork, the heart FAB or the nav - it only shows where the page is empty. */
+@media (prefers-reduced-motion: reduce) { .celeb-stage.graffiti .cg.in { animation: none; opacity: 1; } .celeb-stage.graffiti .cg-drip { transition: none; } }
+/* all-day ambient: a fixed layer at z-index 0. It must stay ABOVE the opaque html/body background
+   (#0a0406) or it vanishes - a fixed z:-1 layer paints behind that fill - so z:0 is the floor. It
+   still sits BEHIND the page content because every content wrapper (.canvas, .page ...) is positioned
+   and comes later in the DOM, so it (and its children) paints on top. pointer-events:none, so even
+   where it rides over an element it never blocks a tap. */
 .celeb-amb { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.celeb-amb span { position: absolute; top: -6%; will-change: transform; }
+.celeb-amb span { position: absolute; top: -6%; }
 .celeb-amb .ca-bit { border-radius: 1px; opacity: .7; animation: caFall linear infinite; }
 .celeb-amb .ca-petal { opacity: .8; animation: caFall linear infinite; }
 .celeb-amb .ca-word { font-family: 'Cormorant Garamond', 'Tiro Devanagari Hindi', serif; font-style: italic; font-weight: 600; opacity: .42; letter-spacing: .02em; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.3); animation: caFall linear infinite; }
 .celeb-amb .ca-bloom { top: auto; opacity: .5; animation: caSway 3.4s ease-in-out infinite alternate; }
 @keyframes caFall { 0% { transform: translateY(-8vh) rotate(0deg); opacity: 0; } 8% { opacity: .8; } 92% { opacity: .8; } 100% { transform: translateY(114vh) rotate(300deg); opacity: 0; } }
 @keyframes caSway { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
-@media (prefers-reduced-motion: reduce) { .celeb-amb .ca-bit, .celeb-amb .ca-petal, .celeb-amb .ca-word { display: none; } }
+@media (prefers-reduced-motion: reduce) { .celeb-amb .ca-bit, .celeb-amb .ca-petal, .celeb-amb .ca-word { display: none; } .celeb-amb .ca-bloom { animation: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .love-fab, .love-heart, .pres-dot, .heartbeat { animation: none !important; }
