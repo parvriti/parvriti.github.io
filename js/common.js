@@ -740,19 +740,22 @@
      page is empty and is covered by every card / pad / cork / FAB / nav. Lightweight CSS animation,
      no all-day canvas loop. Occasion-coloured; reads on both themes. */
   function ambientCfg(kind) {
-    if (kind === 'pavu') return { cols: ['#5b8cff', '#ffd76a', '#a9c4ff', '#dbe6ff'], glyphs: ['💙', '✨', '❄️', '🌟'], confRatio: 0.6 };
-    if (kind === 'anniv') return { cols: ['#ff7d9c', '#ffd9a0', '#ffb3c8', '#fff0d8'], glyphs: ['🌸', '🌹', '💗', '🌷'], confRatio: 0.55 };
-    return { cols: ['#ff4f8b', '#ffd76a', '#ff9ec2', '#fff0f4'], glyphs: ['🌸', '🌷', '💗', '🌺'], confRatio: 0.55 };
+    if (kind === 'pavu') return { cols: ['#5b8cff', '#ffd76a', '#a9c4ff', '#dbe6ff'], glyphs: ['🎂', '🎉', '🕯️', '🎈', '💙', '✨', '❄️', '🌟'], words: ['P', 'पर्व'], wcol: '#a9c4ff' };
+    if (kind === 'anniv') return { cols: ['#ff7d9c', '#ffd9a0', '#ffb3c8', '#fff0d8'], glyphs: ['💍', '💗', '🌹', '🌸', '🥂', '🎉', '✨', '🌷'], words: ['रिति', 'पर्व', 'RITI', 'PARV', '♥'], wcol: '#ffb3c8' };
+    return { cols: ['#ff4f8b', '#ffd76a', '#ff9ec2', '#fff0f4'], glyphs: ['🎂', '🎉', '🕯️', '🎈', '🌸', '🌷', '💗', '✨'], words: ['RITI', 'R', 'रिति'], wcol: '#ff9ec2' };
   }
   function celebAmbient(occ) {
     if (document.getElementById('celebAmbient')) return;
+    // load a refined Devanagari serif for रिति / पर्व, only on a celebration day (no year-round cost)
+    try { if (!document.getElementById('celebDevaFont')) { var lk = document.createElement('link'); lk.id = 'celebDevaFont'; lk.rel = 'stylesheet'; lk.href = 'https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&display=swap'; document.head.appendChild(lk); } } catch (e) {}
     var c = ambientCfg(occ.kind), amb = document.createElement('div'), r = Math.random, h = '', i;
     amb.id = 'celebAmbient'; amb.className = 'celeb-amb'; amb.setAttribute('aria-hidden', 'true');
-    var n = 16; try { n = Math.max(14, Math.min(30, Math.round(window.innerWidth / 26))); } catch (e) {}   // a touch denser on iPad/Mac
+    var n = 18; try { n = Math.max(16, Math.min(32, Math.round(window.innerWidth / 24))); } catch (e) {}   // a touch denser on iPad/Mac
     for (i = 0; i < n; i++) {
-      var left = (r() * 100).toFixed(1), dur = (7 + r() * 8).toFixed(1), del = (-r() * 15).toFixed(1);
-      if (r() < c.confRatio) h += '<span class="ca-bit" style="left:' + left + '%;width:' + (4 + r() * 5).toFixed(0) + 'px;height:' + (7 + r() * 7).toFixed(0) + 'px;background:' + c.cols[(r() * c.cols.length) | 0] + ';animation-duration:' + dur + 's;animation-delay:' + del + 's"></span>';
-      else h += '<span class="ca-petal" style="left:' + left + '%;font-size:' + (11 + r() * 9).toFixed(0) + 'px;animation-duration:' + dur + 's;animation-delay:' + del + 's">' + c.glyphs[(r() * c.glyphs.length) | 0] + '</span>';
+      var left = (r() * 100).toFixed(1), dur = (7 + r() * 8).toFixed(1), del = (-r() * 15).toFixed(1), roll = r();
+      if (roll < 0.32) h += '<span class="ca-bit" style="left:' + left + '%;width:' + (4 + r() * 5).toFixed(0) + 'px;height:' + (7 + r() * 7).toFixed(0) + 'px;background:' + c.cols[(r() * c.cols.length) | 0] + ';animation-duration:' + dur + 's;animation-delay:' + del + 's"></span>';
+      else if (roll < 0.84) h += '<span class="ca-petal" style="left:' + left + '%;font-size:' + (12 + r() * 9).toFixed(0) + 'px;animation-duration:' + dur + 's;animation-delay:' + del + 's">' + c.glyphs[(r() * c.glyphs.length) | 0] + '</span>';
+      else { var w = c.words[(r() * c.words.length) | 0]; h += '<span class="ca-word" style="left:' + left + '%;font-size:' + (w.length > 1 ? (12 + r() * 4) : (15 + r() * 6)).toFixed(0) + 'px;color:' + c.wcol + ';animation-duration:' + dur + 's;animation-delay:' + del + 's">' + w + '</span>'; }
     }
     [['4%', '60%', 26], ['92%', '68%', 22], ['7%', '86%', 24], ['88%', '40%', 20]].forEach(function (b) {
       h += '<span class="ca-bloom" style="left:' + b[0] + ';top:' + b[1] + ';font-size:' + b[2] + 'px">' + c.glyphs[(r() * c.glyphs.length) | 0] + '</span>';
