@@ -35,7 +35,6 @@ var ERASE = '#fffdf6';   // the canvas paper colour (styles.css .pad canvas) - e
 var tool = 'draw', penColor = '#c0425a', imgCache = {}, FILL_TOL = 32;   // fill tool: flood-fill on tap -> stored as a self-contained PNG patch (syncs pixel-identical); imgCache decodes patches for redraw
 var brushMode = 'pen', curBrush = '';   // brushMode 'pen'|'water' (only while tool==='draw'); curBrush = the in-progress stroke's brush
 var offc = null, offx = null, WATER_ALPHA = 0.34;   // offscreen buffer: a watercolor stroke is rendered opaque here, then laid down as ONE translucent layer (single stroke stays even; overlaps deepen)
-var lpTimer = 0, lpStart = null, lpColor = null, eyedropped = false;   // long-press on the canvas = eyedropper; lpColor is sampled at press time BEFORE the dot is drawn
 var undoStack = [], undone = {};   // undoStack: {cid, ref} of items I added this session (newest last) - undo deletes my last one (syncs). undone: cids I deleted, filtered from snapshots until the delete lands (no flicker-back)
 var doodleLoaded = false, doodleVeil = null;   // loading veil (first snapshot ends it)
 /* ── kept doodles (the shelf) ── editMode edits a saved doodle LOCALLY (no live sync / no nudge);
@@ -195,26 +194,6 @@ function pw(e) {
   var pr = (e && e.pressure > 0) ? e.pressure : 0.5;
   return Math.max(1, Math.round(drawSize * (0.5 + pr)));   // Pencil: soft ~0.55x, hard ~1.5x of the nib
 }
-/* read the pixel colour at canvas coords (x,y) as a #rrggbb hex, or null if it can't be sampled */
-function samplePixel(x, y) {
-  try {
-    var d = pctx.getImageData(Math.max(0, Math.min(pad.width - 1, Math.round(x))), Math.max(0, Math.min(pad.height - 1, Math.round(y))), 1, 1).data;
-    return '#' + [d[0], d[1], d[2]].map(function (n) { return ('0' + (n & 255).toString(16)).slice(-2); }).join('');
-  } catch (e) { return null; }
-}
-/* long-press eyedropper: adopt lpColor - the colour sampled at press time, BEFORE the initial dot was drawn - and cancel the stroke */
-function doEyedrop() {
-  lpTimer = 0;
-  if (!drawing || !lpColor) return;
-  penColor = lpColor;
-  if (tool === 'erase') setTool('draw'); else drawColor = penColor;
-  document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });   // a picked colour matches no preset
-  if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e2) {} }
-  toast('picked that colour');
-  eyedropped = true; drawing = false; curPts = null;   // abort the stroke (its dot clears on repaint)
-  if (!editMode && window.parvritiActivity) window.parvritiActivity(null);
-  paintAll();
-}
 function hexToRgb(h) {
   var m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return null;
   var n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -284,17 +263,15 @@ function dStart(e) {
   e.preventDefault();
   activePtr = e.pointerId;
   try { pad.setPointerCapture(e.pointerId); } catch (er) {}
-  drawing = true; eyedropped = false;
+  drawing = true;
   curBrush = (tool === 'draw' && brushMode === 'water') ? 'water' : '';
   if (!editMode && window.parvritiActivity) { clearTimeout(dEnd._t); window.parvritiActivity('drawing'); }   // no presence while editing a kept doodle
-  var p = pxy(e); p.w = pw(e); curPts = [p]; lastXY = p; lpStart = p;
-  if (tool === 'draw') { lpColor = samplePixel(p.x, p.y); clearTimeout(lpTimer); lpTimer = setTimeout(doEyedrop, 450); }   // sample the CLEAN pixel now, before the dot below covers it; then arm the hold-to-eyedrop timer
+  var p = pxy(e); p.w = pw(e); curPts = [p]; lastXY = p;
   if (curBrush === 'water') paintAll(); else drawStroke(curPts, drawColor, drawSize);
 }
 function dMove(e) {
   if (!drawing || e.pointerId !== activePtr) return;
   var p = pxy(e); p.w = pw(e);
-  if (lpTimer && lpStart && (Math.abs(p.x - lpStart.x) + Math.abs(p.y - lpStart.y) > 7)) { clearTimeout(lpTimer); lpTimer = 0; }   // moved -> it's a stroke, not a long-press
   if (curPts.length >= 800) { commitStroke(); curPts = [lastXY]; }   // auto-split a very long stroke so nothing past a fixed cap is lost; the new segment continues from lastXY
   curPts.push(p);
   if (curBrush === 'water') { paintAll(); }   // watercolor can't draw incrementally at alpha; re-composite the whole stroke each move
@@ -318,7 +295,6 @@ function commitStroke() {
 }
 function dEnd(e) {
   if (!drawing || (e && e.pointerId != null && e.pointerId !== activePtr)) return;
-  clearTimeout(lpTimer); lpTimer = 0;   // released before the hold fired -> a normal tap/stroke, not an eyedrop
   drawing = false; activePtr = null;
   commitStroke();
   curPts = null;
