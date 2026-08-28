@@ -110,13 +110,13 @@
     var t = thirdFor(ph, day);
     if (ph === 'menstrual') {
       if (day <= 2) return { energy: 1, third: t, pain: 4 };
-      if (day === 3) return { energy: 1, third: t, pain: 2 };
+      if (day === 3) return { energy: 1, third: t, pain: 3 };
       return { energy: 2, third: t, pain: 1 };
     }
     if (ph === 'follicular') return { energy: 3, third: t, pain: 0 };
     if (ph === 'fertile') return { energy: 4, third: t, pain: 0 };
-    if (ph === 'luteal') return { energy: 2, third: t, pain: 1 };
-    if (ph === 'pms' || ph === 'due' || ph === 'late') return { energy: 1, third: t, pain: 2 };
+    if (ph === 'luteal') return { energy: 2, third: t, pain: 0 };
+    if (ph === 'pms' || ph === 'due' || ph === 'late') return { energy: 1, third: t, pain: 1 };
     return { energy: -1, third: -1, pain: -1 };
   }
   var WORD = { '-1': 'unknown', 0: 'none', 1: 'low', 2: 'medium', 3: 'high', 4: 'highest' };
