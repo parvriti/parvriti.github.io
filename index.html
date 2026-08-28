@@ -13,8 +13,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Dancing+Script:wght@700&family=Great+Vibes&family=Permanent+Marker&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('parvritiTheme')||'dark';document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#fbf1f1':'#0a0406');}catch(e){}</script>
 <script>/* launch splash: only in the installed PWA, once per cold launch. Set the class before first paint so the black splash is frame one - never a flash. */try{var _s=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;if(_s&&!sessionStorage.getItem('pl_shown')){sessionStorage.setItem('pl_shown','1');document.documentElement.classList.add('plaunch-on');}}catch(e){}</script>
-<link rel="stylesheet" href="css/styles.css?v=110">
-<link rel="stylesheet" href="css/theme.css?v=110">
+<link rel="stylesheet" href="css/styles.css?v=111">
+<link rel="stylesheet" href="css/theme.css?v=111">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -75,7 +75,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=110"></script>
+<script src="js/common.js?v=111"></script>
 <script>
   /* the entry ritual is archived (see old_ideas/). "Open it" now hands
      straight into the app, keeping the petal-bloom transition. */
@@ -87,39 +87,30 @@
   }
 </script>
 <script>
-/* drive the launch splash: wait for the wordmark font (so the heart-dot lands on the right metrics),
-   ink the name in + drop the heart, then lift ONLY once auth has resolved - so an authed user lands
-   straight on Home (the "Only for us." gate resolves hidden behind the splash and is never seen),
-   while a genuine sign-in need reveals the gate. A hard cap prevents hanging on a dead network. */
+/* drive the launch splash: wait (briefly) for the wordmark font so the heart-dot lands on the right
+   metrics, ink the name in + drop the heart, then lift the MOMENT the animation finishes - it does NOT
+   wait on auth, so the app opens fast (~2s, the animation's own length). Home is static markup that is
+   already painted underneath, and for a returning user the "Only for us." gate is transparent
+   (gate-quiet) and resolves silently, so lifting straight to Home never flashes it. */
 (function(){
   if(!document.documentElement.classList.contains('plaunch-on')) return;
   var pl=document.getElementById('plaunch'); if(!pl) return;
   var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var started=false, gateSeen=false;
-  function homeReady(){
-    var g=document.getElementById('authGate');
-    if(g){ gateSeen=true; return g.classList.contains('ready'); }   // 'ready' = sign-in is actually needed; gate-quiet / bare = still resolving
-    return gateSeen;                                                // gate removed after being seen = signed in, Home is ready
-  }
-  function lift(){
-    pl.classList.add('lift');
-    setTimeout(function(){ if(pl.parentNode)pl.parentNode.removeChild(pl); document.documentElement.classList.remove('plaunch-on'); }, 700);
-  }
+  var started=false;
   function start(){ if(started)return; started=true;
     pl.classList.add('go');
-    var t0=Date.now(), minAnim=reduce?800:2000, cap=6000;
-    (function tick(){
-      var el=Date.now()-t0;
-      if(el>=minAnim && (homeReady()||el>=cap)) lift();
-      else setTimeout(tick, 90);
-    })();
+    var hold=reduce?600:1850;   // ink-in (~1.16s) + heart drop (ends ~1.72s); lift just after, no auth wait
+    setTimeout(function(){
+      pl.classList.add('lift');
+      setTimeout(function(){ if(pl.parentNode)pl.parentNode.removeChild(pl); document.documentElement.classList.remove('plaunch-on'); }, 620);
+    }, hold);
   }
   try{
-    if(document.fonts&&document.fonts.load){ document.fonts.load("700 1em 'Dancing Script'").then(start,start); setTimeout(start,1600); }
+    if(document.fonts&&document.fonts.load){ document.fonts.load("700 1em 'Dancing Script'").then(start,start); setTimeout(start,1100); }
     else setTimeout(start,300);
   }catch(e){ setTimeout(start,300); }
 })();
 </script>
-<script src="js/native.js?v=110"></script>
+<script src="js/native.js?v=111"></script>
 </body>
 </html>
