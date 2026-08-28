@@ -2219,3 +2219,47 @@ body[data-page="periods"] .tt-btn:active { color: #20264a; background: rgba(32,3
 .set-devlink { display: block; text-decoration: none; color: inherit; transition: transform .12s ease, border-color .2s ease; }
 .set-devlink:active { transform: scale(.99); }
 .set-devlink .set-dev-go { float: right; color: #9a8a8e; font-weight: 400; }
+
+/* ══════════════ PWA launch splash ══════════════ */
+/* Rendered only when the head bootstrap adds html.plaunch-on (installed PWA, once per cold launch).
+   Full-screen black; "Parvriti" inks in, a heart drops onto the final i, then it lifts to reveal the app.
+   The em-based heart placement is measured to Dancing Script's own glyph, so it holds at every size (phone + iPad).
+   The dot cover works because the splash is finalized black. */
+.plaunch { display: none; }
+html.plaunch-on .plaunch {
+  display: flex; position: fixed; inset: 0; z-index: 2147483000; background: #000;
+  align-items: center; justify-content: center;
+}
+.pl-mark { position: relative; font-size: clamp(58px, 12vw, 116px); }
+.pl-word {
+  font-family: 'Dancing Script', cursive; font-weight: 700; font-size: 1em; line-height: 1; white-space: nowrap;
+  background: linear-gradient(100deg, #ffe4ea, #f4a8bb 46%, #c0425a); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 22px rgba(192,66,90,.34)); opacity: 0;
+}
+/* black cover over Dancing Script's own final-i dot (invisible on black), so only our heart reads as the dot */
+.pl-dotcover { position: absolute; left: 2.811em; top: 0.341em; width: 0.22em; height: 0.20em; transform: translate(-50%,-50%); background: #000; border-radius: 50%; }
+/* heart as the dot: over the stem, floating above with a clear gap */
+.pl-heart { position: absolute; left: 2.783em; top: 0.233em; width: 0.26em; height: 0.26em; transform: translate(-50%,-50%); pointer-events: none; opacity: 0; z-index: 2; }
+.pl-heart svg { width: 100%; height: 100%; display: block; fill: #e0456a; filter: drop-shadow(0 0 8px rgba(255,120,150,.6)); }
+.pl-nib { position: absolute; top: 0.56em; left: 0; width: 0.14em; height: 0.14em; margin: -0.07em 0 0 -0.07em; border-radius: 50%;
+  background: radial-gradient(circle, #fff, rgba(255,190,205,.95) 42%, transparent 72%); box-shadow: 0 0 0.2em 0.06em rgba(255,120,150,.55); opacity: 0; }
+
+.plaunch.go .pl-word { animation: plInk 1.1s ease .06s forwards; }
+@keyframes plInk { 0% { opacity: 0; filter: blur(7px); } 55% { opacity: 1; } 100% { opacity: 1; filter: blur(0); } }
+.plaunch.go .pl-nib { animation: plNib 1.15s cubic-bezier(.35,.06,.26,1) forwards, plNibOut .3s ease 1.05s forwards; }
+@keyframes plNib { 0% { opacity: 1; left: 0; } 100% { opacity: 1; left: 100%; } }
+@keyframes plNibOut { to { opacity: 0; } }
+.plaunch.go .pl-heart { animation: plHeart .6s cubic-bezier(.3,1.5,.5,1) 1.12s forwards; }
+@keyframes plHeart {
+  0%   { opacity: 0; transform: translate(-50%,-50%) translateY(-0.55em) scale(.3) rotate(-12deg); }
+  55%  { opacity: 1; transform: translate(-50%,-50%) translateY(0) scale(1.3) rotate(4deg); }
+  100% { opacity: 1; transform: translate(-50%,-50%) translateY(0) scale(1) rotate(0); }
+}
+.plaunch.lift { animation: plLift .55s cubic-bezier(.5,0,.2,1) forwards; }
+@keyframes plLift { to { opacity: 0; visibility: hidden; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .plaunch.go .pl-word { animation: none; opacity: 1; filter: none; }
+  .plaunch.go .pl-heart { animation: none; opacity: 1; transform: translate(-50%,-50%); }
+  .plaunch.go .pl-nib { display: none; }
+}
