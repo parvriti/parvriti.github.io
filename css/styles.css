@@ -1352,17 +1352,19 @@ body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px
 .nib::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; background: #4a2c1a; }
 .nib.s1::after { width: 4px; height: 4px; } .nib.s2::after { width: 8px; height: 8px; } .nib.s3::after { width: 13px; height: 13px; }
 .nib.sel { border-color: #4a2c1a; background: rgba(74,44,20,.24); }
-.erase, .fill, .undo, .clear { width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer; -webkit-appearance: none;
+.erase, .fill, .undo, .clear, .water { width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer; -webkit-appearance: none;
   background: rgba(74,44,20,.12); border: 2px solid transparent; color: #4a2c1a;
   display: inline-flex; align-items: center; justify-content: center; transition: transform .12s ease; }
-.erase svg, .fill svg, .undo svg, .clear svg { width: 14px; height: 14px; display: block; }
+.erase svg, .fill svg, .undo svg, .clear svg, .water svg { width: 14px; height: 14px; display: block; }
 .erase.on, .fill.on { border-color: #4a2c1a; background: rgba(74,44,20,.26); }
-.undo:active, .clear:active { transform: scale(.88); }
+.undo:active, .clear:active, .water:active { transform: scale(.88); }
+.water { color: #c0425a; }   /* watercolor brush: a rose tint so it reads as a distinct tool */
+.water.on { border-color: #c0425a; background: rgba(192,66,90,.2); }
 .pad .clear { color: #b5453f; }   /* trash icon, subtly redder to read as destructive */
 @media (max-width: 360px) {   /* tiny phones (SE1 / 320px): shrink so row 1's 10 colours fit without clipping the end swatches; 361px+ (their iPhones) is untouched */
-  .swatch, .nib, .erase, .fill, .undo, .clear { width: 21px; height: 21px; }
+  .swatch, .nib, .erase, .fill, .undo, .clear, .water { width: 21px; height: 21px; }
   .tool-row { gap: 3px; }
-  .erase svg, .fill svg, .undo svg, .clear svg { width: 13px; height: 13px; }
+  .erase svg, .fill svg, .undo svg, .clear svg, .water svg { width: 13px; height: 13px; }
 }
 .pad .by { font-family: 'Caveat', cursive; font-size: 15px; color: #8a6236; margin-top: 6px; text-align: right; }
 

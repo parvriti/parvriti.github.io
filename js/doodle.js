@@ -33,6 +33,9 @@ var pad, pctx, strokes = [], drawColor = '#c0425a', drawSize = 6, drawing = fals
 var pendingMine = [];   // finished strokes I just added, kept painted until their own doc echoes back
 var ERASE = '#fffdf6';   // the canvas paper colour (styles.css .pad canvas) - erasing paints a stroke in it, which syncs + covers (at:serverTimestamp is null while pending, so an orderBy('at') snapshot omits them for ~½s and a redraw would erase them)
 var tool = 'draw', penColor = '#c0425a', imgCache = {}, FILL_TOL = 32;   // fill tool: flood-fill on tap -> stored as a self-contained PNG patch (syncs pixel-identical); imgCache decodes patches for redraw
+var brushMode = 'pen', curBrush = '';   // brushMode 'pen'|'water' (only while tool==='draw'); curBrush = the in-progress stroke's brush
+var offc = null, offx = null, WATER_ALPHA = 0.34;   // offscreen buffer: a watercolor stroke is rendered opaque here, then laid down as ONE translucent layer (single stroke stays even; overlaps deepen)
+var lpTimer = 0, lpStart = null, eyedropped = false;   // long-press on the canvas = eyedropper (sample the colour under the finger)
 var undoStack = [], undone = {};   // undoStack: {cid, ref} of items I added this session (newest last) - undo deletes my last one (syncs). undone: cids I deleted, filtered from snapshots until the delete lands (no flicker-back)
 var doodleLoaded = false, doodleVeil = null;   // loading veil (first snapshot ends it)
 /* ── kept doodles (the shelf) ── editMode edits a saved doodle LOCALLY (no live sync / no nudge);
@@ -44,14 +47,22 @@ function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;
   if (startDoodle._on) return; startDoodle._on = true;   // one wiring only (mirrors startRealtime); a second auth re-fire must not stack listeners / a second onSnapshot
   pctx = pad.getContext('2d'); pctx.lineCap = 'round'; pctx.lineJoin = 'round';
+  offc = document.createElement('canvas'); offc.width = pad.width; offc.height = pad.height;   // watercolor compositing buffer
+  offx = offc.getContext('2d'); offx.lineCap = 'round'; offx.lineJoin = 'round';
 
-  var eraseBtn = document.getElementById('eraseTool'), fillBtn = document.getElementById('fillTool');
+  var eraseBtn = document.getElementById('eraseTool'), fillBtn = document.getElementById('fillTool'), waterBtn = document.getElementById('waterTool');
   function setTool(t) {   // colour (swatch) and tool (pen/erase/fill) are orthogonal
     tool = t;
     if (eraseBtn) eraseBtn.classList.toggle('on', t === 'erase');
     if (fillBtn) fillBtn.classList.toggle('on', t === 'fill');
+    if (waterBtn) waterBtn.classList.toggle('on', t === 'draw' && brushMode === 'water');   // watercolor lights up only while it's the active drawing brush
     drawColor = (t === 'erase') ? ERASE : penColor;
   }
+  if (waterBtn) waterBtn.addEventListener('click', function () {
+    if (drawing) return;   // don't switch brush mid-stroke
+    brushMode = (brushMode === 'water') ? 'pen' : 'water';
+    setTool('draw');   // picking a brush means you're drawing, not erasing/filling
+  });
   document.querySelectorAll('.swatch:not(.swatch-wheel)').forEach(function (sw) {
     sw.addEventListener('click', function () {
       if (drawing) return;   // a second finger must not recolour the stroke already in progress (commit stores one colour, so it would recolour retroactively)
@@ -147,7 +158,8 @@ function paintItem(it) {
     if (!im) { im = new Image(); imgCache[it.cid] = im; im.onload = scheduleRepaint; im.src = it.png; }   // decode async, then repaint
     if (im.complete && im.naturalWidth) pctx.drawImage(im, it.x, it.y);
   } else if (it.pts) {
-    drawStroke(it.pts, it.color, it.size);
+    if (it.brush === 'water') paintWater(pctx, it.pts, it.color, it.size);
+    else drawStroke(it.pts, it.color, it.size);
   }
 }
 function redraw() {
@@ -157,17 +169,48 @@ function redraw() {
 function paintAll() {
   redraw();
   if (!editMode) pendingMine.forEach(paintItem);   // my not-yet-confirmed strokes + fills (live only)
-  if (drawing && curPts && curPts.length) drawStroke(curPts, drawColor, drawSize);
+  if (drawing && curPts && curPts.length) { if (curBrush === 'water') paintWater(pctx, curPts, drawColor, drawSize); else drawStroke(curPts, drawColor, drawSize); }
 }
 var _repaintQ = false;
 function scheduleRepaint() { if (_repaintQ) return; _repaintQ = true; requestAnimationFrame(function () { _repaintQ = false; paintAll(); }); }   // coalesce a burst of fill-image decodes into one repaint
 function drawStroke(pts, color, size) {
   if (!pts || !Array.isArray(pts) || !pts.length) return;
-  pctx.strokeStyle = color || '#c0425a'; pctx.lineWidth = size || 5;
-  pctx.beginPath(); pctx.moveTo(pts[0].x, pts[0].y);
-  for (var i = 1; i < pts.length; i++) pctx.lineTo(pts[i].x, pts[i].y);
-  if (pts.length === 1) pctx.lineTo(pts[0].x + 0.1, pts[0].y + 0.1);
-  pctx.stroke();
+  pctx.strokeStyle = color || '#c0425a';
+  if (pts.length === 1) { pctx.lineWidth = pts[0].w || size || 5; pctx.beginPath(); pctx.moveTo(pts[0].x, pts[0].y); pctx.lineTo(pts[0].x + 0.1, pts[0].y + 0.1); pctx.stroke(); return; }
+  for (var i = 1; i < pts.length; i++) { pctx.lineWidth = pts[i].w || size || 5; pctx.beginPath(); pctx.moveTo(pts[i - 1].x, pts[i - 1].y); pctx.lineTo(pts[i].x, pts[i].y); pctx.stroke(); }   // per-segment width = Apple Pencil pressure
+}
+/* watercolor: render the whole stroke opaque on the offscreen buffer, then lay it down as ONE translucent
+   layer so a single stroke stays even while separate strokes build up. Deterministic -> syncs identically. */
+function paintWater(ctx, pts, color, size) {
+  if (!pts || !pts.length || !offx) { drawStroke(pts, color, size); return; }
+  offx.clearRect(0, 0, offc.width, offc.height);
+  offx.strokeStyle = color || '#c0425a';
+  if (pts.length === 1) { offx.lineWidth = pts[0].w || size || 5; offx.beginPath(); offx.moveTo(pts[0].x, pts[0].y); offx.lineTo(pts[0].x + 0.1, pts[0].y + 0.1); offx.stroke(); }
+  else for (var i = 1; i < pts.length; i++) { offx.lineWidth = pts[i].w || size || 5; offx.beginPath(); offx.moveTo(pts[i - 1].x, pts[i - 1].y); offx.lineTo(pts[i].x, pts[i].y); offx.stroke(); }
+  ctx.globalAlpha = WATER_ALPHA; ctx.drawImage(offc, 0, 0); ctx.globalAlpha = 1;
+}
+/* per-point width from Apple Pencil pressure (finger / mouse report ~0.5 -> a natural medium) */
+function pw(e) {
+  if (tool === 'erase') return drawSize;   // the eraser stays a predictable full-width nib
+  var pr = (e && e.pressure > 0) ? e.pressure : 0.5;
+  return Math.max(1, Math.round(drawSize * (0.5 + pr)));   // Pencil: soft ~0.55x, hard ~1.5x of the nib
+}
+/* long-press eyedropper: sample the pixel under the finger, make it the pen colour, and cancel the stroke */
+function doEyedrop() {
+  lpTimer = 0;
+  if (!drawing || !curPts || !curPts.length) return;
+  var p = curPts[0];
+  try {
+    var d = pctx.getImageData(Math.max(0, Math.min(pad.width - 1, Math.round(p.x))), Math.max(0, Math.min(pad.height - 1, Math.round(p.y))), 1, 1).data;
+    penColor = '#' + [d[0], d[1], d[2]].map(function (n) { return ('0' + (n & 255).toString(16)).slice(-2); }).join('');
+    if (tool === 'erase') setTool('draw'); else drawColor = penColor;
+    document.querySelectorAll('.swatch').forEach(function (x) { x.classList.remove('sel'); });   // a picked colour matches no preset
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e2) {} }
+    toast('picked that colour');
+  } catch (e) {}
+  eyedropped = true; drawing = false; curPts = null;   // abort the stroke (its dot clears on repaint)
+  if (!editMode && window.parvritiActivity) window.parvritiActivity(null);
+  paintAll();
 }
 function hexToRgb(h) {
   var m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return null;
@@ -238,35 +281,41 @@ function dStart(e) {
   e.preventDefault();
   activePtr = e.pointerId;
   try { pad.setPointerCapture(e.pointerId); } catch (er) {}
-  drawing = true;
+  drawing = true; eyedropped = false;
+  curBrush = (tool === 'draw' && brushMode === 'water') ? 'water' : '';
   if (!editMode && window.parvritiActivity) { clearTimeout(dEnd._t); window.parvritiActivity('drawing'); }   // no presence while editing a kept doodle
-  var p = pxy(e); curPts = [p]; lastXY = p;
-  pctx.strokeStyle = drawColor; pctx.lineWidth = drawSize; drawStroke(curPts, drawColor, drawSize);
+  var p = pxy(e); p.w = pw(e); curPts = [p]; lastXY = p; lpStart = p;
+  if (tool === 'draw') { clearTimeout(lpTimer); lpTimer = setTimeout(doEyedrop, 450); }   // hold to eyedrop (drawing only, not erase/fill)
+  if (curBrush === 'water') paintAll(); else drawStroke(curPts, drawColor, drawSize);
 }
 function dMove(e) {
   if (!drawing || e.pointerId !== activePtr) return;
-  var p = pxy(e);
+  var p = pxy(e); p.w = pw(e);
+  if (lpTimer && lpStart && (Math.abs(p.x - lpStart.x) + Math.abs(p.y - lpStart.y) > 7)) { clearTimeout(lpTimer); lpTimer = 0; }   // moved -> it's a stroke, not a long-press
   if (curPts.length >= 800) { commitStroke(); curPts = [lastXY]; }   // auto-split a very long stroke so nothing past a fixed cap is lost; the new segment continues from lastXY
   curPts.push(p);
-  pctx.strokeStyle = drawColor; pctx.lineWidth = drawSize;
-  pctx.beginPath(); pctx.moveTo(lastXY.x, lastXY.y); pctx.lineTo(p.x, p.y); pctx.stroke();
+  if (curBrush === 'water') { paintAll(); }   // watercolor can't draw incrementally at alpha; re-composite the whole stroke each move
+  else { pctx.strokeStyle = drawColor; pctx.lineWidth = p.w; pctx.beginPath(); pctx.moveTo(lastXY.x, lastXY.y); pctx.lineTo(p.x, p.y); pctx.stroke(); }
   lastXY = p;
 }
 /* commit the current in-progress stroke to Firestore, keeping it painted (pendingMine) until it echoes */
 function commitStroke() {
   if (!(curPts && curPts.length)) return;
-  var pts = curPts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; });
-  if (editMode) { editItems.push({ pts: pts, color: drawColor, size: drawSize }); editDirty = true; return; }   // editor: append locally, no Firestore
+  var pts = curPts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y), w: Math.round(p.w || drawSize) }; });   // w = per-point Pencil-pressure width
+  if (editMode) { var eo = { pts: pts, color: drawColor, size: drawSize }; if (curBrush === 'water') eo.brush = 'water'; editItems.push(eo); editDirty = true; return; }   // editor: append locally, no Firestore
   if (!ddb) return;
   var cid = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
-  pendingMine.push({ pts: pts, color: drawColor, size: drawSize, cid: cid, t: Date.now() });   // t = expiry so a stroke deleted before its echo can't ghost forever
+  var po = { pts: pts, color: drawColor, size: drawSize, cid: cid, t: Date.now() }; if (curBrush === 'water') po.brush = 'water';   // t = expiry so a stroke deleted before its echo can't ghost forever
+  pendingMine.push(po);
   if (drawColor !== ERASE) dEnd._drew = true;   // an erase-only session shouldn't say "left you a doodle"
   var ref = ddb.collection('canvasStrokes').doc();
   undoStack.push({ cid: cid, ref: ref });
-  ref.set({ pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }).catch(function () { toast("couldn't save that stroke, check your connection"); });
+  var doc = { pts: pts, color: drawColor, size: drawSize, by: me(), at: serverTime(), cid: cid }; if (curBrush === 'water') doc.brush = 'water';
+  ref.set(doc).catch(function () { toast("couldn't save that stroke, check your connection"); });
 }
 function dEnd(e) {
   if (!drawing || (e && e.pointerId != null && e.pointerId !== activePtr)) return;
+  clearTimeout(lpTimer); lpTimer = 0;   // released before the hold fired -> a normal tap/stroke, not an eyedrop
   drawing = false; activePtr = null;
   commitStroke();
   curPts = null;
@@ -344,7 +393,7 @@ function personName(p) { return p === 'parv' ? 'Pavu' : 'Riti'; }
 function cleanItems(src) {
   return (src || []).map(function (s) {
     if (s.png) return { type: 'fill', png: s.png, x: s.x, y: s.y };
-    if (s.pts) return { pts: s.pts, color: s.color, size: s.size };
+    if (s.pts) { var o = { pts: s.pts, color: s.color, size: s.size }; if (s.brush) o.brush = s.brush; return o; }
     return null;
   }).filter(Boolean);
 }
@@ -562,7 +611,9 @@ function openEditor(d) {
   editMode = true; editingId = d.id || null; editName = (d.name || ''); editDirty = false;
   editItems = (d.items || []).map(function (it) {
     if (it && it.png) return { type: 'fill', png: it.png, x: it.x, y: it.y, cid: 'e' + Math.random().toString(36).slice(2) };   // fresh cid so paintItem decodes each into imgCache
-    return { pts: (it && it.pts) || [], color: (it && it.color) || '#c0425a', size: (it && it.size) || 6 };
+    var o = { pts: (it && it.pts) || [], color: (it && it.color) || '#c0425a', size: (it && it.size) || 6 };
+    if (it && it.brush) o.brush = it.brush;   // keep watercolor strokes watercolor when re-opened
+    return o;
   });
   document.body.classList.add('editing-doodle');
   var nm = document.getElementById('editNameLbl'); if (nm) nm.textContent = editName || 'untitled';
