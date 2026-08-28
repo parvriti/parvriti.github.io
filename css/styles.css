@@ -2230,6 +2230,14 @@ html.plaunch-on .plaunch {
   display: flex; position: fixed; inset: 0; z-index: 2147483000; background: #000;
   align-items: center; justify-content: center;
 }
+/* iOS fills the home-indicator / safe-area strip from the DOCUMENT background-colour, not from the
+   fixed splash - so in light theme a cream strip peeks under the black splash. Force the ground black
+   while the splash is up (scoped to plaunch-on, so the themed ground returns the moment it lifts).
+   High specificity + !important to beat theme.css's :root[data-theme="light"] body background. */
+html.plaunch-on, html.plaunch-on body,
+:root[data-theme="light"].plaunch-on, :root[data-theme="light"].plaunch-on body {
+  background: #000 !important;
+}
 .pl-mark { position: relative; font-size: clamp(58px, 12vw, 116px); }
 .pl-word {
   font-family: 'Dancing Script', cursive; font-weight: 700; font-size: 1em; line-height: 1; white-space: nowrap;
