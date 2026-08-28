@@ -128,7 +128,7 @@ function startDoodle() {
           if (editMode) editItems.forEach(function (it) { if (it && it.cid) keep[it.cid] = true; });   // don't evict the editor's fills while editing
           for (var ic in imgCache) if (!keep[ic]) delete imgCache[ic];
         }
-        if (!editMode) paintAll();   // editor keeps its own paint; live strokes still tracked in the background so closing restores them
+        if (!editMode) { paintAll(); updateKeepBtn(); }   // editor keeps its own paint; live strokes still tracked in the background so closing restores them; refresh the Keep/kept toggle
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
@@ -362,21 +362,50 @@ function fmtDate(ts) {
 }
 function fmtYear(ts) { try { var d = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : null); return (d || new Date()).getFullYear(); } catch (e) { return (new Date()).getFullYear(); } }
 
-/* KEEP: snapshot the current LIVE pad onto the shelf */
+/* KEEP is a TOGGLE: keep the current pad, or (if this exact pad is already kept this session)
+   un-keep it with a confirm. keptId/keptSig = "the current live pad is saved as this doc";
+   padSig() detects any change so a changed pad is keepable again. */
+var keptId = null, keptSig = null;
+function padSig() {
+  var cids = [];
+  strokes.forEach(function (s) { if (s.cid) cids.push(s.cid); });
+  pendingMine.forEach(function (p) { if (p.cid) cids.push(p.cid); });
+  return cids.sort().join(',');
+}
+function isKept() { return !!keptId && keptSig !== null && keptSig === padSig(); }
+function updateKeepBtn() {
+  var b = document.getElementById('keepBtn'); if (!b) return;
+  var kept = isKept();
+  b.classList.toggle('kept', kept);
+  var lbl = kept ? 'Remove this from the shelf' : 'Keep this doodle';
+  b.setAttribute('aria-label', lbl); b.setAttribute('title', lbl);
+}
 function keepDoodle() {
   if (editMode) { saveEditor(); return; }   // inside the editor, Keep = Save
   if (!ddb) { toast("can't keep it right now, check your connection"); return; }
+  if (isKept()) { unkeepDoodle(); return; }   // already kept + unchanged -> tapping again un-keeps it
   var have = {}; strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
   var extra = pendingMine.filter(function (p) { return !(p.cid && have[p.cid]); });   // include just-drawn, not-yet-echoed items; no duplicates
   var items = cleanItems(strokes.concat(extra));
   if (!items.length) { toast('draw something first, then keep it'); return; }
   var img = padImage();
   if (overCap({ items: items, img: img })) { toast("this doodle's too detailed to keep, try fewer fills"); return; }
+  var sig = padSig();
   var btn = document.getElementById('keepBtn'); if (btn) btn.classList.add('busy');
   ddb.collection('savedDoodles').add({ items: items, img: img, name: '', by: me(), createdAt: serverTime(), updatedAt: serverTime() })
-    .then(function () { toast('kept it on the shelf'); })
-    .catch(function () { toast("couldn't keep it, check your connection"); })
-    .then(function () { if (btn) btn.classList.remove('busy'); });
+    .then(function (ref) { keptId = ref.id; keptSig = sig; toast('kept it on the shelf'); })
+    .catch(function (e) { toast(e && e.code === 'permission-denied' ? "the shelf isn't enabled yet (publish the savedDoodles rule)" : "couldn't keep it, check your connection"); })
+    .then(function () { if (btn) btn.classList.remove('busy'); updateKeepBtn(); });
+}
+function unkeepDoodle() {
+  if (!ddb || !keptId) return;
+  if (!window.confirm('Take this doodle off the shelf?')) return;
+  var id = keptId;
+  var btn = document.getElementById('keepBtn'); if (btn) btn.classList.add('busy');
+  ddb.collection('savedDoodles').doc(id).delete()
+    .then(function () { keptId = null; keptSig = null; toast('taken off the shelf'); })
+    .catch(function () { toast("couldn't remove it, try again"); })
+    .then(function () { if (btn) btn.classList.remove('busy'); updateKeepBtn(); });
 }
 
 /* SHELF overlay (lazy listener: only reads savedDoodles once you open it) */
@@ -448,20 +477,38 @@ function closeViewer() {
   var ov = document.getElementById('shelfOv');
   if (!(ov && ov.classList.contains('on')) && !editMode) document.body.classList.remove('shelf-open');
 }
+/* rename via an INLINE input (window.prompt is blocked in iOS standalone PWAs, so it silently no-ops there) */
 function renameDoodle(d) {
-  if (!ddb) { toast("can't rename right now, check your connection"); return; }
-  var v = window.prompt('Name this doodle (leave blank for just the date)', d.name || '');
-  if (v === null) return;
-  v = v.trim().slice(0, 40);
-  ddb.collection('savedDoodles').doc(d.id).update({ name: v, updatedAt: serverTime() })
-    .then(function () { d.name = v; var el = document.getElementById('dvName'); if (el) el.textContent = v || (fmtDate(d.createdAt) || 'untitled'); toast(v ? 'renamed' : 'name cleared'); })
-    .catch(function () { toast("couldn't rename, try again"); });
+  var el = document.getElementById('dvName'); if (!el || el.tagName === 'INPUT') return;
+  var input = document.createElement('input');
+  input.type = 'text'; input.className = 'dv-name-input'; input.id = 'dvName';
+  input.value = d.name || ''; input.maxLength = 40; input.placeholder = 'name it (optional)';
+  input.setAttribute('enterkeyhint', 'done'); input.setAttribute('autocomplete', 'off'); input.setAttribute('autocapitalize', 'off');
+  el.parentNode.replaceChild(input, el);
+  try { input.focus(); input.select(); } catch (e) {}
+  var done = false;
+  function commit() {
+    if (done) return; done = true;
+    var v = (input.value || '').trim().slice(0, 40);
+    var b = document.createElement('button');
+    b.id = 'dvName'; b.className = 'dv-name'; b.type = 'button'; b.title = 'Tap to rename';
+    b.textContent = v || (fmtDate(d.createdAt) || 'untitled');
+    b.onclick = function () { renameDoodle(d); };
+    if (input.parentNode) input.parentNode.replaceChild(b, input);
+    if (v === (d.name || '')) return;   // unchanged: don't write
+    if (!ddb) { toast("can't rename right now, check your connection"); return; }
+    ddb.collection('savedDoodles').doc(d.id).update({ name: v, updatedAt: serverTime() })
+      .then(function () { d.name = v; toast(v ? 'renamed' : 'name cleared'); })
+      .catch(function () { toast("couldn't rename, try again"); });
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
 }
 function deleteDoodle(d) {
   if (!ddb) { toast("can't delete right now, check your connection"); return; }
   if (!window.confirm('Take this doodle off the shelf?')) return;
   ddb.collection('savedDoodles').doc(d.id).delete()
-    .then(function () { toast('taken off the shelf'); closeViewer(); })
+    .then(function () { if (d.id === keptId) { keptId = null; keptSig = null; updateKeepBtn(); } toast('taken off the shelf'); closeViewer(); })
     .catch(function () { toast("couldn't delete, try again"); });
 }
 
@@ -518,7 +565,7 @@ function saveEditor() {
   var esv = document.getElementById('editSave'); if (esv) esv.classList.add('busy');
   var done = function () { if (esv) esv.classList.remove('busy'); };
   var ok = function () { editDirty = false; toast('saved'); done(); };
-  var fail = function () { toast("couldn't save, check your connection"); done(); };
+  var fail = function (e) { toast(e && e.code === 'permission-denied' ? "the shelf isn't enabled yet (publish the savedDoodles rule)" : "couldn't save, check your connection"); done(); };
   if (editingId) ddb.collection('savedDoodles').doc(editingId).update({ items: items, img: img, updatedAt: serverTime() }).then(ok).catch(fail);
   else ddb.collection('savedDoodles').add({ items: items, img: img, name: editName || '', by: me(), createdAt: serverTime(), updatedAt: serverTime() })
     .then(function (ref) { editingId = ref.id; ok(); }).catch(fail);

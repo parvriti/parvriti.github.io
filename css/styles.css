@@ -1379,6 +1379,7 @@ body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px
 .keep-in svg { width: 15px; height: 15px; display: block; }
 .keep-in:active { transform: scale(.9); }
 .keep-in.busy { opacity: .45; pointer-events: none; }
+.keep-in.kept { background: #c0425a; border-color: transparent; color: #fff; }   /* filled = this pad is on the shelf; tap to remove */
 
 /* the shelf entry mirrors the settings gear (frosted corner). On desktop the gear moves to the sidebar,
    so the shelf takes the free top-right there. */
@@ -1433,6 +1434,7 @@ body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px
 .dv-img { width: 100%; aspect-ratio: 4 / 5; object-fit: contain; border-radius: 10px; background: #fffdf6; display: block; box-shadow: 0 10px 24px rgba(0,0,0,.4); }
 .dv-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 14px 2px 12px; }
 .dv-name { font: 600 22px/1 'Caveat', cursive; color: #ffd9e6; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.dv-name-input { font: 600 22px/1 'Caveat', cursive; color: #ffd9e6; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 5px 9px; max-width: 62%; outline: none; -webkit-appearance: none; appearance: none; }
 .dv-sub { font: 500 11px 'DM Sans', sans-serif; color: #9a8a92; text-align: right; flex: none; }
 .dv-actions { display: flex; gap: 9px; }
 .dv-btn { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 8px; border-radius: 13px; cursor: pointer;
@@ -1472,6 +1474,7 @@ body.shelf-open .love-fab, body.editing-doodle .love-fab { display: none !import
 :root[data-theme="light"] .dv-card { background: linear-gradient(180deg, #fff, #fbf3ee); border-color: #f0e0e3; box-shadow: 0 30px 70px rgba(120,80,60,.24); }
 :root[data-theme="light"] .dv-x { background: rgba(0,0,0,.06); color: #8b2040; }
 :root[data-theme="light"] .dv-name { color: #8b2040; }
+:root[data-theme="light"] .dv-name-input { color: #8b2040; background: #fff; border-color: #f0d8de; }
 :root[data-theme="light"] .dv-sub { color: #9a6a74; }
 :root[data-theme="light"] .dv-btn { background: #fff; border-color: #f0d8de; color: #8b2040; }
 :root[data-theme="light"] .dv-del { color: #c0304a; }
