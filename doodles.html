@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('parvritiTheme')||'dark';document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#fbf1f1':'#0a0406');}catch(e){}</script>
-<link rel="stylesheet" href="css/styles.css?v=100">
-<link rel="stylesheet" href="css/theme.css?v=100">
+<link rel="stylesheet" href="css/styles.css?v=101">
+<link rel="stylesheet" href="css/theme.css?v=101">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -64,7 +64,10 @@
             </button>
           </div>
         </div>
-        <div class="by" id="padBy">draw something silly together</div>
+        <div class="pad-cap">
+          <div class="by" id="padBy">draw something silly together</div>
+          <button class="keep-in" id="keepBtn" type="button" aria-label="Keep this doodle" title="Keep this doodle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button>
+        </div>
         <div class="load-veil on-cream" id="doodleLoad" aria-hidden="true">
           <svg class="lv-bloom" viewBox="0 0 150 150" aria-hidden="true"><ellipse cx="75" cy="20" rx="12" ry="19" fill="#b03050" opacity=".9" transform="rotate(0 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#c0425a" opacity=".9" transform="rotate(45 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#8b2040" opacity=".9" transform="rotate(90 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#c0425a" opacity=".9" transform="rotate(135 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#b03050" opacity=".9" transform="rotate(180 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#c0425a" opacity=".9" transform="rotate(225 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#8b2040" opacity=".9" transform="rotate(270 75 75)"/><ellipse cx="75" cy="20" rx="12" ry="19" fill="#c0425a" opacity=".9" transform="rotate(315 75 75)"/></svg>
           <span class="lv-cap">loading&hellip;</span>
@@ -78,13 +81,35 @@
 
 <div class="room-toast" id="roomToast"></div>
 
+<!-- kept doodles: shelf entry (mirrors the settings gear), the shelf sheet, the single-doodle viewer, the editor bar -->
+<button class="proto-corner proto-left shelf-corner" id="shelfCorner" type="button" aria-label="Kept doodles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><rect x="14" y="14" width="7" height="7" rx="1.4"/></svg></button>
+
+<div class="shelf-ov" id="shelfOv" aria-hidden="true">
+  <div class="shelf-sheet">
+    <div class="shelf-head">
+      <button class="shelf-x" id="shelfClose" type="button" aria-label="Back to the pad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Pad</span></button>
+      <div class="shelf-h-title">Doodles</div>
+      <span class="shelf-h-spacer" aria-hidden="true"></span>
+    </div>
+    <div class="shelf-body" id="shelfBody"></div>
+  </div>
+</div>
+
+<div class="doodle-viewer" id="doodleViewer" aria-hidden="true"></div>
+
+<div class="edit-bar" id="editBar" aria-hidden="true">
+  <button class="edit-back" id="editBack" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> Done</button>
+  <span class="edit-name" id="editNameLbl">untitled</span>
+  <button class="edit-save" id="editSave" type="button">Save</button>
+</div>
+
 <nav class="proto-tabbar" id="protoTabbar" aria-label="Main"></nav>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=100"></script>
-<script src="js/doodle.js?v=100"></script>
-<script src="js/native.js?v=100"></script>
+<script src="js/common.js?v=101"></script>
+<script src="js/doodle.js?v=101"></script>
+<script src="js/native.js?v=101"></script>
 </body>
 </html>

@@ -332,7 +332,9 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
    while any of them is open (they leave the DOM on close, so it returns automatically). */
 body:has(.ow-reader.active) :is(.proto-tabbar, .proto-sidebar, .proto-corner),
 body:has(.ow-unseal) :is(.proto-tabbar, .proto-sidebar, .proto-corner),
-body:has(.room-ov) :is(.proto-tabbar, .proto-sidebar, .proto-corner) { display: none !important; }
+body:has(.room-ov) :is(.proto-tabbar, .proto-sidebar, .proto-corner),
+body.shelf-open :is(.proto-tabbar, .proto-sidebar, .proto-corner),
+body.editing-doodle :is(.proto-tabbar, .proto-sidebar, .proto-corner) { display: none !important; }
 /* LIGHT MODE: the board composer (+ reason) card is a dark-brown box with cream ink - on the new
    light scrim it read as a dark incursion. Give it a white card with dark ink (the cream textarea
    + pink submit already carry across both themes). */

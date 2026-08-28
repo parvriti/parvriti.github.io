@@ -23,12 +23,14 @@
     { id: 'notes',         label: 'Open When notes', ic: '💌', blob: 'voice' },
     { id: 'roomItems',     label: 'Board items',     ic: '📌', blob: 'img' },
     { id: 'canvasStrokes', label: 'Doodle strokes',  ic: '✏️', blob: ['pts', 'png'] },
+    { id: 'savedDoodles',  label: 'Kept doodles',    ic: '🖼', blob: ['items', 'img'] },
     { id: 'cycle',         label: 'Cycle logs',      ic: '🌸', blob: null }
   ];
-  // the caps the app enforces today (mirrored from open-when.js / board.js)
+  // the caps the app enforces today (mirrored from open-when.js / board.js / doodle.js)
   var CAPS = [
     { name: 'Voice note', ic: '🎙', cap: 900000, src: 'open-when.js' },
-    { name: 'Board photo', ic: '🖼', cap: 980000, src: 'board.js' }
+    { name: 'Board photo', ic: '🖼', cap: 980000, src: 'board.js' },
+    { name: 'Kept doodle', ic: '🌸', cap: 950000, src: 'doodle.js' }
   ];
 
   var db = null, DATA = null, loads = 20;
@@ -146,9 +148,10 @@
 
   /* egress + ops both scale with the loads/day model */
   function renderEstimates() {
-    var n = DATA.notes || {}, r = DATA.roomItems || {}, s = DATA.canvasStrokes || {}, cy = DATA.cycle || {};
+    var n = DATA.notes || {}, r = DATA.roomItems || {}, s = DATA.canvasStrokes || {}, cy = DATA.cycle || {}, sd = DATA.savedDoodles || {};
     // egress: blob-heavy pages re-pull their whole collection on each open
-    var perLoad = (n.bytes || 0) + (r.bytes || 0) + (s.bytes || 0);
+    // (savedDoodles is lazy — the shelf pulls it only when opened, ~once per doodles session, so it rides the same per-load model)
+    var perLoad = (n.bytes || 0) + (r.bytes || 0) + (s.bytes || 0) + (sd.bytes || 0);
     var monthly = perLoad * loads * 30;
     var egrPct = monthly / EGRESS_CAP * 100;
     $('egrUsed').textContent = fmtBytes(monthly) + ' / mo';
@@ -158,7 +161,7 @@
 
     // ops: presence heartbeat dominates; page loads add doc reads
     var writes = 1150 + loads * 2;
-    var reads = 1150 + loads * ((n.count || 0) + (r.count || 0) + (cy.count || 0) + 3);
+    var reads = 1150 + loads * ((n.count || 0) + (r.count || 0) + (cy.count || 0) + (sd.count || 0) + 3);
     var wrPct = writes / WRITE_CAP * 100, rdPct = reads / READ_CAP * 100;
     $('wrNum').textContent = '~' + fmtNum(writes);
     $('rdNum').textContent = '~' + fmtNum(reads);

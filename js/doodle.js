@@ -35,6 +35,10 @@ var ERASE = '#fffdf6';   // the canvas paper colour (styles.css .pad canvas) - e
 var tool = 'draw', penColor = '#c0425a', imgCache = {}, FILL_TOL = 32;   // fill tool: flood-fill on tap -> stored as a self-contained PNG patch (syncs pixel-identical); imgCache decodes patches for redraw
 var undoStack = [], undone = {};   // undoStack: {cid, ref} of items I added this session (newest last) - undo deletes my last one (syncs). undone: cids I deleted, filtered from snapshots until the delete lands (no flicker-back)
 var doodleLoaded = false, doodleVeil = null;   // loading veil (first snapshot ends it)
+/* ── kept doodles (the shelf) ── editMode edits a saved doodle LOCALLY (no live sync / no nudge);
+   the live canvasStrokes snapshot keeps updating `strokes` in the background but does not repaint. */
+var editMode = false, editItems = [], editingId = null, editName = '', editDirty = false;
+var shelfUnsub = null, shelfDocs = [], viewerDoc = null;
 
 function startDoodle() {
   pad = document.getElementById('pad'); if (!pad) return;
@@ -83,6 +87,17 @@ function startDoodle() {
   if (fillBtn) fillBtn.addEventListener('click', function () { setTool('fill'); });   // fill uses the selected swatch colour; tap the canvas to flood a region
   var un = document.getElementById('undoTool'); if (un) un.addEventListener('click', undoLast);
   var cl = document.getElementById('clearPad'); if (cl) cl.addEventListener('click', clearDoodle);
+  // kept doodles: Keep button, the shelf entry, its close, tapping a card, and the editor bar
+  var kp = document.getElementById('keepBtn'); if (kp) kp.addEventListener('click', keepDoodle);
+  var scn = document.getElementById('shelfCorner'); if (scn) scn.addEventListener('click', openShelf);
+  var scl = document.getElementById('shelfClose'); if (scl) scl.addEventListener('click', closeShelf);
+  var eb = document.getElementById('editBack'); if (eb) eb.addEventListener('click', closeEditor);
+  var esv = document.getElementById('editSave'); if (esv) esv.addEventListener('click', function () { saveEditor(); });
+  var sbody = document.getElementById('shelfBody');
+  if (sbody) sbody.addEventListener('click', function (e) {
+    var c = e.target.closest ? e.target.closest('.sd-card') : null; if (!c) return;
+    var i = +c.getAttribute('data-i'); if (shelfDocs[i]) openViewer(shelfDocs[i]);
+  });
 
   pad.addEventListener('pointerdown', dStart);
   pad.addEventListener('pointermove', dMove);
@@ -100,7 +115,7 @@ function startDoodle() {
         var present = {}; strokes.forEach(function (s) { if (s.cid) present[s.cid] = true; });
         for (var uc in undone) if (!present[uc]) delete undone[uc];   // an undone item's delete has landed -> stop filtering it
         strokes = strokes.filter(function (s) { return !(s.cid && undone[s.cid]); });   // hide items I just undid until their delete confirms (no flicker-back)
-        if (!strokes.length) { pendingMine = []; imgCache = {}; undoStack = []; undone = {}; }   // a wipe (or empty pad): drop my unconfirmed items + decoded fill patches + undo history
+        if (!strokes.length) { pendingMine = []; undoStack = []; undone = {}; if (!editMode) imgCache = {}; }   // a wipe (or empty pad): drop my unconfirmed items + undo history; keep the editor's decoded fills while editing
         else {
           if (pendingMine.length) {   // drop mine that echoed back (cid), or expired after ~12s (e.g. deleted before its echo)
             var have = {}, cutoff = Date.now() - 12000;
@@ -110,9 +125,10 @@ function startDoodle() {
           var keep = {};   // prune decoded fill patches whose doc is gone (e.g. the other person undid a fill) - imgCache would otherwise grow for the whole session; anything still shown is re-decoded on demand
           strokes.forEach(function (s) { if (s.cid) keep[s.cid] = true; });
           pendingMine.forEach(function (p) { if (p.cid) keep[p.cid] = true; });
+          if (editMode) editItems.forEach(function (it) { if (it && it.cid) keep[it.cid] = true; });   // don't evict the editor's fills while editing
           for (var ic in imgCache) if (!keep[ic]) delete imgCache[ic];
         }
-        paintAll();   // redraw strokes + fills in order, then my not-yet-confirmed items + the in-progress line
+        if (!editMode) paintAll();   // editor keeps its own paint; live strokes still tracked in the background so closing restores them
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
@@ -135,11 +151,11 @@ function paintItem(it) {
 }
 function redraw() {
   pctx.fillStyle = ERASE; pctx.fillRect(0, 0, pad.width, pad.height);   // opaque paper base so erase marks and blank paper are the SAME pixels (flood-fill treats them alike)
-  strokes.forEach(paintItem);
+  (editMode ? editItems : strokes).forEach(paintItem);   // editor paints its own local item list
 }
 function paintAll() {
   redraw();
-  pendingMine.forEach(paintItem);   // my not-yet-confirmed strokes + fills
+  if (!editMode) pendingMine.forEach(paintItem);   // my not-yet-confirmed strokes + fills (live only)
   if (drawing && curPts && curPts.length) drawStroke(curPts, drawColor, drawSize);
 }
 var _repaintQ = false;
@@ -191,7 +207,7 @@ function capturePatch(mask, r, fill, w) {
 }
 /* paint-bucket: flood-fill the tapped region, store it as a self-contained PNG patch (syncs pixel-identical) */
 function doFill(e) {
-  if (!ddb) return;
+  if (!editMode && !ddb) return;   // live needs Firestore; the editor fills locally
   var p = pxy(e);
   var sx = Math.max(0, Math.min(pad.width - 1, Math.round(p.x)));
   var sy = Math.max(0, Math.min(pad.height - 1, Math.round(p.y)));
@@ -200,6 +216,12 @@ function doFill(e) {
   if (!r || !r.filled) return;
   var png = capturePatch(r.mask, r, fill, pad.width);
   var cid = 'f' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+  if (editMode) {   // editor: append locally + decode for redraw, no Firestore (distinct 'e' cid namespace, never collides with live 'f' fills)
+    var ecid = 'e' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    editItems.push({ type: 'fill', png: png, x: r.bx, y: r.by, cid: ecid });
+    var eim = new Image(); imgCache[ecid] = eim; eim.onload = scheduleRepaint; eim.src = png;
+    editDirty = true; return;
+  }
   var item = { type: 'fill', png: png, x: r.bx, y: r.by, cid: cid, t: Date.now() };
   pendingMine.push(item);                                   // keep it painted until its doc echoes
   var im = new Image(); imgCache[cid] = im; im.onload = scheduleRepaint; im.src = png;   // decode for redraw
@@ -216,7 +238,7 @@ function dStart(e) {
   activePtr = e.pointerId;
   try { pad.setPointerCapture(e.pointerId); } catch (er) {}
   drawing = true;
-  if (window.parvritiActivity) { clearTimeout(dEnd._t); window.parvritiActivity('drawing'); }
+  if (!editMode && window.parvritiActivity) { clearTimeout(dEnd._t); window.parvritiActivity('drawing'); }   // no presence while editing a kept doodle
   var p = pxy(e); curPts = [p]; lastXY = p;
   pctx.strokeStyle = drawColor; pctx.lineWidth = drawSize; drawStroke(curPts, drawColor, drawSize);
 }
@@ -231,8 +253,10 @@ function dMove(e) {
 }
 /* commit the current in-progress stroke to Firestore, keeping it painted (pendingMine) until it echoes */
 function commitStroke() {
-  if (!(curPts && curPts.length && ddb)) return;
+  if (!(curPts && curPts.length)) return;
   var pts = curPts.map(function (p) { return { x: Math.round(p.x), y: Math.round(p.y) }; });
+  if (editMode) { editItems.push({ pts: pts, color: drawColor, size: drawSize }); editDirty = true; return; }   // editor: append locally, no Firestore
+  if (!ddb) return;
   var cid = 'c' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
   pendingMine.push({ pts: pts, color: drawColor, size: drawSize, cid: cid, t: Date.now() });   // t = expiry so a stroke deleted before its echo can't ghost forever
   if (drawColor !== ERASE) dEnd._drew = true;   // an erase-only session shouldn't say "left you a doodle"
@@ -245,6 +269,7 @@ function dEnd(e) {
   drawing = false; activePtr = null;
   commitStroke();
   curPts = null;
+  if (editMode) return;   // editor: private edit, no live presence / nudge
   // let the "drawing" presence linger briefly so pauses between strokes don't flicker
   if (window.parvritiActivity) { clearTimeout(dEnd._t); dEnd._t = setTimeout(function () { window.parvritiActivity(null); }, 6000); }
   // one "left you a doodle" ping per session: ~40s after the last stroke, or on the way out
@@ -258,6 +283,11 @@ function sendDoodleNudge() {
 }
 /* undo MY last item this session: delete its doc (syncs the removal), drop it locally right away */
 function undoLast() {
+  if (editMode) {   // editor: pop the local list
+    if (!editItems.length) { toast('nothing to undo'); return; }
+    var e = editItems.pop(); if (e && e.cid) delete imgCache[e.cid];
+    editDirty = true; paintAll(); return;
+  }
   if (!ddb || !undoStack.length) { toast('nothing to undo'); return; }
   var last = undoStack.pop();
   undone[last.cid] = true;
@@ -271,6 +301,11 @@ function undoLast() {
   });
 }
 function clearDoodle() {
+  if (editMode) {   // editor: clear the local list only (never touches the live pad)
+    if (!editItems.length) { toast('nothing to clear'); return; }
+    if (!window.confirm('Clear this doodle?')) return;
+    editItems = []; editDirty = true; paintAll(); return;
+  }
   if (!ddb) { pctx.clearRect(0, 0, pad.width, pad.height); return; }
   if (!window.confirm('Wipe the doodle for both of you?')) return;
   pctx.clearRect(0, 0, pad.width, pad.height);
@@ -291,6 +326,211 @@ function wipeAll(passes) {
     }
     return Promise.all(jobs).then(function () { if (passes > 1) wipeAll(passes - 1); else toast('cleared the pad'); });
   }).catch(function () { toast("couldn't clear, try again"); });
+}
+
+/* =====================================================================
+   KEPT DOODLES - the shelf. Keep snapshots the live pad into savedDoodles
+   (one doc: vector items + a JPEG + optional name). The shelf lists them
+   (lazy listener), the viewer shares/renames/deletes/reopens, and the
+   editor edits a copy LOCALLY (no live sync, no nudge) then saves back.
+   Everything is Firestore-only (Spark has no Cloud Storage) + guarded to
+   the 1 MiB doc ceiling, with a toast on every failure.
+   ===================================================================== */
+var SAVE_CAP = 950000;   // stay clear of Firestore's 1 MiB per-doc ceiling (mirrors board's photo cap)
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function personName(p) { return p === 'parv' ? 'Pavu' : 'Riti'; }
+/* strip Firestore-only fields down to a plain render list for storage */
+function cleanItems(src) {
+  return (src || []).map(function (s) {
+    if (s.png) return { type: 'fill', png: s.png, x: s.x, y: s.y };
+    if (s.pts) return { pts: s.pts, color: s.color, size: s.size };
+    return null;
+  }).filter(Boolean);
+}
+/* whatever is painted on the pad right now -> a 720x900 JPEG dataURL (grid + viewer + share all use this) */
+function padImage() {
+  try {
+    var c = document.createElement('canvas'); c.width = pad.width; c.height = pad.height;
+    var cx = c.getContext('2d'); cx.fillStyle = ERASE; cx.fillRect(0, 0, c.width, c.height);
+    cx.drawImage(pad, 0, 0);
+    return c.toDataURL('image/jpeg', 0.68);
+  } catch (e) { return ''; }
+}
+function overCap(o) { try { return JSON.stringify(o).length > SAVE_CAP; } catch (e) { return false; } }
+function fmtDate(ts) {
+  try { var d = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : null); return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''; } catch (e) { return ''; }
+}
+function fmtYear(ts) { try { var d = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : null); return (d || new Date()).getFullYear(); } catch (e) { return (new Date()).getFullYear(); } }
+
+/* KEEP: snapshot the current LIVE pad onto the shelf */
+function keepDoodle() {
+  if (editMode) { saveEditor(); return; }   // inside the editor, Keep = Save
+  if (!ddb) { toast("can't keep it right now, check your connection"); return; }
+  var have = {}; strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
+  var extra = pendingMine.filter(function (p) { return !(p.cid && have[p.cid]); });   // include just-drawn, not-yet-echoed items; no duplicates
+  var items = cleanItems(strokes.concat(extra));
+  if (!items.length) { toast('draw something first, then keep it'); return; }
+  var img = padImage();
+  if (overCap({ items: items, img: img })) { toast("this doodle's too detailed to keep, try fewer fills"); return; }
+  var btn = document.getElementById('keepBtn'); if (btn) btn.classList.add('busy');
+  ddb.collection('savedDoodles').add({ items: items, img: img, name: '', by: me(), createdAt: serverTime(), updatedAt: serverTime() })
+    .then(function () { toast('kept it on the shelf'); })
+    .catch(function () { toast("couldn't keep it, check your connection"); })
+    .then(function () { if (btn) btn.classList.remove('busy'); });
+}
+
+/* SHELF overlay (lazy listener: only reads savedDoodles once you open it) */
+function openShelf() {
+  var ov = document.getElementById('shelfOv'); if (!ov) return;
+  ov.classList.add('on'); ov.setAttribute('aria-hidden', 'false'); document.body.classList.add('shelf-open');
+  if (shelfUnsub) { renderShelf(); return; }
+  var body = document.getElementById('shelfBody'); if (body && !shelfDocs.length) body.innerHTML = '<div class="sd-load">opening the shelf&hellip;</div>';
+  if (!ddb) { if (body) body.innerHTML = '<div class="sd-empty">couldn\'t load the shelf, check your connection</div>'; return; }
+  try {
+    shelfUnsub = ddb.collection('savedDoodles').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
+      shelfDocs = snap.docs.map(function (d) { var x = d.data() || {}; x.id = d.id; return x; });
+      renderShelf();
+    }, function () { var b = document.getElementById('shelfBody'); if (b) b.innerHTML = '<div class="sd-empty">couldn\'t load the shelf, check your connection</div>'; });
+  } catch (e) { if (body) body.innerHTML = '<div class="sd-empty">couldn\'t load the shelf</div>'; }
+}
+function closeShelf() {
+  var ov = document.getElementById('shelfOv'); if (!ov) return;
+  ov.classList.remove('on'); ov.setAttribute('aria-hidden', 'true');
+  if (!editMode) document.body.classList.remove('shelf-open');
+}
+function renderShelf() {
+  var body = document.getElementById('shelfBody'); if (!body) return;
+  if (!shelfDocs.length) { body.innerHTML = '<div class="sd-empty"><div class="sd-empty-ic">&#127800;</div>No kept doodles yet.<br>Draw on the pad, then tap Keep.</div>'; return; }
+  var html = '', curYear = null;
+  shelfDocs.forEach(function (d, i) {
+    var y = fmtYear(d.createdAt);
+    if (y !== curYear) { if (curYear !== null) html += '</div>'; html += '<div class="sd-year"><b>' + y + '</b><i></i></div><div class="sd-grid">'; curYear = y; }
+    var who = d.by === 'parv' ? 'p' : 'r', tag = '<i class="sd-who ' + who + '">' + (who === 'p' ? 'P' : 'R') + '</i>';
+    var named = !!(d.name && d.name.trim());
+    var label = named ? esc(d.name) : (fmtDate(d.createdAt) || 'doodle');
+    var meta = named ? (tag + ' ' + fmtDate(d.createdAt)) : tag;
+    html += '<button class="sd-card" data-i="' + i + '" type="button"><span class="sd-nub"></span>'
+      + (d.img ? '<img class="sd-thumb" src="' + d.img + '" alt="" loading="lazy">' : '<span class="sd-thumb sd-blank"></span>')
+      + '<span class="sd-cap"><b>' + label + '</b><span class="sd-meta">' + meta + '</span></span></button>';
+  });
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+/* VIEWER: open one big, with resume / share / delete (rename = tap the title) */
+function openViewer(d) {
+  viewerDoc = d;
+  var v = document.getElementById('doodleViewer'); if (!v) return;
+  var named = !!(d.name && d.name.trim());
+  v.innerHTML =
+    '<div class="dv-scrim" id="dvClose"></div>'
+    + '<div class="dv-card">'
+    + '<button class="dv-x" id="dvX" type="button" aria-label="Close">&#10005;</button>'
+    + (d.img ? '<img class="dv-img" src="' + d.img + '" alt="">' : '<div class="dv-img dv-blank"></div>')
+    + '<div class="dv-meta"><button class="dv-name" id="dvName" type="button" title="Tap to rename">' + (named ? esc(d.name) : (fmtDate(d.createdAt) || 'untitled')) + '</button>'
+    + '<div class="dv-sub">' + (named ? 'kept ' + fmtDate(d.createdAt) + ' &middot; ' : '') + 'by ' + personName(d.by) + '</div></div>'
+    + '<div class="dv-actions">'
+    + '<button class="dv-btn dv-primary" id="dvEdit" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Keep drawing</button>'
+    + '<button class="dv-btn dv-ghost" id="dvShare" type="button" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg></button>'
+    + '<button class="dv-btn dv-ghost dv-del" id="dvDel" type="button" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>'
+    + '</div></div>';
+  v.classList.add('on'); v.setAttribute('aria-hidden', 'false'); document.body.classList.add('shelf-open');
+  document.getElementById('dvClose').onclick = closeViewer;
+  document.getElementById('dvX').onclick = closeViewer;
+  document.getElementById('dvName').onclick = function () { renameDoodle(d); };
+  document.getElementById('dvEdit').onclick = function () { openEditor(d); };
+  document.getElementById('dvShare').onclick = function () { shareDoodle(d); };
+  document.getElementById('dvDel').onclick = function () { deleteDoodle(d); };
+}
+function closeViewer() {
+  var v = document.getElementById('doodleViewer'); if (!v) return;
+  v.classList.remove('on'); v.setAttribute('aria-hidden', 'true'); viewerDoc = null;
+  var ov = document.getElementById('shelfOv');
+  if (!(ov && ov.classList.contains('on')) && !editMode) document.body.classList.remove('shelf-open');
+}
+function renameDoodle(d) {
+  if (!ddb) { toast("can't rename right now, check your connection"); return; }
+  var v = window.prompt('Name this doodle (leave blank for just the date)', d.name || '');
+  if (v === null) return;
+  v = v.trim().slice(0, 40);
+  ddb.collection('savedDoodles').doc(d.id).update({ name: v, updatedAt: serverTime() })
+    .then(function () { d.name = v; var el = document.getElementById('dvName'); if (el) el.textContent = v || (fmtDate(d.createdAt) || 'untitled'); toast(v ? 'renamed' : 'name cleared'); })
+    .catch(function () { toast("couldn't rename, try again"); });
+}
+function deleteDoodle(d) {
+  if (!ddb) { toast("can't delete right now, check your connection"); return; }
+  if (!window.confirm('Take this doodle off the shelf?')) return;
+  ddb.collection('savedDoodles').doc(d.id).delete()
+    .then(function () { toast('taken off the shelf'); closeViewer(); })
+    .catch(function () { toast("couldn't delete, try again"); });
+}
+
+/* SHARE: hand the JPEG to the OS share sheet (must build the File synchronously inside the tap) */
+function dataURLtoBlob(u) {
+  try {
+    var a = u.split(','), m = (a[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+    var b = atob(a[1]), n = b.length, u8 = new Uint8Array(n);
+    while (n--) u8[n] = b.charCodeAt(n);
+    return new Blob([u8], { type: m });
+  } catch (e) { return null; }
+}
+function shareDoodle(d) {
+  if (!d.img) { toast('nothing to share yet'); return; }
+  var fname = ((d.name || 'doodle').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'doodle') + '.jpg';
+  var blob = dataURLtoBlob(d.img);
+  if (blob && navigator.canShare) {
+    try {
+      var file = new File([blob], fname, { type: 'image/jpeg' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: d.name || 'a doodle for you' })
+          .catch(function (err) { if (err && err.name === 'AbortError') return; toast("couldn't open the share sheet"); });
+        return;
+      }
+    } catch (e) {}
+  }
+  try {   // desktop / no file-share: download it
+    var a = document.createElement('a'); a.href = d.img; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast('saved the image');
+  } catch (e) { toast("couldn't share on this device"); }
+}
+
+/* EDITOR: reopen a kept doodle and carry on drawing (local copy, no live sync) */
+function openEditor(d) {
+  closeViewer(); closeShelf();
+  editMode = true; editingId = d.id || null; editName = (d.name || ''); editDirty = false;
+  editItems = (d.items || []).map(function (it) {
+    if (it && it.png) return { type: 'fill', png: it.png, x: it.x, y: it.y, cid: 'e' + Math.random().toString(36).slice(2) };   // fresh cid so paintItem decodes each into imgCache
+    return { pts: (it && it.pts) || [], color: (it && it.color) || '#c0425a', size: (it && it.size) || 6 };
+  });
+  document.body.classList.add('editing-doodle');
+  var nm = document.getElementById('editNameLbl'); if (nm) nm.textContent = editName || 'untitled';
+  paintAll();
+  toast('editing this one, draw then Save');
+}
+function saveEditor() {
+  if (!editMode) return;
+  if (!ddb) { toast("can't save right now, check your connection"); return; }
+  var items = cleanItems(editItems);
+  if (!items.length) { toast("nothing to save, this doodle is empty"); return; }   // never blank an existing kept doodle
+  var img = padImage();
+  if (overCap({ items: items, img: img, name: editName })) { toast("too detailed to save, try fewer fills"); return; }
+  var esv = document.getElementById('editSave'); if (esv) esv.classList.add('busy');
+  var done = function () { if (esv) esv.classList.remove('busy'); };
+  var ok = function () { editDirty = false; toast('saved'); done(); };
+  var fail = function () { toast("couldn't save, check your connection"); done(); };
+  if (editingId) ddb.collection('savedDoodles').doc(editingId).update({ items: items, img: img, updatedAt: serverTime() }).then(ok).catch(fail);
+  else ddb.collection('savedDoodles').add({ items: items, img: img, name: editName || '', by: me(), createdAt: serverTime(), updatedAt: serverTime() })
+    .then(function (ref) { editingId = ref.id; ok(); }).catch(fail);
+}
+function closeEditor() {
+  if (!editMode) return;
+  if (editDirty && !window.confirm('Leave without saving your changes?')) return;
+  // drop the editor's decoded fill patches so they don't linger in imgCache
+  editItems.forEach(function (it) { if (it && it.cid) delete imgCache[it.cid]; });
+  editMode = false; editingId = null; editName = ''; editItems = []; editDirty = false;
+  document.body.classList.remove('editing-doodle'); document.body.classList.remove('shelf-open');
+  paintAll();   // restore the live shared pad
 }
 
 if (window.__parvritiAuthed) startDoodle();
