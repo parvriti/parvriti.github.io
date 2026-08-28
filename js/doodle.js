@@ -136,6 +136,7 @@ function startDoodle() {
       }, function (e) { console.warn('strokes', e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); });
     } catch (e) { console.warn(e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); }
   } else if (doodleVeil) { doodleVeil.fail("couldn't load, check your connection"); }
+  attachShelf();   // load the shelf on startup so Keep knows the kept-state right away (no duplicate saves on reopen)
 }
 function pxy(e) { var r = pad.getBoundingClientRect(); return { x: (e.clientX - r.left) * (pad.width / r.width), y: (e.clientY - r.top) * (pad.height / r.height) }; }
 /* draw one item in order: a fill patch (stamp its cached PNG) or a stroke */
@@ -362,17 +363,35 @@ function fmtDate(ts) {
 }
 function fmtYear(ts) { try { var d = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : null); return (d || new Date()).getFullYear(); } catch (e) { return (new Date()).getFullYear(); } }
 
-/* KEEP is a TOGGLE: keep the current pad, or (if this exact pad is already kept this session)
-   un-keep it with a confirm. keptId/keptSig = "the current live pad is saved as this doc";
-   padSig() detects any change so a changed pad is keepable again. */
-var keptId = null, keptSig = null;
+/* KEEP is a TOGGLE tied to the pad's CONTENT, not the session: each saved doodle stores a `sig`
+   of its strokes, and the current pad is "kept" iff a saved doc's sig matches padSig(). The stroke
+   cids are stable across reloads, so this survives reopen and you can NEVER save a duplicate. */
+var shelfLoaded = false;
 function padSig() {
   var cids = [];
   strokes.forEach(function (s) { if (s.cid) cids.push(s.cid); });
   pendingMine.forEach(function (p) { if (p.cid) cids.push(p.cid); });
   return cids.sort().join(',');
 }
-function isKept() { return !!keptId && keptSig !== null && keptSig === padSig(); }
+function keptDoc() {   // the saved doc matching the current pad, or null
+  var sig = padSig(); if (!sig) return null;
+  for (var i = 0; i < shelfDocs.length; i++) if (shelfDocs[i].sig && shelfDocs[i].sig === sig) return shelfDocs[i];
+  return null;
+}
+function isKept() { return !!keptDoc(); }
+function attachShelf() {   // listen from startup so the kept-state is known before the first Keep tap
+  if (shelfUnsub || !ddb) return;
+  try {
+    shelfUnsub = ddb.collection('savedDoodles').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
+      shelfDocs = snap.docs.map(function (d) { var x = d.data() || {}; x.id = d.id; return x; });
+      shelfLoaded = true; renderShelf(); updateKeepBtn();
+    }, function () {
+      shelfLoaded = true;
+      var ov = document.getElementById('shelfOv');
+      if (ov && ov.classList.contains('on')) { var b = document.getElementById('shelfBody'); if (b) b.innerHTML = '<div class="sd-empty">couldn\'t load the shelf, check your connection</div>'; }
+    });
+  } catch (e) {}
+}
 function updateKeepBtn() {
   var b = document.getElementById('keepBtn'); if (!b) return;
   var kept = isKept();
@@ -383,44 +402,38 @@ function updateKeepBtn() {
 function keepDoodle() {
   if (editMode) { saveEditor(); return; }   // inside the editor, Keep = Save
   if (!ddb) { toast("can't keep it right now, check your connection"); return; }
-  if (isKept()) { unkeepDoodle(); return; }   // already kept + unchanged -> tapping again un-keeps it
+  var ex = keptDoc();
+  if (ex) { unkeepDoodle(ex.id); return; }   // this exact pad is already on the shelf (even across reopen) -> un-keep, never a duplicate
   var have = {}; strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });
   var extra = pendingMine.filter(function (p) { return !(p.cid && have[p.cid]); });   // include just-drawn, not-yet-echoed items; no duplicates
   var items = cleanItems(strokes.concat(extra));
   if (!items.length) { toast('draw something first, then keep it'); return; }
   var img = padImage();
   if (overCap({ items: items, img: img })) { toast("this doodle's too detailed to keep, try fewer fills"); return; }
-  var sig = padSig();
+  var sig = padSig(), by = me();
   var btn = document.getElementById('keepBtn'); if (btn) btn.classList.add('busy');
-  ddb.collection('savedDoodles').add({ items: items, img: img, name: '', by: me(), createdAt: serverTime(), updatedAt: serverTime() })
-    .then(function (ref) { keptId = ref.id; keptSig = sig; toast('kept it on the shelf'); })
+  toast('keeping...');   // immediate feedback: the first write after a cold launch can take a moment to connect
+  ddb.collection('savedDoodles').add({ items: items, img: img, name: '', by: by, sig: sig, createdAt: serverTime(), updatedAt: serverTime() })
+    .then(function (ref) { shelfDocs.unshift({ id: ref.id, sig: sig, img: img, name: '', by: by, createdAt: null }); toast('kept it on the shelf'); })
     .catch(function (e) { toast(e && e.code === 'permission-denied' ? "the shelf isn't enabled yet (publish the savedDoodles rule)" : "couldn't keep it, check your connection"); })
     .then(function () { if (btn) btn.classList.remove('busy'); updateKeepBtn(); });
 }
-function unkeepDoodle() {
-  if (!ddb || !keptId) return;
+function unkeepDoodle(id) {
+  if (!ddb || !id) return;
   if (!window.confirm('Take this doodle off the shelf?')) return;
-  var id = keptId;
   var btn = document.getElementById('keepBtn'); if (btn) btn.classList.add('busy');
   ddb.collection('savedDoodles').doc(id).delete()
-    .then(function () { keptId = null; keptSig = null; toast('taken off the shelf'); })
+    .then(function () { shelfDocs = shelfDocs.filter(function (d) { return d.id !== id; }); toast('taken off the shelf'); })
     .catch(function () { toast("couldn't remove it, try again"); })
     .then(function () { if (btn) btn.classList.remove('busy'); updateKeepBtn(); });
 }
 
-/* SHELF overlay (lazy listener: only reads savedDoodles once you open it) */
+/* SHELF overlay (the listener is attached at startup by attachShelf; opening just shows it) */
 function openShelf() {
   var ov = document.getElementById('shelfOv'); if (!ov) return;
   ov.classList.add('on'); ov.setAttribute('aria-hidden', 'false'); document.body.classList.add('shelf-open');
-  if (shelfUnsub) { renderShelf(); return; }
-  var body = document.getElementById('shelfBody'); if (body && !shelfDocs.length) body.innerHTML = '<div class="sd-load">opening the shelf&hellip;</div>';
-  if (!ddb) { if (body) body.innerHTML = '<div class="sd-empty">couldn\'t load the shelf, check your connection</div>'; return; }
-  try {
-    shelfUnsub = ddb.collection('savedDoodles').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
-      shelfDocs = snap.docs.map(function (d) { var x = d.data() || {}; x.id = d.id; return x; });
-      renderShelf();
-    }, function () { var b = document.getElementById('shelfBody'); if (b) b.innerHTML = '<div class="sd-empty">couldn\'t load the shelf, check your connection</div>'; });
-  } catch (e) { if (body) body.innerHTML = '<div class="sd-empty">couldn\'t load the shelf</div>'; }
+  attachShelf();
+  renderShelf();
 }
 function closeShelf() {
   var ov = document.getElementById('shelfOv'); if (!ov) return;
@@ -429,6 +442,7 @@ function closeShelf() {
 }
 function renderShelf() {
   var body = document.getElementById('shelfBody'); if (!body) return;
+  if (!shelfLoaded && !shelfDocs.length) { body.innerHTML = '<div class="sd-load">opening the shelf&hellip;</div>'; return; }   // not "empty" until we've actually heard back
   if (!shelfDocs.length) { body.innerHTML = '<div class="sd-empty"><div class="sd-empty-ic">&#127800;</div>No kept doodles yet.<br>Draw on the pad, then tap Keep.</div>'; return; }
   var html = '', curYear = null;
   shelfDocs.forEach(function (d, i) {
@@ -508,7 +522,7 @@ function deleteDoodle(d) {
   if (!ddb) { toast("can't delete right now, check your connection"); return; }
   if (!window.confirm('Take this doodle off the shelf?')) return;
   ddb.collection('savedDoodles').doc(d.id).delete()
-    .then(function () { if (d.id === keptId) { keptId = null; keptSig = null; updateKeepBtn(); } toast('taken off the shelf'); closeViewer(); })
+    .then(function () { shelfDocs = shelfDocs.filter(function (x) { return x.id !== d.id; }); updateKeepBtn(); toast('taken off the shelf'); closeViewer(); })
     .catch(function () { toast("couldn't delete, try again"); });
 }
 
@@ -566,7 +580,7 @@ function saveEditor() {
   var done = function () { if (esv) esv.classList.remove('busy'); };
   var ok = function () { editDirty = false; toast('saved'); done(); };
   var fail = function (e) { toast(e && e.code === 'permission-denied' ? "the shelf isn't enabled yet (publish the savedDoodles rule)" : "couldn't save, check your connection"); done(); };
-  if (editingId) ddb.collection('savedDoodles').doc(editingId).update({ items: items, img: img, updatedAt: serverTime() }).then(ok).catch(fail);
+  if (editingId) ddb.collection('savedDoodles').doc(editingId).update({ items: items, img: img, sig: '', updatedAt: serverTime() }).then(ok).catch(fail);   // sig cleared: an edited doodle no longer corresponds to any live pad
   else ddb.collection('savedDoodles').add({ items: items, img: img, name: editName || '', by: me(), createdAt: serverTime(), updatedAt: serverTime() })
     .then(function (ref) { editingId = ref.id; ok(); }).catch(fail);
 }
