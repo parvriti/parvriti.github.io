@@ -1356,10 +1356,8 @@ body.room-night .wall { box-shadow: inset 0 0 80px rgba(40,20,5,.7), 0 22px 46px
   background: rgba(74,44,20,.12); border: 2px solid transparent; color: #4a2c1a;
   display: inline-flex; align-items: center; justify-content: center; transition: transform .12s ease; }
 .erase svg, .fill svg, .undo svg, .clear svg, .water svg { width: 14px; height: 14px; display: block; }
-.erase.on, .fill.on { border-color: #4a2c1a; background: rgba(74,44,20,.26); }
+.erase.on, .fill.on, .water.on { border-color: #4a2c1a; background: rgba(74,44,20,.26); }   /* watercolor matches the other tools: brown icon + brown selected boundary */
 .undo:active, .clear:active, .water:active { transform: scale(.88); }
-.water { color: #c0425a; }   /* watercolor brush: a rose tint so it reads as a distinct tool */
-.water.on { border-color: #c0425a; background: rgba(192,66,90,.2); }
 .pad .clear { color: #b5453f; }   /* trash icon, subtly redder to read as destructive */
 @media (max-width: 360px) {   /* tiny phones (SE1 / 320px): shrink so row 1's 10 colours fit without clipping the end swatches; 361px+ (their iPhones) is untouched */
   .swatch, .nib, .erase, .fill, .undo, .clear, .water { width: 21px; height: 21px; }
