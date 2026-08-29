@@ -2227,7 +2227,7 @@ body[data-page="periods"] .tt-btn:active { color: #20264a; background: rgba(32,3
    The dot cover works because the splash is finalized black. */
 .plaunch { display: none; }
 html.plaunch-on .plaunch {
-  display: flex; position: fixed; inset: 0; z-index: 2147483000; background: #000;
+  display: flex; position: fixed; inset: 0; top: 0; left: 0; width: 100%; height: 100%; z-index: 2147483000; background: #000;
   align-items: center; justify-content: center;
 }
 /* iOS fills the home-indicator / safe-area strip from the DOCUMENT background-colour, not from the
@@ -2239,7 +2239,7 @@ html.plaunch-bg, html.plaunch-bg body,
 :root[data-theme="light"].plaunch-bg, :root[data-theme="light"].plaunch-bg body {
   background: #000 !important;
 }
-.pl-mark { position: relative; font-size: clamp(58px, 12vw, 116px); }
+.pl-mark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: clamp(58px, 12vw, 116px); }
 .pl-word {
   font-family: 'Dancing Script', cursive; font-weight: 700; font-size: 1em; line-height: 1; white-space: nowrap;
   background: linear-gradient(100deg, #ffe4ea, #f4a8bb 46%, #c0425a); -webkit-background-clip: text; background-clip: text; color: transparent;
