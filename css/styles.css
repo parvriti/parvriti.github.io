@@ -2232,10 +2232,11 @@ html.plaunch-on .plaunch {
 }
 /* iOS fills the home-indicator / safe-area strip from the DOCUMENT background-colour, not from the
    fixed splash - so in light theme a cream strip peeks under the black splash. Force the ground black
-   while the splash is up (scoped to plaunch-on, so the themed ground returns the moment it lifts).
-   High specificity + !important to beat theme.css's :root[data-theme="light"] body background. */
-html.plaunch-on, html.plaunch-on body,
-:root[data-theme="light"].plaunch-on, :root[data-theme="light"].plaunch-on body {
+   while the splash is fully up. This is its OWN class (plaunch-bg), removed the instant the lift starts
+   - so the fading splash reveals the light app directly with no black frame in between (iPad exposed
+   that gap). High specificity + !important to beat theme.css's :root[data-theme="light"] body background. */
+html.plaunch-bg, html.plaunch-bg body,
+:root[data-theme="light"].plaunch-bg, :root[data-theme="light"].plaunch-bg body {
   background: #000 !important;
 }
 .pl-mark { position: relative; font-size: clamp(58px, 12vw, 116px); }
