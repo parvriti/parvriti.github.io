@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Great+Vibes&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('parvritiTheme')||'dark';document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#fbf1f1':'#0a0406');}catch(e){}</script>
-<link rel="stylesheet" href="css/styles.css?v=112">
-<link rel="stylesheet" href="css/theme.css?v=112">
+<link rel="stylesheet" href="css/styles.css?v=113">
+<link rel="stylesheet" href="css/theme.css?v=113">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -33,6 +33,12 @@
       <div class="pad">
         <div class="clip" aria-hidden="true"></div>
         <canvas id="pad" width="720" height="900"></canvas>
+        <script>
+        /* instant first paint: draw the last pad from localStorage BEFORE Firebase/auth even load, so the
+           doodle appears immediately on every open. doodle.js repaints it live once strokes arrive and
+           keeps the cache fresh. Live paint wins over a late cache decode via the __doodleLive flag. */
+        (function(){try{var c=localStorage.getItem('doodlePadImg');if(!c)return;var el=document.getElementById('pad');if(!el)return;var i=new Image();i.onload=function(){try{if(!window.__doodleLive)el.getContext('2d').drawImage(i,0,0,el.width,el.height);}catch(e){}};i.src=c;window.__doodleHasImg=true;}catch(e){}})();
+        </script>
         <div class="tools">
           <div class="tool-row">
             <span class="swatch sel" style="background:#c0425a" data-c="#c0425a"></span>
@@ -111,8 +117,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=112"></script>
-<script src="js/doodle.js?v=112"></script>
-<script src="js/native.js?v=112"></script>
+<script src="js/common.js?v=113"></script>
+<script src="js/doodle.js?v=113"></script>
+<script src="js/native.js?v=113"></script>
 </body>
 </html>

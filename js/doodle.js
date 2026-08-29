@@ -19,17 +19,15 @@ try {
   if (typeof firebase !== 'undefined') {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     ddb = firebase.firestore();
-    // Offline persistence: the last-synced pad now paints INSTANTLY from IndexedDB on a cold start
-    // (no network round-trip blocking the first paint / the loading veil), and it shows cached strokes
-    // when the connection is slow to wake instead of the 15s "check your connection" error. Must be
-    // enabled before any read/write. Fails soft (another tab holds the lock, or unsupported browser)
-    // back to the old no-cache behaviour. The live onSnapshot still fires cache-first then server, so
-    // the shared pad stays real-time; own strokes echo instantly (local write) so no extra flicker.
-    try { if (ddb.enablePersistence) ddb.enablePersistence({ synchronizeTabs: true }).catch(function () {}); } catch (e) {}
   }
 } catch (e) { console.warn('doodle firestore init failed', e); }
 function serverTime() { try { return firebase.firestore.FieldValue.serverTimestamp(); } catch (e) { return Date.now(); } }
 function me() { return (window.__parvritiUser && window.__parvritiUser.person) || 'parv'; }
+var _cacheT = 0;
+function cacheImg() {   // stash a small JPEG of the live pad in localStorage so the NEXT open paints instantly (the inline script in doodles.html draws it before Firebase loads). Debounced so a burst of snapshots doesn't thrash toDataURL.
+  if (_cacheT) return;
+  _cacheT = setTimeout(function () { _cacheT = 0; try { if (!editMode && pad) localStorage.setItem('doodlePadImg', pad.toDataURL('image/jpeg', 0.6)); } catch (e) {} }, 1500);
+}
 function toast(m) {
   var t = document.getElementById('roomToast'); if (!t) return;
   t.textContent = m; t.classList.add('on'); clearTimeout(toast._t);
@@ -122,9 +120,10 @@ function startDoodle() {
   pad.addEventListener('pointercancel', dEnd);
   window.addEventListener('pointerup', dEnd); window.addEventListener('pointercancel', dEnd);   // safety net: end the stroke even if a release lands off the pad or setPointerCapture failed (else drawing stays stuck true)
   window.addEventListener('pagehide', sendDoodleNudge);   // doodle-and-leave still nudges (don't rely only on the 40s timer)
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (drawing) dEnd(); sendDoodleNudge(); } });   // iOS PWA backgrounds via visibilitychange, not pagehide; also end any active stroke so a mid-stroke background can't leave drawing stuck true (dEnd commits + resets)
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (drawing) dEnd(); sendDoodleNudge(); try { if (!editMode && pad && window.__doodleLive) localStorage.setItem('doodlePadImg', pad.toDataURL('image/jpeg', 0.6)); } catch (e) {} } });   // save the freshest pad on leave so the next open paints it instantly   // iOS PWA backgrounds via visibilitychange, not pagehide; also end any active stroke so a mid-stroke background can't leave drawing stuck true (dEnd commits + resets)
 
-  doodleVeil = window.parvritiLoadVeil ? window.parvritiLoadVeil('doodleLoad') : null;
+  doodleVeil = (window.__doodleHasImg) ? null : (window.parvritiLoadVeil ? window.parvritiLoadVeil('doodleLoad') : null);   // a cached pad is already on screen -> skip the loading veil (and its 15s "check your connection" timeout); the live snapshot repaints when it arrives
+  if (doodleVeil) setTimeout(function () { if (!doodleLoaded && doodleVeil) doodleVeil.done(); }, 2500);   // HARD CAP: never let the loading screen sit past ~2.5s - dismiss to the (blank) pad; strokes paint when the snapshot lands, and no 15s "check your connection" can fire
   if (ddb) {
     try {
       ddb.collection('canvasStrokes').orderBy('at', 'asc').onSnapshot(function (snap) {
@@ -145,7 +144,7 @@ function startDoodle() {
           if (editMode) editItems.forEach(function (it) { if (it && it.cid) keep[it.cid] = true; });   // don't evict the editor's fills while editing
           for (var ic in imgCache) if (!keep[ic]) delete imgCache[ic];
         }
-        if (!editMode) { paintAll(); updateKeepBtn(); }   // editor keeps its own paint; live strokes still tracked in the background so closing restores them; refresh the Keep/kept toggle
+        if (!editMode) { paintAll(); updateKeepBtn(); window.__doodleLive = true; cacheImg(); }   // editor keeps its own paint; live strokes still tracked in the background. __doodleLive: a live paint now owns the canvas so a late cached-image decode won't overwrite it. cacheImg: keep the instant-open cache fresh.
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
