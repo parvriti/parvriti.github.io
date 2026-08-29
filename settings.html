@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('parvritiTheme')||'dark';document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#fbf1f1':'#0a0406');}catch(e){}</script>
-<link rel="stylesheet" href="css/styles.css?v=120">
-<link rel="stylesheet" href="css/theme.css?v=120">
+<link rel="stylesheet" href="css/styles.css?v=121">
+<link rel="stylesheet" href="css/theme.css?v=121">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -90,8 +90,8 @@
       </div>
     </section>
 
-    <!-- ══ B · Cycle - admin only ══ -->
-    <section class="set-card admin-only">
+    <!-- ══ B · Cycle config - usable once the viewer's own Periods tab is on (gateCycle greys it otherwise) ══ -->
+    <section class="set-card" id="cyCfgCard">
       <div class="set-card-h"><span class="set-ic">🌸</span> Cycle</div>
 
       <div class="set-row">
@@ -125,7 +125,7 @@
         <div class="mx-row"><div class="mx-lbl"><span class="mx-ic">💗</span>Upcoming period<i class="mx-sub">a heads-up before it’s due</i></div><button class="mx-cell cy-cell" data-key="cyNotifPeriod_riti" role="switch" aria-label="Upcoming period reminder for Riti"><span class="mx-dot"></span></button><button class="mx-cell cy-cell" data-key="cyNotifPeriod_parv" role="switch" aria-label="Upcoming period reminder for Parv"><span class="mx-dot"></span></button></div>
         <div class="mx-row"><div class="mx-lbl"><span class="mx-ic">🌙</span>Phase changes<i class="mx-sub">when a new phase begins</i></div><button class="mx-cell cy-cell" data-key="cyNotifPhase_riti" role="switch" aria-label="Phase change reminder for Riti"><span class="mx-dot"></span></button><button class="mx-cell cy-cell" data-key="cyNotifPhase_parv" role="switch" aria-label="Phase change reminder for Parv"><span class="mx-dot"></span></button></div>
       </div>
-      <div class="set-row admin-only" id="rowCyLead">
+      <div class="set-row" id="rowCyLead">
         <div class="set-lbl"><b>Days before</b><i>how early the period heads-up lands</i></div>
         <div class="set-step" id="stCyLead" data-min="0" data-max="7" data-step="1" data-unit="days">
           <button type="button" class="ss-dn" aria-label="fewer">–</button><span class="ss-val"></span><button type="button" class="ss-up" aria-label="more">+</button>
@@ -173,8 +173,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=120"></script>
-<script src="js/settings.js?v=120"></script>
-<script src="js/native.js?v=120"></script>
+<script src="js/common.js?v=121"></script>
+<script src="js/settings.js?v=121"></script>
+<script src="js/native.js?v=121"></script>
 </body>
 </html>

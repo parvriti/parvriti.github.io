@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v120';
+  var VERSION = 'v121';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -117,8 +117,15 @@
       var visOn = who === 'parv' ? (cfg.v_periods_parv !== false) : (cfg.v_periods_riti === true);
       c.classList.toggle('gated', !visOn);
     }
-    var lead = $('rowCyLead');   // shared lead is Parv's, gated on his Periods
-    if (lead) lead.classList.toggle('gated', cfg.v_periods_parv === false);
+    // The shared cycle config (length / flag / default) + the reminder lead become usable once the
+    // VIEWER's OWN Periods tab is on - so Riti gets full cycle access the moment she enables her Cycle
+    // tab herself (nothing force-enabled), and it's greyed with a "turn on the Periods tab first" tap
+    // before that. Parv's Periods is on by default, so it stays available for him.
+    var myPeriodsOn = isAdmin ? true : (cfg.v_periods_riti === true);   // Parv (admin) always has it; Riti gets it when she turns on her own Cycle tab
+    var cfgCard = $('cyCfgCard');
+    if (cfgCard) { var rows = cfgCard.querySelectorAll('.set-row'); for (var j = 0; j < rows.length; j++) rows[j].classList.toggle('gated', !myPeriodsOn); }
+    var lead = $('rowCyLead');
+    if (lead) lead.classList.toggle('gated', !myPeriodsOn);
   }
 
   /* the two matrices (notifications + visibility) - plain aria-checked cells */
