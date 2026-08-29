@@ -123,7 +123,7 @@ function startDoodle() {
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (drawing) dEnd(); sendDoodleNudge(); try { if (!editMode && pad && window.__doodleLive) localStorage.setItem('doodlePadImg', pad.toDataURL('image/jpeg', 0.6)); } catch (e) {} } });   // save the freshest pad on leave so the next open paints it instantly   // iOS PWA backgrounds via visibilitychange, not pagehide; also end any active stroke so a mid-stroke background can't leave drawing stuck true (dEnd commits + resets)
 
   doodleVeil = (window.__doodleHasImg) ? null : (window.parvritiLoadVeil ? window.parvritiLoadVeil('doodleLoad') : null);   // a cached pad is already on screen -> skip the loading veil (and its 15s "check your connection" timeout); the live snapshot repaints when it arrives
-  if (doodleVeil) setTimeout(function () { if (!doodleLoaded && doodleVeil) doodleVeil.done(); }, 2500);   // HARD CAP: never let the loading screen sit past ~2.5s - dismiss to the (blank) pad; strokes paint when the snapshot lands, and no 15s "check your connection" can fire
+  if (doodleVeil) setTimeout(function () { if (!doodleLoaded && doodleVeil) { doodleVeil.done(); doodleVeil = null; } }, 2500);   // HARD CAP: never let the loading screen sit past ~2.5s - dismiss to the (blank) pad. Null the veil too, so a LATE snapshot error can't re-cover the pad with the (pointer-blocking) error veil after we already handed the user a usable pad; strokes still paint when the snapshot lands.
   if (ddb) {
     try {
       ddb.collection('canvasStrokes').orderBy('at', 'asc').onSnapshot(function (snap) {
