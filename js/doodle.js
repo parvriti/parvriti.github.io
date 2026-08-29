@@ -42,6 +42,12 @@ var brushMode = 'pen', curBrush = '';   // brushMode 'pen'|'water' (only while t
 var offc = null, offx = null, WATER_ALPHA = 0.34;   // offscreen buffer: a watercolor stroke is rendered opaque here, then laid down as ONE translucent layer (single stroke stays even; overlaps deepen)
 var undoStack = [], undone = {};   // undoStack: {cid, ref} of items I added this session (newest last) - undo deletes my last one (syncs). undone: cids I deleted, filtered from snapshots until the delete lands (no flicker-back)
 var doodleLoaded = false, doodleVeil = null;   // loading veil (first snapshot ends it)
+var loadErrToasted = false;
+function loadFailed() {   // a canvasStrokes listen error (a genuine failure - Firestore retries transient blips silently, so this fires only on a real problem)
+  if (doodleLoaded) return;                                             // a snapshot already painted real strokes -> a re-listen blip on a pad that has content, ignore
+  if (doodleVeil) doodleVeil.fail("couldn't load, check your connection");   // still within the loading window (veil up): the pad is blank anyway, show the veil error
+  else if (!loadErrToasted) { loadErrToasted = true; toast("couldn't load, check your connection"); }   // veil already dismissed by the 2.5s cap: DON'T re-block the usable pad - inform once, non-blocking
+}
 /* ── kept doodles (the shelf) ── editMode edits a saved doodle LOCALLY (no live sync / no nudge);
    the live canvasStrokes snapshot keeps updating `strokes` in the background but does not repaint. */
 var editMode = false, editItems = [], editingId = null, editName = '', editDirty = false;
@@ -149,9 +155,9 @@ function startDoodle() {
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
         if (!doodleLoaded) { doodleLoaded = true; if (doodleVeil) doodleVeil.done(); setTimeout(attachShelf, 300); }   // first snapshot: strokes painted, end the veil here; load the shelf a beat LATER - it downloads every saved doodle's image, and running it in parallel with the canvas lengthened the loading veil. Keep's kept-state still resolves before any tap.
-      }, function (e) { console.warn('strokes', e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); });
-    } catch (e) { console.warn(e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); }
-  } else if (doodleVeil) { doodleVeil.fail("couldn't load, check your connection"); }
+      }, function (e) { console.warn('strokes', e); loadFailed(); });
+    } catch (e) { console.warn(e); loadFailed(); }
+  } else { loadFailed(); }
 }
 function pxy(e) { var r = pad.getBoundingClientRect(); return { x: (e.clientX - r.left) * (pad.width / r.width), y: (e.clientY - r.top) * (pad.height / r.height) }; }
 /* draw one item in order: a fill patch (stamp its cached PNG) or a stroke */
