@@ -19,6 +19,13 @@ try {
   if (typeof firebase !== 'undefined') {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     ddb = firebase.firestore();
+    // Offline persistence: the last-synced pad now paints INSTANTLY from IndexedDB on a cold start
+    // (no network round-trip blocking the first paint / the loading veil), and it shows cached strokes
+    // when the connection is slow to wake instead of the 15s "check your connection" error. Must be
+    // enabled before any read/write. Fails soft (another tab holds the lock, or unsupported browser)
+    // back to the old no-cache behaviour. The live onSnapshot still fires cache-first then server, so
+    // the shared pad stays real-time; own strokes echo instantly (local write) so no extra flicker.
+    try { if (ddb.enablePersistence) ddb.enablePersistence({ synchronizeTabs: true }).catch(function () {}); } catch (e) {}
   }
 } catch (e) { console.warn('doodle firestore init failed', e); }
 function serverTime() { try { return firebase.firestore.FieldValue.serverTimestamp(); } catch (e) { return Date.now(); } }
@@ -142,11 +149,10 @@ function startDoodle() {
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
-        if (!doodleLoaded) { doodleLoaded = true; if (doodleVeil) doodleVeil.done(); }   // first snapshot: strokes are painted, end the veil exactly here
+        if (!doodleLoaded) { doodleLoaded = true; if (doodleVeil) doodleVeil.done(); setTimeout(attachShelf, 300); }   // first snapshot: strokes painted, end the veil here; load the shelf a beat LATER - it downloads every saved doodle's image, and running it in parallel with the canvas lengthened the loading veil. Keep's kept-state still resolves before any tap.
       }, function (e) { console.warn('strokes', e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); });
     } catch (e) { console.warn(e); if (!doodleLoaded && doodleVeil) doodleVeil.fail("couldn't load, check your connection"); }
   } else if (doodleVeil) { doodleVeil.fail("couldn't load, check your connection"); }
-  attachShelf();   // load the shelf on startup so Keep knows the kept-state right away (no duplicate saves on reopen)
 }
 function pxy(e) { var r = pad.getBoundingClientRect(); return { x: (e.clientX - r.left) * (pad.width / r.width), y: (e.clientY - r.top) * (pad.height / r.height) }; }
 /* draw one item in order: a fill patch (stamp its cached PNG) or a stroke */
