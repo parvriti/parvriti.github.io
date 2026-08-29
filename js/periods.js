@@ -101,7 +101,7 @@
   /* ── the three levels. -1 unknown, 0 none, 1 low, 2 medium, 3 high, 4 highest.
         `closeness` is how much physical affection she may want, NOT a
         prediction of desire, and never a prompt to initiate. ─────────── */
-  var THIRD = { m12: 2, m3: 2, m4: 2, follicular: 3, fertile: 4, luteal: 2, pms: 1, due: 1, late: 1 };
+  var THIRD = { m12: 0, m3: 1, m4: 2, follicular: 3, fertile: 4, luteal: 2, pms: 1, due: 1, late: 1 };
   function thirdFor(ph, day) {
     if (ph === 'menstrual') return day <= 2 ? THIRD.m12 : (day === 3 ? THIRD.m3 : THIRD.m4);
     return (THIRD[ph] === undefined) ? -1 : THIRD[ph];
@@ -115,8 +115,8 @@
     }
     if (ph === 'follicular') return { energy: 3, third: t, pain: 0 };
     if (ph === 'fertile') return { energy: 4, third: t, pain: 0 };
-    if (ph === 'luteal') return { energy: 2, third: t, pain: 0 };
-    if (ph === 'pms' || ph === 'due' || ph === 'late') return { energy: 1, third: t, pain: 1 };
+    if (ph === 'luteal') return { energy: 3, third: t, pain: 0 };
+    if (ph === 'pms' || ph === 'due' || ph === 'late') return { energy: 2, third: t, pain: 1 };
     return { energy: -1, third: -1, pain: -1 };
   }
   var WORD = { '-1': 'unknown', 0: 'none', 1: 'low', 2: 'medium', 3: 'high', 4: 'highest' };
