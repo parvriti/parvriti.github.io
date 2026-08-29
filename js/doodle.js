@@ -441,6 +441,7 @@ function updateKeepBtn() {
 function keepDoodle() {
   if (editMode) { saveEditor(); return; }   // inside the editor, Keep = Save
   if (!ddb) { toast("can't keep it right now, check your connection"); return; }
+  if (!shelfLoaded) { attachShelf(); toast('one sec...'); return; }   // kept-state is unknown until the shelf listener resolves - keeping now could ADD a duplicate instead of toggling an already-kept pad off. attachShelf() (idempotent) makes sure the listener is actually running even if the canvas errored before its first snapshot, so shelfLoaded WILL flip (on the shelf's snapshot OR its error) and a re-tap works - never a permanent "one sec".
   var ex = keptDoc();
   if (ex) { unkeepDoodle(ex.id); return; }   // this exact pad is already on the shelf (even across reopen) -> un-keep, never a duplicate
   var have = {}; strokes.forEach(function (s) { if (s.cid) have[s.cid] = true; });

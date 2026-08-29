@@ -2,16 +2,18 @@
    settings.js - the control panel.
 
    Reads/writes a single flat doc, settings/app. Parv (admin) edits everything;
-   Riti gets a restricted view - only HER own notification + visibility cells,
-   Parv's shown greyed + read-only, and the admin-only cards (got-home logic,
-   cycle, mute) hidden. The push-worker reads the hs and n_ keys; periods.js
-   reads the cy keys. This is a curtain; the real boundary is the Firestore rules
-   (settings write = parv() or Riti's own cells) + the Worker's service account.
+   Riti gets a restricted view - her own notification + visibility cells (Parv's
+   shown greyed + read-only) plus the shared cycle config (length / flag / default /
+   reminder lead), which un-greys once she turns on her own Periods tab. The
+   admin-only cards (got-home logic, mute, dev link) stay hidden for her. The
+   push-worker reads the hs and n_ keys; periods.js reads the cy keys. This is a
+   curtain; the real boundary is the Firestore rules (settings write = parv() or
+   ritiOwnSettings()) + the Worker's service account.
    ===================================================================== */
 (function () {
   'use strict';
 
-  var VERSION = 'v121';
+  var VERSION = 'v122';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
