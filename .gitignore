@@ -5,6 +5,9 @@
 # private source material for the "Parv" section — kept out of the public repo
 riti_letters/
 riti-letters-ocr.txt
+# authoring source for the Open When letters (bodies live inline in js/open-when.js);
+# keep local only, never serve it publicly via Pages
+open-when-letters.md
 
 # secrets — must never be committed to this public repo
 .env
