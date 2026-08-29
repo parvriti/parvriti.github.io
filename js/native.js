@@ -72,7 +72,7 @@
     /* left sidebar (iPad/Mac) */
     var side = doc.getElementById('protoSidebar');
     if (!side) { side = doc.createElement('nav'); side.id = 'protoSidebar'; side.className = 'proto-sidebar'; side.setAttribute('aria-label', 'Sidebar'); body.appendChild(side); }
-    var sh = '<div class="ps-brand"><span class="ps-flower">🌸</span><span class="ps-name">For Toti</span></div><div class="ps-list">';
+    var sh = '<div class="ps-brand"><span class="ps-flower">🌸</span><span class="ps-name">Parvriti</span></div><div class="ps-list">';
     for (var j = 0; j < items.length; j++) { var mm = items[j]; sh += '<a class="ps-item' + (mm.p === page ? ' on' : '') + '" href="' + mm.href + '">' + svg(mm.ic) + '<span>' + mm.label + '</span></a>'; }
     sh += '</div><div class="ps-foot">';
     if (showSettings) sh += '<a class="ps-item' + (page === 'settings' ? ' on' : '') + '" href="settings.html">' + GEAR + '<span>Settings</span></a>';

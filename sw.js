@@ -1,5 +1,5 @@
 /* =====================================================================
-   sw.js - service worker for the "For Toti" app
+   sw.js - service worker for the "Parvriti" app
 
    Strategy (own origin): navigations + versioned ?v= assets are CACHE-FIRST
    for an instant paint. The precache is filled atomically at install with
@@ -9,12 +9,12 @@
    touched. A deploy bumps CACHE; activate purges the old one, so the next
    navigation is fresh - one stale nav right after a deploy, by design.
    ===================================================================== */
-var CACHE = 'parvriti-v117';
+var CACHE = 'parvriti-v118';
 var CORE = [
   'index.html', 'open-when.html', 'board.html', 'doodles.html', 'periods.html', 'settings.html', 'dev.html',
-  'css/styles.css?v=117', 'css/theme.css?v=117',
-  'js/common.js?v=117', 'js/open-when.js?v=117', 'js/board.js?v=117', 'js/doodle.js?v=117',
-  'js/periods.js?v=117', 'js/settings.js?v=117', 'js/dev.js?v=117', 'js/native.js?v=117',
+  'css/styles.css?v=118', 'css/theme.css?v=118',
+  'js/common.js?v=118', 'js/open-when.js?v=118', 'js/board.js?v=118', 'js/doodle.js?v=118',
+  'js/periods.js?v=118', 'js/settings.js?v=118', 'js/dev.js?v=118', 'js/native.js?v=118',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.json'
 ];
 
