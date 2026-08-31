@@ -14,7 +14,7 @@
   if (document.body.getAttribute('data-page') !== 'home') return;   // Home only
 
   var WORKER = 'https://parvriti-push.parvbajaj2000.workers.dev';
-  var fdb = null, me = null, mount = null, started = false;
+  var fdb = null, me = null, mount = null, started = false, activeFlight = null;
 
   function boot() {
     if (started) return;
@@ -46,13 +46,14 @@
   function renderTracker(f) {
     if (!mount) return;
     var active = f && f.number && (f.phase === 'boarding' || f.phase === 'air' || f.phase === 'landed');
+    activeFlight = active ? f : null;
     if (!active) {
       mount.innerHTML = ''; mount.style.display = 'none';
       setHomeOverride(null);
       document.body.classList.remove('flight-on');
       return;
     }
-    document.body.classList.add('flight-on');   // hides the corner entry while a flight shows
+    document.body.classList.add('flight-on');   // a flight is showing on Home
     var prog = progress(f);
     var pt = arcPoint(prog), ang = arcAngle(prog);
     var flown = Math.round(prog * 100);
@@ -147,7 +148,8 @@
       held = false; suppressTap = false; downXY = [e.clientX, e.clientY];
       if (wrap.classList.contains('open')) return;   // pill already open -> no hold-to-log
       ico.classList.add('holding');
-      holdT = setTimeout(function () { held = true; suppressTap = true; endHold(); openLog(); }, 550);
+      // hold when a flight is on Home -> clear it (free the screen); otherwise -> open the log
+      holdT = setTimeout(function () { held = true; suppressTap = true; endHold(); if (activeFlight) clearActive(); else openLog(); }, 550);
     });
     ico.addEventListener('pointermove', function (e) {
       if (downXY && (Math.abs(e.clientX - downXY[0]) > 8 || Math.abs(e.clientY - downXY[1]) > 8)) endHold();
@@ -181,7 +183,13 @@
         return r.json().then(function (j) { return { ok: r.ok, j: j }; });
       }).then(function (res) {
         ok.classList.remove('busy');
-        if (res.ok && res.j && res.j.ok) { wrap.classList.remove('open'); num.value = ''; toast('tracking ✈'); }
+        if (res.ok && res.j && res.j.ok) {
+          wrap.classList.remove('open'); num.value = '';
+          var ph = res.j.flight && res.j.flight.phase;
+          if (ph === 'landed') toast('already landed · saved to your log');
+          else if (ph === 'cancelled') toast('that flight was cancelled');
+          else toast('tracking ✈');
+        }
         else if (res.j && res.j.error === 'not-found') toast("couldn't find that flight for today");
         else toast("couldn't add it, check your connection");
       }).catch(function () { ok.classList.remove('busy'); toast("couldn't add it, check your connection"); });
@@ -378,6 +386,27 @@
     return fdb.collection('flights').doc(id).set(fields, { merge: true });
   }
   function deleteFlight(id) { return patchFlight(id, { deleted: true }); }
+
+  /* ── clear the live Home tracker (press-hold the corner ✈ while a flight is on).
+     flightActive/now is worker-only, so we ask /flight/clear; the log row stays. ── */
+  function clearActive() {
+    var f = activeFlight; if (!f) return;
+    var user = firebase.auth().currentUser;
+    if (!user) { toast('sign-in needed'); return; }
+    user.getIdToken().then(function (idt) {
+      return fetch(WORKER + '/flight/clear', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt } });
+    }).then(function (r) {
+      if (r.ok) toastUndo('Cleared from Home', function () { readdFlight(f); });   // still in your log; Undo re-pins it
+      else toast("couldn't clear it, try again");
+    }).catch(function () { toast("couldn't clear it, try again"); });
+  }
+  function readdFlight(f) {
+    var user = firebase.auth().currentUser; if (!user) { toast('sign-in needed'); return; }
+    user.getIdToken().then(function (idt) {
+      return fetch(WORKER + '/flight/add', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
+        body: JSON.stringify({ number: f.number, date: f.date, who: f.who || 'PR' }) });
+    }).then(function (r) { toast(r.ok ? 'back on Home' : "couldn't undo, try again"); }).catch(function () { toast("couldn't undo, try again"); });
+  }
 
   /* ── tiny helpers ── */
   function ms(u) { if (!u) return NaN; var m = String(u).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?Z?$/); return m ? Date.parse(m[1] + 'T' + m[2] + ':' + (m[3] || '00') + 'Z') : Date.parse(u); }
