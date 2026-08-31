@@ -908,8 +908,10 @@ function personFromEmail(email) { return email === 'aritika2000@gmail.com' ? 'ri
 async function handleFlightAdd(request, env) {
   if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
   let body; try { body = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
-  const number = String((body && body.number) || '').replace(/\s+/g, '').toUpperCase();
-  const date = (body && body.date) || '', who = (body && body.who) || '';
+  // strict types: reject a non-string number/date/who up front so an array can't String-coerce past the format regex
+  if (!body || typeof body.number !== 'string' || typeof body.date !== 'string' || typeof body.who !== 'string') return json({ error: 'bad request' }, 400);
+  const number = body.number.replace(/\s+/g, '').toUpperCase();
+  const date = body.date, who = body.who;
   // airline code (2-3 chars, must contain a letter) + 1-4 digit number + optional suffix letter; rejects pure-digit / junk so no wasted API call
   if (!/^([A-Z]{2,3}|[A-Z]\d|\d[A-Z])\d{1,4}[A-Z]?$/.test(number)) return json({ error: 'bad number' }, 400);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: 'bad date' }, 400);
