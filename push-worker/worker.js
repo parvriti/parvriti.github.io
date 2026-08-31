@@ -857,7 +857,14 @@ function mapFlight(f) {
     routeText: [(dep.airport && dep.airport.municipalityName), (arr.airport && arr.airport.municipalityName)].filter(Boolean).join(' to '),
     distanceKm: (f.greatCircleDistance && Math.round(f.greatCircleDistance.km)) || 0,
     status: f.status || '', phase: flightPhase(f.status), live: q.indexOf('Live') >= 0,
-    delayMin: (arr.predictedTime && arr.scheduledTime) ? Math.round((fms(arr.predictedTime.utc) - fms(arr.scheduledTime.utc)) / 60000) : 0
+    // guard: a time object can arrive with only .local (no .utc) -> fms() is NaN ->
+    // {doubleValue: NaN} serializes to null and Firestore 400s the WHOLE write. Keep it finite.
+    delayMin: (function () {
+      var p = arr.predictedTime && arr.predictedTime.utc, s = arr.scheduledTime && arr.scheduledTime.utc;
+      if (!p || !s) return 0;
+      var d = Math.round((fms(p) - fms(s)) / 60000);
+      return isFinite(d) ? d : 0;
+    })()
   };
 }
 async function resolveFlight(number, date, env) {
@@ -877,10 +884,16 @@ function encField(v) {   // JS value -> Firestore REST field (fval() is the reve
   return { stringValue: String(v) };
 }
 function decodeFields(fields) { const o = {}; for (const k in fields) o[k] = fval(fields[k]); return o; }
-async function writeFlightDoc(docPath, obj, accessToken) {
+async function writeFlightDoc(docPath, obj, accessToken, mask) {
+  // No mask -> full document write (creates/replaces). With `mask` (an array of field
+  // names) -> a MERGE that touches only those fields, so client-owned fields on the log
+  // record (who / route / date / a soft-delete flag / edits) are never clobbered.
   try {
-    const fields = {}; for (const k in obj) fields[k] = encField(obj[k]);
-    const r = await fetch(DOCS + docPath, {
+    const keys = mask || Object.keys(obj);
+    const fields = {}; for (const k of keys) if (k in obj) fields[k] = encField(obj[k]);
+    let url = DOCS + docPath;
+    if (mask) url += '?' + mask.map(function (k) { return 'updateMask.fieldPaths=' + encodeURIComponent(k); }).join('&');
+    const r = await fetch(url, {
       method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields: fields })
     });
@@ -915,9 +928,18 @@ async function handleFlightAdd(request, env) {
   if (!at) return json({ error: 'auth failed' }, 500);
 
   const id = number + '_' + date;
-  const rec = Object.assign({}, f, { id: id, who: who, landed: f.phase === 'landed', addedBy: personFromEmail(v.email.toLowerCase()), addedAt: Date.now(), pushed: '' });
-  await writeFlightDoc('/flights/' + id, rec, at);                 // kept log record
-  if (f.phase !== 'landed' && f.phase !== 'cancelled') await writeFlightDoc('/flightActive/now', rec, at);   // live tracker for Home
+  // re-add / Undo of the SAME still-live flight: carry its push-dedup so a delay push can't re-fire
+  let prevPushed = '';
+  try {
+    const ex = await fetch(DOCS + '/flightActive/now', { headers: { Authorization: 'Bearer ' + at } });
+    if (ex.ok) { const ed = await ex.json(); if (ed.fields) { const dd = decodeFields(ed.fields); if ((dd.number + '_' + dd.date) === id) prevPushed = String(dd.pushed || ''); } }
+  } catch (e) {}
+  const rec = Object.assign({}, f, { id: id, who: who, landed: f.phase === 'landed', addedBy: personFromEmail(v.email.toLowerCase()), addedAt: Date.now(), pushed: prevPushed });
+  if (!(await writeFlightDoc('/flights/' + id, rec, at))) return json({ error: 'write' }, 502);   // kept log record; report a failed write instead of a false success
+  // live Home tracker only for a flight that's still trackable (already-over states go to the log only)
+  if (f.phase !== 'landed' && f.phase !== 'cancelled' && f.phase !== 'diverted') {
+    if (!(await writeFlightDoc('/flightActive/now', rec, at))) return json({ error: 'write' }, 502);
+  }
   return json({ ok: true, flight: f });
 }
 
@@ -952,9 +974,11 @@ async function runFlightPoll(event, env) {
   const now = Date.now();
   const arrMs = fms(cur.arrEstUtc || cur.arrSchedUtc);
   if (cur.landed && arrMs && now - arrMs > 3 * 3600 * 1000) { await clearActiveFlight(at); return; }   // landed hrs ago -> fade
+  const schedArrMs = fms(cur.arrSchedUtc);
+  if (schedArrMs && now - schedArrMs > 6 * 3600 * 1000) { await clearActiveFlight(at); return; }   // 6h past scheduled arrival: it's over even if AeroDataBox never flipped to 'arrived' -> stop tracking + polling
 
   const f = await resolveFlight(cur.number, cur.date, env);
-  if (f.error) return;                             // transient -> next cron (fail-open)
+  if (f.error) { if (f.error === 'not-found') await clearActiveFlight(at); return; }   // aged out of the API -> clear so the cron goes dormant; a transient error just waits for the next tick
 
   const id = cur.number + '_' + cur.date;
   let pushed = String(cur.pushed || '');
@@ -967,7 +991,9 @@ async function runFlightPoll(event, env) {
     if (f.delayMin >= 30 && pushed.indexOf('delay') < 0) { await flightPush(other, 'Flight delayed ~' + f.delayMin + 'm', cur.routeText || '', at); pushed += 'delay,'; }
   }
   const rec = Object.assign({}, cur, f, { id: id, who: cur.who, landed: next === 'landed', pushed: pushed });
-  await writeFlightDoc('/flights/' + id, rec, at);                                  // keep the log record current
+  // MERGE only the status fields onto the log record, so a user's edit or soft-delete of this
+  // (still-live) flight in the log is never clobbered by the poll.
+  await writeFlightDoc('/flights/' + id, rec, at, ['phase', 'landed', 'status', 'live', 'delayMin', 'depEstUtc', 'arrEstUtc']);
   if (next === 'cancelled' || next === 'diverted') { await clearActiveFlight(at); return; }   // stop tracking (and stop polling) a cancelled/diverted flight
   await writeFlightDoc('/flightActive/now', rec, at);
 }
