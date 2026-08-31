@@ -2314,8 +2314,9 @@ html.plaunch-bg, html.plaunch-bg body,
 .fl-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 20px) + 20px); transform: translate(-50%,10px); z-index: 50; background: rgba(20,10,14,.9); color: #f5e8e0; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 10px 18px; border-radius: 30px; border: 1px solid rgba(230,182,103,.2); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
 .fl-toast.on { opacity: 1; transform: translate(-50%,0); }
 .fl-toast { z-index: 1200; }   /* above the log drawer, so the delete Undo is always reachable */
-.fl-toast.has-undo { display: flex; align-items: center; gap: 14px; }
-.flt-undo { background: none; border: none; color: #e9cf8f; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; -webkit-appearance: none; padding: 0; }
+.fl-toast.has-undo { display: flex; align-items: center; gap: 14px; pointer-events: auto; }   /* matches .cy-toast.has-undo: re-enable taps for the Undo variant (base toast is click-through) */
+/* the toast itself is click-through (pointer-events:none); the Undo button must re-enable them or a real tap never lands (a programmatic .click() bypasses this, which is why it slipped past QA) */
+.flt-undo { background: none; border: none; color: #e9cf8f; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; -webkit-appearance: none; padding: 6px 4px; margin: -6px -2px -6px 0; pointer-events: auto; touch-action: manipulation; }
 
 /* press-and-hold ring on the corner icon (fills, then opens the log) */
 .fl-ico { position: relative; }
