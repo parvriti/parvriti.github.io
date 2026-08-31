@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v124';
+  var VERSION = 'v125';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -30,7 +30,8 @@
     // cycle reminders (per person, OFF by default; each gated on their own Periods visibility)
     cyNotifPeriod_riti: false, cyNotifPeriod_parv: false,
     cyNotifPhase_riti: false, cyNotifPhase_parv: false,
-    cyNotifLead: 2
+    cyNotifLead: 2,
+    v_flights_riti: false, v_flights_parv: false   // flight tracker on Home: off by default, per person
   };
   var SWITCHES = {
     stOnePerDay: 'hsOnePerDay',
@@ -99,6 +100,7 @@
   function bind() {
     var id;
     for (id in SWITCHES) setSwitch($(id), cfg[SWITCHES[id]] !== false);
+    setSwitch($('stFlights'), cfg['v_flights_' + ((window.__parvritiUser && window.__parvritiUser.person) || 'parv')] === true);
     for (id in STEPPERS) drawStep($(id), cfg[STEPPERS[id]]);
     setSeg(cfg.hsRule);
     bindMatrix();
@@ -228,6 +230,11 @@
     var mute = $('stMuteAll');
     if (mute) mute.addEventListener('click', function () {
       cfg.muteAll = !(cfg.muteAll === true); updateMute(); tick(); save(kv('muteAll', cfg.muteAll));
+    });
+    var flSw = $('stFlights');   // per-person flight-tracker toggle (each person edits their own v_flights_<me>)
+    if (flSw) flSw.addEventListener('click', function () {
+      var k = 'v_flights_' + ((window.__parvritiUser && window.__parvritiUser.person) || 'parv');
+      var on = !isOn(flSw); setSwitch(flSw, on); cfg[k] = on; tick(); save(kv(k, on));
     });
 
     $('stTestRiti').addEventListener('click', function () { testPing('riti'); });

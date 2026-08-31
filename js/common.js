@@ -537,6 +537,7 @@
     var el = document.querySelector('[data-homestate]');
     if (!el || !cdb) return;
     el.style.display = 'none';
+    window.parvritiRenderHomeState = function () { renderHomeState(el, other); };   // flight.js restores this line when a flight ends
     var me = (window.__parvritiUser && window.__parvritiUser.person) || null;
     cdb.collection('settings').doc('app').get().then(function (s) {
       var d = s.exists ? (s.data() || {}) : {};
@@ -556,6 +557,7 @@
   }
   function renderHomeState(el, other) {
     if (!el) return;
+    if (window.__flightActive) return;   // a live flight (flight.js) owns this line while active
     // Trust the arrive/leave automations - they flip home/away (and together) on
     // real events now. This cap is only a LAST-RESORT for a totally-missed Leave,
     // so it must sit ABOVE a normal continuous stay - and Parv + Riti are both

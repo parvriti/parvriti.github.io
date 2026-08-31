@@ -445,3 +445,20 @@ body[data-page="periods"] .cy-hint { padding-right: 76px; }
   .col, .screen { max-width: min(100%, 860px) !important; }
   .ow-grid { grid-template-columns: repeat(5, 1fr) !important; }
 }
+
+/* flight tracker — light theme */
+:root[data-theme="light"] .fl-code { color: #5f2a37; }
+:root[data-theme="light"] .fl-city { color: #a5808a; }
+:root[data-theme="light"] .fl-arc .fl-rail { stroke: rgba(139,32,64,.22); }
+:root[data-theme="light"] .fl-arc .fl-flown { stroke: #c98f3f; }
+:root[data-theme="light"] .fl-arc .fl-dot { fill: rgba(139,32,64,.4); }
+:root[data-theme="light"] .fl-arc .fl-plane path { fill: #c98f3f; }
+:root[data-theme="light"] .fl-meta { color: #ac949b; }
+:root[data-theme="light"] .fl-meta .fl-ar { color: #c98f3f; }
+:root[data-theme="light"] .flight-mount { background: radial-gradient(72% 116% at 50% 34%, rgba(201,143,63,.09), transparent 72%); }
+:root[data-theme="light"] .fl-ico { color: rgba(139,32,64,.42); }
+:root[data-theme="light"] .fl-form { background: rgba(255,240,240,.85); border-color: rgba(201,143,63,.3); }
+:root[data-theme="light"] .fl-in { color: #5f2a37; }
+:root[data-theme="light"] .fl-in::placeholder { color: rgba(95,42,55,.4); }
+:root[data-theme="light"] .fl-who { color: #5f2a37; background: rgba(139,32,64,.06); }
+:root[data-theme="light"] .fl-toast { background: rgba(251,224,228,.95); color: #5f2a37; border-color: rgba(201,143,63,.3); }

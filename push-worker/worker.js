@@ -940,7 +940,8 @@ async function runFlightPoll(event, env) {
     if (f.delayMin >= 30 && pushed.indexOf('delay') < 0) { await flightPush(other, 'Flight delayed ~' + f.delayMin + 'm', cur.routeText || '', at); pushed += 'delay,'; }
   }
   const rec = Object.assign({}, cur, f, { id: id, who: cur.who, landed: next === 'landed', pushed: pushed });
-  await writeFlightDoc('/flights/' + id, rec, at);
+  await writeFlightDoc('/flights/' + id, rec, at);                                  // keep the log record current
+  if (next === 'cancelled' || next === 'diverted') { await clearActiveFlight(at); return; }   // stop tracking (and stop polling) a cancelled/diverted flight
   await writeFlightDoc('/flightActive/now', rec, at);
 }
 async function flightPush(person, title, body, accessToken) {
