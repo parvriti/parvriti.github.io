@@ -98,6 +98,12 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
   color: #8b2040; background: rgba(255,255,255,.6); border-color: rgba(139,32,64,.34);
 }
 :root[data-theme="light"] .auth-reuse:hover { background: rgba(255,255,255,.9); border-color: rgba(139,32,64,.55); }
+/* light theme: swap the near-black letter for a soft blush-rose one that sits on the cream ground,
+   and lighten the heavy black drop-shadow to a rose-tinted one. */
+:root[data-theme="light"] .auth-reject-env {
+  --env-paper: #f3d3d9; --env-line: #8b2040; --env-stamp-bg: #fff5f6; --env-stamp-ink: #c0425a; --env-stamp-text: #8b2040;
+  filter: drop-shadow(0 8px 16px rgba(139,32,64,.18));
+}
 
 /* light-mode frosted chrome */
 :root[data-theme="light"] .proto-tabbar { background: rgba(251,241,241,.82); border-top-color: var(--l-line); }

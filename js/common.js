@@ -192,14 +192,14 @@
       '</div>' +
       '<div class="auth-reject" role="group" aria-label="This account is not recognized">' +
         '<svg class="auth-reject-env" viewBox="0 0 120 92" aria-hidden="true">' +
-          '<rect x="12" y="22" width="96" height="56" rx="6" fill="#170b10" stroke="#e8cfc9" stroke-width="3.2"/>' +
-          '<path d="M13.5 24 L60 55 L106.5 24" fill="none" stroke="#e8cfc9" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>' +
-          '<path d="M14 76 L46 53 M106 76 L74 53" fill="none" stroke="#e8cfc9" stroke-width="2.2" stroke-linecap="round" opacity=".5"/>' +
+          '<rect x="12" y="22" width="96" height="56" rx="6" fill="var(--env-paper,#170b10)" stroke="var(--env-line,#e8cfc9)" stroke-width="3.2"/>' +
+          '<path d="M13.5 24 L60 55 L106.5 24" fill="none" stroke="var(--env-line,#e8cfc9)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '<path d="M14 76 L46 53 M106 76 L74 53" fill="none" stroke="var(--env-line,#e8cfc9)" stroke-width="2.2" stroke-linecap="round" opacity=".5"/>' +
           '<g class="auth-stamp">' +
-            '<rect x="68" y="9" width="40" height="36" rx="3" fill="#2a0d12" stroke="#df6274" stroke-width="2.4" stroke-dasharray="0.5 3.4" stroke-linecap="round"/>' +
-            '<rect x="72" y="13" width="32" height="28" rx="2" fill="none" stroke="#df6274" stroke-width="1.5"/>' +
-            '<text x="88" y="25" text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="7.4" font-weight="700" letter-spacing="1.1" fill="#f0919e">RETURN</text>' +
-            '<path d="M79 31 h18 M81 35 h14" stroke="#df6274" stroke-width="1.5" stroke-linecap="round"/>' +
+            '<rect x="68" y="9" width="40" height="36" rx="3" fill="var(--env-stamp-bg,#2a0d12)" stroke="var(--env-stamp-ink,#df6274)" stroke-width="2.4" stroke-dasharray="0.5 3.4" stroke-linecap="round"/>' +
+            '<rect x="72" y="13" width="32" height="28" rx="2" fill="none" stroke="var(--env-stamp-ink,#df6274)" stroke-width="1.5"/>' +
+            '<text x="88" y="25" text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="7.4" font-weight="700" letter-spacing="1.1" fill="var(--env-stamp-text,#f0919e)">RETURN</text>' +
+            '<path d="M79 31 h18 M81 35 h14" stroke="var(--env-stamp-ink,#df6274)" stroke-width="1.5" stroke-linecap="round"/>' +
           '</g>' +
         '</svg>' +
         '<div class="auth-reject-head">No one here by that name</div>' +
