@@ -297,16 +297,23 @@ async function handleHomeArrival(request, env) {
   await setArrival(sender, home ? { at: now, home: home } : { at: now }, accessToken);
   await setHomeState(sender, true, now, accessToken);   // for the optional home/away line
 
-  // Are we together? True only when the partner's last arrival is the SAME place,
-  // they arrived MORE recently than they left, and recently enough to trust
-  // (iOS Leave automations are unreliable, so a stale arrival is not proof).
-  // Because a place label is globally unique, this can only ever be true at a
-  // spot BOTH phones have a geofence for (parv-gurugram, riti-noida).
+  // Are we together? True when the partner's last arrival is the SAME place and
+  // they arrived MORE recently than they left (i.e. they're still there). Because
+  // a place label is globally unique, this can only ever be true at a spot BOTH
+  // phones have a geofence for (parv-gurugram, riti-noida).
+  //
+  // No tight freshness window: two people who live together are usually both
+  // settled in for far longer than a few hours, so the old "partner arrived in
+  // the last 6h" rule hid "together" almost all the time (whoever got home first
+  // went stale before the second one arrived). A missed iOS Leave self-heals on
+  // the client at 72h - exactly like the per-person home line - and either person
+  // actually leaving clears together at once (see the 'leave' branch above), so
+  // this is no less trustworthy than the "X is home" line it sits beside.
   let together = false;
   if (home) {
     const partner = await getArrival(recipient, accessToken);
-    const freshMs = (cfg.togetherHrs || 6) * 3600 * 1000;
-    if (partner.home === home && partner.at > (partner.leftAt || 0) && (now - partner.at) < freshMs) together = true;
+    const staleMs = 72 * 3600 * 1000;   // matches the client's STALE self-heal
+    if (partner.home === home && partner.at > (partner.leftAt || 0) && (now - partner.at) < staleMs) together = true;
   }
   await setTogether(together, now, accessToken);   // drives the "Together right now" line for both
 
@@ -809,7 +816,7 @@ async function sendPush(accessToken, token, title, text, link) {
 /* ══════════════ FLIGHT TRACKER ══════════════
    POST /flight/add {number, date, who:'P'|'R'|'PR'} (Firebase-token authed) resolves the
    flight via AeroDataBox and writes it: flights/<id> (kept log record) + flightActive/now
-   (what the Home reads). A */15 cron re-polls the active flight to detect take-off /
+   (what the Home reads). A 15-minute cron re-polls the active flight to detect take-off /
    landing / big delay and pushes the partner who is NOT flying (SOLO trips only; a
    together "PR" flight never pushes). Every path fails open — an API/network error just
    skips the round, so the Home shows nothing rather than breaking. Needs env.AERODATABOX_KEY
@@ -887,7 +894,8 @@ async function handleFlightAdd(request, env) {
   let body; try { body = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
   const number = String((body && body.number) || '').replace(/\s+/g, '').toUpperCase();
   const date = (body && body.date) || '', who = (body && body.who) || '';
-  if (!/^[A-Z0-9]{2,3}\d{1,4}[A-Z]?$/.test(number)) return json({ error: 'bad number' }, 400);
+  // airline code (2-3 chars, must contain a letter) + 1-4 digit number + optional suffix letter; rejects pure-digit / junk so no wasted API call
+  if (!/^([A-Z]{2,3}|[A-Z]\d|\d[A-Z])\d{1,4}[A-Z]?$/.test(number)) return json({ error: 'bad number' }, 400);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: 'bad date' }, 400);
   if (who !== 'P' && who !== 'R' && who !== 'PR') return json({ error: 'bad who' }, 400);
   const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
