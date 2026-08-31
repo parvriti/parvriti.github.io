@@ -38,6 +38,9 @@ export default {
     // A Home Screen / Lock Screen / Watch Shortcut sends the "thinking of you" heart
     // here; auth is the same per-person secret (a Shortcut cannot mint a Firebase token).
     if (path === '/automation/heartbeat') return handleHeartbeat(request, env);
+    // flight tracker: the site resolves a flight (Firebase-token authed); the Worker looks
+    // it up via AeroDataBox and stores it. Feature is off-by-default per person in Settings.
+    if (path === '/flight/add') return handleFlightAdd(request, env);
     // everything else is the site's own "send a push to the other person" call.
     return handlePush(request, env);
   },
@@ -49,6 +52,7 @@ export default {
      Add the 09:00 trigger in Cloudflare (Workers -> the worker -> Triggers -> Cron)
      the same way the midnight one was added. Until it exists, cycle nudges never run. */
   async scheduled(event, env, ctx) {
+    if (event.cron === '*/15 * * * *') { ctx.waitUntil(runFlightPoll(event, env)); return; }
     if (event.cron === '30 3 * * *') { ctx.waitUntil(runCycleNudges(event, env)); ctx.waitUntil(runCapsuleNudges(event, env)); }
     else ctx.waitUntil(runCelebration(event, env));
   }
@@ -800,4 +804,151 @@ async function sendPush(accessToken, token, title, text, link) {
     const dead = r.status === 404 || code === 'UNREGISTERED' || code === 'SENDER_ID_MISMATCH';
     return { ok: false, dead: dead };
   } catch (e) { return { ok: false, dead: false }; }   // network blip → do NOT delete
+}
+
+/* ══════════════ FLIGHT TRACKER ══════════════
+   POST /flight/add {number, date, who:'P'|'R'|'PR'} (Firebase-token authed) resolves the
+   flight via AeroDataBox and writes it: flights/<id> (kept log record) + flightActive/now
+   (what the Home reads). A */15 cron re-polls the active flight to detect take-off /
+   landing / big delay and pushes the partner who is NOT flying (SOLO trips only; a
+   together "PR" flight never pushes). Every path fails open — an API/network error just
+   skips the round, so the Home shows nothing rather than breaking. Needs env.AERODATABOX_KEY
+   (RapidAPI). This whole feature is off-by-default per person in Settings. */
+const ADB_HOST = 'aerodatabox.p.rapidapi.com';
+
+function fms(u) {   // AeroDataBox UTC is "2026-08-31 11:42Z" (a space, already Z) - normalise before parsing
+  if (!u) return NaN;
+  const m = String(u).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(?::(\d{2}))?Z?$/);
+  return m ? Date.parse(m[1] + 'T' + m[2] + ':' + (m[3] || '00') + 'Z') : Date.parse(u);
+}
+function flightPhase(status) {
+  const s = String(status || '').toLowerCase();
+  if (s === 'arrived') return 'landed';
+  if (s === 'departed' || s === 'enroute' || s === 'approaching') return 'air';
+  if (s === 'canceled' || s === 'canceleduncertain') return 'cancelled';
+  if (s === 'diverted') return 'diverted';
+  return 'boarding';   // expected / checkin / boarding / gateclosed / delayed(pre-dep) / unknown / scheduled
+}
+function mapFlight(f) {
+  const dep = f.departure || {}, arr = f.arrival || {};
+  const q = [].concat(dep.quality || [], arr.quality || []);
+  return {
+    number: String(f.number || '').replace(/\s+/g, ''),
+    airline: (f.airline && f.airline.name) || '', aircraft: (f.aircraft && f.aircraft.model) || '',
+    from: (dep.airport && dep.airport.iata) || '', fromCity: (dep.airport && dep.airport.municipalityName) || '',
+    to: (arr.airport && arr.airport.iata) || '', toCity: (arr.airport && arr.airport.municipalityName) || '',
+    depTz: (dep.airport && dep.airport.timeZone) || '', arrTz: (arr.airport && arr.airport.timeZone) || '',
+    depSchedUtc: (dep.scheduledTime && dep.scheduledTime.utc) || '',
+    depEstUtc: ((dep.revisedTime || dep.scheduledTime || {}).utc) || '',
+    arrSchedUtc: (arr.scheduledTime && arr.scheduledTime.utc) || '',
+    arrEstUtc: ((arr.predictedTime || arr.revisedTime || arr.scheduledTime || {}).utc) || '',
+    depTerminal: dep.terminal || '', depGate: dep.gate || '', arrTerminal: arr.terminal || '',
+    date: (((dep.scheduledTime && dep.scheduledTime.local) || '').slice(0, 10)) || '',
+    routeText: [(dep.airport && dep.airport.municipalityName), (arr.airport && arr.airport.municipalityName)].filter(Boolean).join(' to '),
+    distanceKm: (f.greatCircleDistance && Math.round(f.greatCircleDistance.km)) || 0,
+    status: f.status || '', phase: flightPhase(f.status), live: q.indexOf('Live') >= 0,
+    delayMin: (arr.predictedTime && arr.scheduledTime) ? Math.round((fms(arr.predictedTime.utc) - fms(arr.scheduledTime.utc)) / 60000) : 0
+  };
+}
+async function resolveFlight(number, date, env) {
+  try {
+    const r = await fetch('https://' + ADB_HOST + '/flights/number/' + encodeURIComponent(number) + '/' + date,
+      { headers: { 'x-rapidapi-host': ADB_HOST, 'x-rapidapi-key': env.AERODATABOX_KEY } });
+    if (!r.ok) return { error: 'api ' + r.status };
+    const arr = await r.json();
+    if (!Array.isArray(arr) || !arr.length) return { error: 'not-found' };
+    return mapFlight(arr[0]);
+  } catch (e) { return { error: 'net' }; }
+}
+function encField(v) {   // JS value -> Firestore REST field (fval() is the reverse, for one field)
+  if (v === null || v === undefined || v === '') return { nullValue: null };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  return { stringValue: String(v) };
+}
+function decodeFields(fields) { const o = {}; for (const k in fields) o[k] = fval(fields[k]); return o; }
+async function writeFlightDoc(docPath, obj, accessToken) {
+  try {
+    const fields = {}; for (const k in obj) fields[k] = encField(obj[k]);
+    const r = await fetch(DOCS + docPath, {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: fields })
+    });
+    return r.ok;
+  } catch (e) { return false; }
+}
+async function clearActiveFlight(accessToken) {
+  try { await fetch(DOCS + '/flightActive/now', { method: 'DELETE', headers: { Authorization: 'Bearer ' + accessToken } }); } catch (e) {}
+}
+function personFromEmail(email) { return email === 'aritika2000@gmail.com' ? 'riti' : 'parv'; }
+
+async function handleFlightAdd(request, env) {
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  let body; try { body = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
+  const number = String((body && body.number) || '').replace(/\s+/g, '').toUpperCase();
+  const date = (body && body.date) || '', who = (body && body.who) || '';
+  if (!/^[A-Z0-9]{2,3}\d{1,4}[A-Z]?$/.test(number)) return json({ error: 'bad number' }, 400);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: 'bad date' }, 400);
+  if (who !== 'P' && who !== 'R' && who !== 'PR') return json({ error: 'bad who' }, 400);
+  const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!idToken) return json({ error: 'no token' }, 401);
+  const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
+  if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
+  if (ALLOWED.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed' }, 403);
+
+  const f = await resolveFlight(number, date, env);
+  if (f.error) return json({ error: f.error }, f.error === 'not-found' ? 404 : 502);
+
+  let sa; try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return json({ error: 'no sa' }, 500); }
+  const at = await getAccessToken(sa);
+  if (!at) return json({ error: 'auth failed' }, 500);
+
+  const id = number + '_' + date;
+  const rec = Object.assign({}, f, { id: id, who: who, landed: f.phase === 'landed', addedBy: personFromEmail(v.email.toLowerCase()), addedAt: Date.now(), pushed: '' });
+  await writeFlightDoc('/flights/' + id, rec, at);                 // kept log record
+  if (f.phase !== 'landed' && f.phase !== 'cancelled') await writeFlightDoc('/flightActive/now', rec, at);   // live tracker for Home
+  return json({ ok: true, flight: f });
+}
+
+async function runFlightPoll(event, env) {
+  let sa; try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
+  const at = await getAccessToken(sa); if (!at) return;
+  let cur;
+  try {
+    const r = await fetch(DOCS + '/flightActive/now', { headers: { Authorization: 'Bearer ' + at } });
+    if (!r.ok) return;                              // 404 = no active flight -> exit (cheap, dormant)
+    const d = await r.json(); if (!d.fields) return;
+    cur = decodeFields(d.fields);
+  } catch (e) { return; }
+  if (!cur || !cur.number || !cur.date) return;
+
+  const now = Date.now();
+  const arrMs = fms(cur.arrEstUtc || cur.arrSchedUtc);
+  if (cur.landed && arrMs && now - arrMs > 3 * 3600 * 1000) { await clearActiveFlight(at); return; }   // landed hrs ago -> fade
+
+  const f = await resolveFlight(cur.number, cur.date, env);
+  if (f.error) return;                             // transient -> next cron (fail-open)
+
+  const id = cur.number + '_' + cur.date;
+  let pushed = String(cur.pushed || '');
+  const prev = cur.phase, next = f.phase;
+  if (cur.who === 'P' || cur.who === 'R') {        // SOLO -> push the partner who ISN'T flying
+    const flyer = cur.who === 'P' ? 'parv' : 'riti', flyerName = flyer === 'riti' ? 'Riti' : 'Parv';
+    const other = flyer === 'parv' ? 'riti' : 'parv';
+    if (next === 'air' && prev !== 'air' && pushed.indexOf('off') < 0) { await flightPush(other, flyerName + ' just took off ✈️', 'See you in a bit', at); pushed += 'off,'; }
+    if (next === 'landed' && prev !== 'landed' && pushed.indexOf('land') < 0) { await flightPush(other, flyerName + ' has landed safe 💗', '', at); pushed += 'land,'; }
+    if (f.delayMin >= 30 && pushed.indexOf('delay') < 0) { await flightPush(other, 'Flight delayed ~' + f.delayMin + 'm', cur.routeText || '', at); pushed += 'delay,'; }
+  }
+  const rec = Object.assign({}, cur, f, { id: id, who: cur.who, landed: next === 'landed', pushed: pushed });
+  await writeFlightDoc('/flights/' + id, rec, at);
+  await writeFlightDoc('/flightActive/now', rec, at);
+}
+async function flightPush(person, title, body, accessToken) {
+  try {
+    const devices = await getTokens(person, accessToken);
+    for (const d of devices) {
+      const res = await sendPush(accessToken, d.token, title, body || '', SITE + '/index.html');
+      if (res && res.dead) await deleteDoc(d.name, accessToken);
+    }
+  } catch (e) {}
 }

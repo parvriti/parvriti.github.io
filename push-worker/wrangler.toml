@@ -31,4 +31,4 @@ preview_urls = false
 FIREBASE_API_KEY = "AIzaSyBW_EMfKIkIJDNSMPUp6UeHOGtIdv26Wpk"
 
 [triggers]
-crons = ["30 18 * * *", "30 3 * * *"]
+crons = ["30 18 * * *", "30 3 * * *", "*/15 * * * *"]
