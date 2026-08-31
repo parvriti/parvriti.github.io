@@ -87,6 +87,17 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 }
 :root[data-theme="light"] .auth-title { color: #8b2040; }
 :root[data-theme="light"] .auth-sub { color: #9a6a74; }
+:root[data-theme="light"] .auth-msg { color: #b0546a; }
+/* rejected-sign-in screen: the reject head/email/button use pale dark-theme tones that
+   vanish on the cream ground - restate them in the light rose palette so they stay legible. */
+:root[data-theme="light"] .auth-reject-head { color: #8b2040; }
+:root[data-theme="light"] .auth-reject-email {
+  color: #9a6a74; background: rgba(192,66,90,.06); border-color: rgba(139,32,64,.22);
+}
+:root[data-theme="light"] .auth-reuse {
+  color: #8b2040; background: rgba(255,255,255,.6); border-color: rgba(139,32,64,.34);
+}
+:root[data-theme="light"] .auth-reuse:hover { background: rgba(255,255,255,.9); border-color: rgba(139,32,64,.55); }
 
 /* light-mode frosted chrome */
 :root[data-theme="light"] .proto-tabbar { background: rgba(251,241,241,.82); border-top-color: var(--l-line); }

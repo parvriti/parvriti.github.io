@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v122';
+  var VERSION = 'v123';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
