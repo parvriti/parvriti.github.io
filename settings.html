@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem('parvritiTheme')||'dark';document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#fbf1f1':'#0a0406');}catch(e){}</script>
-<link rel="stylesheet" href="css/styles.css?v=126">
-<link rel="stylesheet" href="css/theme.css?v=126">
+<link rel="stylesheet" href="css/styles.css?v=127">
+<link rel="stylesheet" href="css/theme.css?v=127">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -48,8 +48,10 @@
     <!-- ══ Flights (per person, off by default) ══ -->
     <section class="set-card" id="flightCard">
       <div class="set-card-h"><span class="set-ic">✈️</span> Flights</div>
-      <button type="button" class="set-mute" id="stFlights" role="switch" aria-checked="false"><span class="mute-ic">✈️</span><span class="mute-tx">Track our flights on Home</span></button>
-      <div class="set-note">A little tracker on Home while one of you is flying, plus a keepsake log. Just for you, off unless you turn it on.</div>
+      <div class="mx">
+        <div class="mx-head"><span></span><span>Riti</span><span>Parv</span></div>
+        <div class="mx-row"><div class="mx-lbl"><span class="mx-ic">✈️</span>Track Flights<i class="mx-sub">tracker + keepsake log</i></div><button class="mx-cell" data-key="v_flights_riti" role="switch" aria-label="Flight tracker for Riti"><span class="mx-dot"></span></button><button class="mx-cell" data-key="v_flights_parv" role="switch" aria-label="Flight tracker for Parv"><span class="mx-dot"></span></button></div>
+      </div>
     </section>
 
     <!-- ══ Got home safe (how an arrival decides) - admin only ══ -->
@@ -180,8 +182,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="js/common.js?v=126"></script>
-<script src="js/settings.js?v=126"></script>
-<script src="js/native.js?v=126"></script>
+<script src="js/common.js?v=127"></script>
+<script src="js/settings.js?v=127"></script>
+<script src="js/native.js?v=127"></script>
 </body>
 </html>
