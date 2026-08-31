@@ -41,6 +41,9 @@ export default {
     // flight tracker: the site resolves a flight (Firebase-token authed); the Worker looks
     // it up via AeroDataBox and stores it. Feature is off-by-default per person in Settings.
     if (path === '/flight/add') return handleFlightAdd(request, env);
+    // clear the live Home tracker (flightActive/now is worker-only, so the site asks us);
+    // the kept log record in /flights is left untouched.
+    if (path === '/flight/clear') return handleFlightClear(request, env);
     // everything else is the site's own "send a push to the other person" call.
     return handlePush(request, env);
   },
@@ -916,6 +919,22 @@ async function handleFlightAdd(request, env) {
   await writeFlightDoc('/flights/' + id, rec, at);                 // kept log record
   if (f.phase !== 'landed' && f.phase !== 'cancelled') await writeFlightDoc('/flightActive/now', rec, at);   // live tracker for Home
   return json({ ok: true, flight: f });
+}
+
+/* Free the Home screen: delete flightActive/now (worker-only per the rules). The
+   kept /flights record stays, so the flight is still in the log. */
+async function handleFlightClear(request, env) {
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!idToken) return json({ error: 'no token' }, 401);
+  const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
+  if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
+  if (ALLOWED.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed' }, 403);
+  let sa; try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return json({ error: 'no sa' }, 500); }
+  const at = await getAccessToken(sa);
+  if (!at) return json({ error: 'auth failed' }, 500);
+  await clearActiveFlight(at);
+  return json({ ok: true });
 }
 
 async function runFlightPoll(event, env) {
