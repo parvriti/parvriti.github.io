@@ -301,7 +301,7 @@
     rows.forEach(function (f) {
       var p = dParts(f.date), y = p ? p.y : '—';
       if (y !== yr) { yr = y; html += '<div class="fl-yr">' + y + '<span>' + counts[y] + '</span></div>'; }
-      var dstr = p ? (p.d + ' ' + MON[p.mi]) : esc(f.date || '');
+      var dstr = p ? (p.d + ' ' + MON[p.mi]) : (f.date || '');   // escaped once at the sink below (esc(dstr))
       var city = f.routeText || ((f.fromCity || '') + (f.toCity ? ' to ' + f.toCity : ''));
       html += '<div class="fl-lrow" data-id="' + esc(f.id) + '" style="animation-delay:' + (n * 22) + 'ms">' +
           '<span class="fl-lp">' + PLANE + '</span>' +
@@ -421,7 +421,7 @@
     catch (e) { return ''; }
   }
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function toastEl() {
     var t = document.getElementById('flToast');
     if (!t) { t = document.createElement('div'); t.id = 'flToast'; t.className = 'fl-toast'; document.body.appendChild(t); }
