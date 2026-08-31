@@ -40,3 +40,6 @@ parvriti-handoff*
 # local mirror of the live Firestore rules (kept current, published by hand
 # in the Firebase console — not deployed from here). Local reference only.
 firestore-rules/
+
+# local QA harnesses (generated firebase-stub copies of pages — never ship)
+_qa_*.html
