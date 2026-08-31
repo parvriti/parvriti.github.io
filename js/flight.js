@@ -288,6 +288,7 @@
     var rows = live.filter(function (f) { var h = hayFor(f); for (var t = 0; t < toks.length; t++) if (h.indexOf(toks[t]) === -1) return false; return true; });
     if (sub) {
       if (!live.length) sub.textContent = 'no flights yet';
+      else if (toks.length) sub.textContent = rows.length + ' of ' + live.length;   // while filtering, show the match count
       else {
         var ys = {}; live.forEach(function (f) { var p = dParts(f.date); if (p) ys[p.y] = 1; });
         var ks = Object.keys(ys).sort();
