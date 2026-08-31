@@ -300,23 +300,22 @@ async function handleHomeArrival(request, env) {
   await setArrival(sender, home ? { at: now, home: home } : { at: now }, accessToken);
   await setHomeState(sender, true, now, accessToken);   // for the optional home/away line
 
-  // Are we together? True when the partner's last arrival is the SAME place and
-  // they arrived MORE recently than they left (i.e. they're still there). Because
-  // a place label is globally unique, this can only ever be true at a spot BOTH
-  // phones have a geofence for (parv-gurugram, riti-noida).
-  //
-  // No tight freshness window: two people who live together are usually both
-  // settled in for far longer than a few hours, so the old "partner arrived in
-  // the last 6h" rule hid "together" almost all the time (whoever got home first
-  // went stale before the second one arrived). A missed iOS Leave self-heals on
-  // the client at 72h - exactly like the per-person home line - and either person
-  // actually leaving clears together at once (see the 'leave' branch above), so
-  // this is no less trustworthy than the "X is home" line it sits beside.
+  // Are we together? Two independent signals, because iOS geofences on two phones
+  // routinely disagree on the LABEL for the same place (real case: both physically at
+  // parv-gurugram, but Parv's phone fired 'parv-rohtak' - a mislabeled geofence):
+  //   1. SAME place label, partner still there, within the client's 72h self-heal; OR
+  //   2. both hit a home within ~6 min of each other -> you ARRIVED TOGETHER, whatever
+  //      the labels say (a real ground-truth signal, and label-agnostic).
+  // Either person actually leaving clears it at once (the 'leave' branch above), a
+  // false "together" self-heals, and a couple who lives together co-locates far more
+  // often than they land at separate homes 6 min apart - so this errs the right way.
   let together = false;
   if (home) {
     const partner = await getArrival(recipient, accessToken);
-    const staleMs = 72 * 3600 * 1000;   // matches the client's STALE self-heal
-    if (partner.home === home && partner.at > (partner.leftAt || 0) && (now - partner.at) < staleMs) together = true;
+    const stillThere = partner.at > (partner.leftAt || 0);                                 // partner arrived and hasn't left since
+    const samePlaceFresh = partner.home === home && (now - partner.at) < 72 * 3600 * 1000; // same label, within the client's self-heal
+    const arrivedTogether = Math.abs(now - partner.at) < 6 * 60 * 1000;                     // OR within ~6 min -> arrived together, label-agnostic
+    if (stillThere && (samePlaceFresh || arrivedTogether)) together = true;
   }
   await setTogether(together, now, accessToken);   // drives the "Together right now" line for both
 
