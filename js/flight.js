@@ -50,10 +50,8 @@
     if (!active) {
       mount.innerHTML = ''; mount.style.display = 'none';
       setHomeOverride(null);
-      document.body.classList.remove('flight-on');
       return;
     }
-    document.body.classList.add('flight-on');   // a flight is showing on Home
     var prog = progress(f);
     var pt = arcPoint(prog), ang = arcAngle(prog);
     var flown = Math.round(prog * 100);
@@ -188,6 +186,7 @@
           var ph = res.j.flight && res.j.flight.phase;
           if (ph === 'landed') toast('already landed · saved to your log');
           else if (ph === 'cancelled') toast('that flight was cancelled');
+          else if (ph === 'diverted') toast('that flight was diverted · saved to your log');
           else toast('tracking ✈');
         }
         else if (res.j && res.j.error === 'not-found') toast("couldn't find that flight for today");
@@ -197,11 +196,11 @@
   }
 
   /* ═══════════ keepsake log: a right-slide sidebar of every kept flight ═══════════
-     Opened by pressing-and-holding the corner icon (resting only - the icon is
-     hidden while a flight is live). Reads the flights collection, groups by year,
-     with search + press-and-hold edit/delete (soft-delete + 5s undo, so a mis-tap
-     on a years-old record is always recoverable and no client 'create' rule is
-     needed). Self-contained: delete this file and the log goes with it. */
+     Opened by pressing-and-holding the corner icon while NO flight is live (when one
+     IS live, the same press-hold clears it from Home instead). Reads the flights
+     collection, groups by year, with search + press-and-hold edit/delete (soft-delete
+     + 5s undo, so a mis-tap on a years-old record is always recoverable and no client
+     'create' rule is needed). Self-contained: delete this file and the log goes with it. */
   var FLIGHTS = null, flSub = null, logBuilt = false, editId = null, edWho = 'PR';
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   function whoLabel(w) { return w === 'PR' ? 'us' : (w === 'R' ? 'Riti' : 'Parv'); }
@@ -271,7 +270,7 @@
         FLIGHTS = arr;
         if (isLogOpen()) renderLog(qval());
         if (editId && !findFlight(editId)) closeEdit();   // removed elsewhere -> don't leave a stale sheet
-      }, function () { if (FLIGHTS == null) FLIGHTS = []; if (isLogOpen()) renderLog(qval()); });
+      }, function () { flSub = null; if (FLIGHTS == null) FLIGHTS = []; if (isLogOpen()) renderLog(qval()); });   // permission-denied (rules not published yet) terminates the listener; drop the handle so the next openLog retries
     } catch (e) { FLIGHTS = []; }
   }
 
@@ -405,7 +404,13 @@
     user.getIdToken().then(function (idt) {
       return fetch(WORKER + '/flight/add', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
         body: JSON.stringify({ number: f.number, date: f.date, who: f.who || 'PR' }) });
-    }).then(function (r) { toast(r.ok ? 'back on Home' : "couldn't undo, try again"); }).catch(function () { toast("couldn't undo, try again"); });
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.j || !res.j.ok) { toast("couldn't undo, try again"); return; }
+        var ph = res.j.flight && res.j.flight.phase;
+        // a flight that has since landed/cancelled/diverted is NOT re-pinned to Home (worker skips it) - say so honestly
+        toast((ph === 'landed' || ph === 'cancelled' || ph === 'diverted') ? "it's still in your log" : 'back on Home');
+      }).catch(function () { toast("couldn't undo, try again"); });
   }
 
   /* ── tiny helpers ── */
