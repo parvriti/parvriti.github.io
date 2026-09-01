@@ -270,7 +270,10 @@ async function handleHomeArrival(request, env) {
       if (typeof b.event === 'string') event = b.event.toLowerCase().trim();
     }
   } catch (e) {}
+  const rawHome = home;
   if (home && HOMES[sender].indexOf(home) === -1) home = '';
+  // verification log (shows in `wrangler tail`): exactly what the phone sent + whether it was accepted
+  console.log('RX /automation/home: person=' + sender + ' event=' + event + ' home="' + rawHome + '"' + (home !== rawHome ? ' (DROPPED: not in ' + sender + "'s allowed homes)" : ' (accepted)'));
 
   let sa;
   try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { console.log('home: no service account'); return json({ error: 'server' }, 500); }
