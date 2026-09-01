@@ -176,12 +176,13 @@ const DEDUP_MS = 10 * 60 * 1000;   // 10 minutes
 /* Unique per-place labels, so his Gurugram and her Gurugram never collide (both
    sending bare "gurugram" used to read as "together" when they were actually
    apart). Each phone's Arrive automation sends the label for the place it fires
-   at. The two shared spots - parv-gurugram and riti-noida - have an automation
-   on BOTH phones, which is the ONLY way the worker can ever know you're together
-   there. A place unknown to the sender is dropped. */
+   at. The shared spots - parv-gurugram, riti-noida, and parv-rohtak (Riti visits
+   after the wedding) - have an automation on BOTH phones, which is the ONLY way
+   the worker can ever know you're together there. A place unknown to the sender
+   is dropped. */
 const HOMES = {
   parv: ['parv-gurugram', 'parv-rohtak', 'riti-noida'],
-  riti: ['riti-noida', 'riti-gurugram', 'parv-gurugram']
+  riti: ['riti-noida', 'riti-gurugram', 'parv-gurugram', 'parv-rohtak']
 };
 
 function timingSafeEqual(a, b) {
