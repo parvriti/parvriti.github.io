@@ -153,16 +153,6 @@ body {
   animation: dcFade 1.6s ease .6s both;
 }
 .home-state .hs-heart { margin-right: 6px; font-size: 11px; color: #e07090; opacity: .9; }
-/* tiny, dim dismiss on the ambient line - tucks it out of the way; brightens only on tap */
-.home-state .hs-x {
-  -webkit-appearance: none; appearance: none; border: 0; background: none; padding: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 15px; height: 15px; margin-left: 7px; vertical-align: middle; position: relative; top: -0.5px;
-  font: 400 13px/1 'DM Sans', sans-serif; color: rgba(232,208,208,.26);
-  border-radius: 50%; cursor: pointer; -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation; transition: color .2s ease, background .2s ease;
-}
-.home-state .hs-x:hover, .home-state .hs-x:active { color: rgba(232,208,208,.7); background: rgba(255,255,255,.08); }
 
 /* lock shared */
 .lock-icon { font-size: 38px; margin-bottom: 10px; }

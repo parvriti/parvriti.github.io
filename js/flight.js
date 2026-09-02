@@ -95,8 +95,8 @@
       line = f.phase === 'landed' ? (nm + ' has landed') : (nm + ' is travelling');
     }
     var ic = f.phase === 'landed' ? '🛬' : '✈';
-    if (window.parvritiShowHomeStateLine) window.parvritiShowHomeStateLine(el, ic, line);   // shared renderer -> gets the dismiss ×
-    else { el.style.display = ''; el.innerHTML = '<span class="hs-heart">' + ic + '</span>' + esc(line); }
+    el.style.display = '';
+    el.innerHTML = '<span class="hs-heart">' + ic + '</span>' + esc(line);
   }
 
   /* ── progress + arc geometry (quadratic Q6 42 100 6 194 42) ── */

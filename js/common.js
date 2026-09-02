@@ -533,7 +533,6 @@
      never sees location. Shown only when this viewer's n_away toggle is on
      (Notifications matrix; default on). ── */
   var homeStateOther = null, homeStateTog = null;   // cached snapshots so the tick can re-heal
-  var hsDismissed = null;   // the ambient line the viewer tucked away this session (per-message; a new status or a reload brings it back)
   function setupHomeState(other) {
     var el = document.querySelector('[data-homestate]');
     if (!el || !cdb) return;
@@ -568,7 +567,7 @@
     // "Together right now" wins over the per-person line when you're both in.
     var t = homeStateTog;
     if (t && t.together && t.since && (Date.now() - t.since < STALE)) {
-      showHomeStateLine(el, '♡', 'Together right now');
+      el.style.display = ''; el.innerHTML = '<span class="hs-heart">♡</span>Together right now';
       return;
     }
     var data = homeStateOther;
@@ -576,26 +575,9 @@
     if (!data) { el.style.display = 'none'; return; }
     var atHome = !!data.atHome, since = data.since || 0;
     if (atHome && since && (Date.now() - since > STALE)) atHome = false;   // self-heal a missed Leave
-    showHomeStateLine(el, '♡', name + (atHome ? ' is home' : ' is away'));
-  }
-  /* Paint the ambient line with a tiny dismiss ×. The × tucks the line away for THIS
-     viewer, this page-session, keyed to the exact message — a changed status (or a
-     reload) brings it back, so it's a "move it out of my way", never a permanent mute.
-     Exposed so flight.js's travelling / landed lines get the same affordance. */
-  function showHomeStateLine(el, icon, text) {
-    if (!el) return;
-    if (hsDismissed === text) { el.style.display = 'none'; return; }
     el.style.display = '';
-    el.innerHTML = '';
-    var h = document.createElement('span'); h.className = 'hs-heart'; h.textContent = icon;
-    var x = document.createElement('button');
-    x.type = 'button'; x.className = 'hs-x'; x.setAttribute('aria-label', 'Hide this'); x.textContent = '×';
-    x.addEventListener('click', function (e) { e.stopPropagation(); hsDismissed = text; el.style.display = 'none'; });
-    el.appendChild(h);
-    el.appendChild(document.createTextNode(text));
-    el.appendChild(x);
+    el.innerHTML = '<span class="hs-heart">♡</span>' + name + (atHome ? ' is home' : ' is away');
   }
-  window.parvritiShowHomeStateLine = showHomeStateLine;   // flight.js reuses it so its lines get the same dismiss ×
   function buildPingButton() {
     if (document.getElementById('loveFab')) return;
     var b = document.createElement('button');
