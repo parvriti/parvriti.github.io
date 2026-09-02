@@ -117,6 +117,8 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .day-counter { color: var(--l-ink2); }
 :root[data-theme="light"] .day-counter b { color: var(--l-accent); }
 :root[data-theme="light"] .last-seen, :root[data-theme="light"] .home-state { color: var(--l-ink2); }
+:root[data-theme="light"] .home-state .hs-x { color: rgba(122,85,96,.42); }
+:root[data-theme="light"] .home-state .hs-x:hover, :root[data-theme="light"] .home-state .hs-x:active { color: var(--l-ink2); background: rgba(52,28,37,.06); }
 :root[data-theme="light"] .last-seen .ls-note { color: #8c6672; }   /* "last opened ..." was a dark-theme pale blush -> invisible on cream; readable dusty mauve, still softer than the main line */
 /* The celebration takeover is its own full-screen dark world, so it needs no light-theme override. */
 
