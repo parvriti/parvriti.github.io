@@ -311,6 +311,8 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] body.side-parv .ow-unseal { background: radial-gradient(circle at 50% 45%, rgba(170,195,255,.7), rgba(244,246,251,.94) 70%); }
 /* presence pill + heartbeat pulse */
 :root[data-theme="light"] .pres-pill { background: rgba(255,255,255,.92); border-color: #f0c8d0; color: #7a5560; }
+:root[data-theme="light"] .pres-x { background: #fff; border-color: #f0c8d0; color: rgba(122,85,96,.8); box-shadow: 0 2px 6px rgba(52,28,37,.14); }
+:root[data-theme="light"] .pres-x:hover { background: #fff5f6; color: #7a5560; }
 :root[data-theme="light"] .love-pulse { background: radial-gradient(circle at 50% 44%, rgba(255,170,190,.55), rgba(251,241,241,.92) 72%); }
 :root[data-theme="light"] .love-text { color: #8b2040; }
 /* toasts → light in light mode (were dark pills) */

@@ -471,6 +471,7 @@
     if (page !== 'wedding' && page !== 'periods') buildPingButton();
   }
 
+  var presDismissed = null;   // the presence pill the viewer tucked away this session (per-message; a changed status or their leaving brings it back)
   function renderPresence(data, other) {
     var pill = document.getElementById('presPill');
     if (!pill) return;
@@ -481,15 +482,18 @@
       online = !data.gone && !data.hidden && ms && (Date.now() - ms < 70000);
       typing = online && data.typing;
     }
-    if (!online) { pill.classList.remove('show', 'typing'); return; }
-    pill.classList.add('show');
-    if (typing) { pill.classList.add('typing'); pill.innerHTML = '<span class="pres-dot"></span>✍️ ' + name + ' is writing you something…'; return; }
-    pill.classList.remove('typing');
+    if (!online) { pill.classList.remove('show', 'typing'); presDismissed = null; return; }   // reset the dismiss when they leave, so a fresh arrival shows again
     var msg;
-    if (data.activity === 'reading') msg = '💌 ' + name + ' is reading ' + (data.activityLabel ? '“' + escHtml(data.activityLabel) + '”' : 'your notes');
+    if (typing) msg = '✍️ ' + name + ' is writing you something…';
+    else if (data.activity === 'reading') msg = '💌 ' + name + ' is reading ' + (data.activityLabel ? '“' + escHtml(data.activityLabel) + '”' : 'your notes');
     else if (data.activity === 'drawing') msg = '✏️ ' + name + ' is doodling…';
     else msg = '💌 ' + name + ' is here right now';
-    pill.innerHTML = '<span class="pres-dot"></span>' + msg;
+    if (presDismissed === msg) { pill.classList.remove('show', 'typing'); return; }   // viewer tucked this one away; a changed status re-shows it
+    pill.classList.toggle('typing', !!typing);
+    pill.classList.add('show');
+    pill.innerHTML = '<span class="pres-dot"></span><span class="pres-msg">' + msg + '</span><button type="button" class="pres-x" aria-label="Hide">×</button>';
+    var x = pill.querySelector('.pres-x');
+    if (x) x.addEventListener('click', function (e) { e.stopPropagation(); presDismissed = msg; pill.classList.remove('show', 'typing'); });
   }
   function buildPresencePill() {
     if (document.getElementById('presPill')) return;

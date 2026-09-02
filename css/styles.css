@@ -851,6 +851,22 @@ body.side-parv .ow-seal-field > label, body.side-parv .ow-seal-hint { color: #6f
 .pres-pill.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .pres-dot { width: 8px; height: 8px; border-radius: 50%; background: #57d977; box-shadow: 0 0 8px #57d977; animation: presBlink 2s ease-in-out infinite; flex: none; }
 .pres-pill.typing .pres-dot { background: #f0b95a; box-shadow: 0 0 8px #f0b95a; }
+/* keep the presence message on ONE line (ellipsis if a "reading …" label runs long) */
+.pres-msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* dismiss as a small badge on the pill's top-right corner. The pill is pointer-events:none
+   (never blocks the page); the badge re-enables taps on itself. The pill is position:fixed,
+   so it's the containing block for this absolute corner. */
+.pres-x {
+  -webkit-appearance: none; appearance: none; position: absolute; top: -7px; right: -7px;
+  width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  border-radius: 50%; border: 1px solid rgba(192,66,90,.55); background: #1a0a10;
+  color: rgba(240,216,220,.72); font: 400 13px/1 'DM Sans', sans-serif; line-height: 1; cursor: pointer;
+  pointer-events: auto; box-shadow: 0 2px 7px rgba(0,0,0,.4);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: background .2s ease, color .2s ease, transform .15s ease;
+}
+.pres-x:hover { background: #2a1018; color: #fff; }
+.pres-x:active { transform: scale(.86); }
 @keyframes presBlink { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
 /* ══════════════ heartbeat FAB ══════════════ */
