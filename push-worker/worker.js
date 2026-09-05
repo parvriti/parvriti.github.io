@@ -460,7 +460,10 @@ async function handleHomeOverride(request, env) {
     if (!person) return json({ error: 'bad person' }, 400);
     const atHome = body.atHome !== false;
     await setHomeState(person, atHome, now, at);
-    if (!atHome) await setArrival(person, { leftAt: now }, at);   // keep the arrival record consistent with "away"
+    if (!atHome) {
+      await setArrival(person, { leftAt: now }, at);          // keep the arrival record consistent with "away"
+      await setTogether(false, now, at, { via: 'manual-revert' });   // one person away => not together
+    }
     console.log('home-override: ' + v.email + ' set ' + person + ' atHome=' + atHome);
     return json({ ok: true, person: person, atHome: atHome });
   }

@@ -281,8 +281,11 @@
     // buttons reflect current state
     var btns = $('devHomeBtns'); if (btns) btns.hidden = false;
     var bRiti = $('devRiti'), bParv = $('devParv'), bApart = $('devApart');
-    if (bRiti) bRiti.textContent = shownHome(HOME.riti) ? '🚪 Set Riti away' : '🏡 Set Riti home';
-    if (bParv) bParv.textContent = shownHome(HOME.parv) ? '🚪 Set Parv away' : '🏡 Set Parv home';
+    // re-enable the per-person buttons every render (override() disables all three
+    // while a write is in flight; only bApart is state-gated, so these two must be
+    // explicitly restored or they'd stay dead after the first override).
+    if (bRiti) { bRiti.textContent = shownHome(HOME.riti) ? '🚪 Set Riti away' : '🏡 Set Riti home'; bRiti.disabled = false; }
+    if (bParv) { bParv.textContent = shownHome(HOME.parv) ? '🚪 Set Parv away' : '🏡 Set Parv home'; bParv.disabled = false; }
     if (bApart) bApart.disabled = !togOn;
   }
 
