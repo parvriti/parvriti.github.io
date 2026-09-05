@@ -34,6 +34,9 @@
   ];
 
   var db = null, DATA = null, loads = 20;
+  var WORKER = 'https://parvriti-push.parvbajaj2000.workers.dev';
+  var HOME = { riti: null, parv: null, tog: null };   // live homeState snapshots
+  var STALE_H = 168;                                   // must match common.js STALE + worker samePlaceFresh
 
   function $(id) { return document.getElementById(id); }
   function status(t) { var e = $('devStatus'); if (e) e.textContent = t || ''; }
@@ -215,6 +218,99 @@
     });
   }
 
+  /* ══ Home & Together (live homeState, worker-authoritative) ══ */
+  function ago(ms) {
+    if (!ms) return 'never';
+    var s = (Date.now() - ms) / 1000;
+    if (s < 90) return Math.round(s) + 's ago';
+    var m = s / 60; if (m < 90) return Math.round(m) + 'm ago';
+    var h = m / 60; if (h < 48) return h.toFixed(1) + 'h ago';
+    return (h / 24).toFixed(1) + 'd ago';
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  // mirror the app's client render: atHome is only trusted within the STALE window
+  function shownHome(d) { return !!(d && d.atHome && d.since && (Date.now() - d.since) < STALE_H * 3600 * 1000); }
+
+  function readHome() {
+    if (!db) return;
+    var host = $('devHome'); if (host) host.textContent = 'reading…';
+    Promise.all([
+      db.collection('homeState').doc('riti').get(),
+      db.collection('homeState').doc('parv').get(),
+      db.collection('homeState').doc('together').get()
+    ]).then(function (r) {
+      HOME.riti = r[0].exists ? r[0].data() : null;
+      HOME.parv = r[1].exists ? r[1].data() : null;
+      HOME.tog = r[2].exists ? r[2].data() : null;
+      renderHome();
+    }).catch(function () { if (host) host.textContent = 'could not read home state'; });
+  }
+
+  function renderHome() {
+    var host = $('devHome'); if (!host) return;
+    var tog = HOME.tog || {};
+    var now = Date.now();
+    var togOn = !!(tog.together && tog.since && (now - tog.since) < STALE_H * 3600 * 1000);
+    var rows = '';
+
+    if (togOn) {
+      // is the extended (>72h) same-place window the only thing holding this on?
+      var pAge = tog.partnerAt ? (now - tog.partnerAt) : 0;
+      var extended = tog.via === 'same-place' && pAge > 72 * 3600 * 1000;
+      rows += '<div class="dev-home-r ' + (extended ? 'warn' : 'ok') + '">' +
+        '<b>💞 Together right now</b>' +
+        '<span>since ' + esc(ago(tog.since)) + (tog.homeLabel ? ' · ' + esc(tog.homeLabel) : '') + '</span>' +
+        '<span>via ' + esc(tog.via || '?') + (tog.partnerAt ? ' · partner arrived ' + esc(ago(tog.partnerAt)) : '') + '</span>' +
+        (extended ? '<span class="dev-flag">⚠ held on only by the 7-day window — review</span>' : '') +
+        '</div>';
+    } else {
+      rows += '<div class="dev-home-r"><b>💔 Apart</b><span>' +
+        (tog.since ? 'since ' + esc(ago(tog.since)) : 'no together record') +
+        (tog.via === 'manual-revert' ? ' · manually reverted' : '') + '</span></div>';
+    }
+    ['riti', 'parv'].forEach(function (p) {
+      var d = HOME[p], name = p === 'riti' ? 'Riti' : 'Parv';
+      var home = shownHome(d);
+      var backend = d && d.atHome;
+      var note = (backend && !home) ? ' <span class="dev-flag">(backend home, but ' + STALE_H + 'h-stale)</span>' : '';
+      rows += '<div class="dev-home-r"><b>' + (home ? '🏡' : '🚪') + ' ' + name + (home ? ' home' : ' away') + '</b>' +
+        '<span>' + (d && d.since ? 'since ' + esc(ago(d.since)) : 'no record') + note + '</span></div>';
+    });
+    host.innerHTML = rows;
+
+    // buttons reflect current state
+    var btns = $('devHomeBtns'); if (btns) btns.hidden = false;
+    var bRiti = $('devRiti'), bParv = $('devParv'), bApart = $('devApart');
+    if (bRiti) bRiti.textContent = shownHome(HOME.riti) ? '🚪 Set Riti away' : '🏡 Set Riti home';
+    if (bParv) bParv.textContent = shownHome(HOME.parv) ? '🚪 Set Parv away' : '🏡 Set Parv home';
+    if (bApart) bApart.disabled = !togOn;
+  }
+
+  function override(payload, label) {
+    var user = firebase.auth().currentUser;
+    if (!user) { status('sign-in needed'); return; }
+    ['devApart', 'devRiti', 'devParv'].forEach(function (id) { var b = $(id); if (b) b.disabled = true; });
+    status(label + '…');
+    user.getIdToken().then(function (idt) {
+      return fetch(WORKER + '/home/override', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idt },
+        body: JSON.stringify(payload)
+      });
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        status(res.ok ? label + ' ✓' : ('failed: ' + (res.j && res.j.error || '?')));
+        setTimeout(readHome, 400);   // let the write land, then re-read
+      })
+      .catch(function () { status('network error'); readHome(); });
+  }
+
+  function wireHome() {
+    var a = $('devApart'); if (a) a.addEventListener('click', function () { override({ action: 'apart' }, 'Marking apart'); });
+    var r = $('devRiti'); if (r) r.addEventListener('click', function () { override({ action: 'home', person: 'riti', atHome: !shownHome(HOME.riti) }, 'Updating Riti'); });
+    var p = $('devParv'); if (p) p.addEventListener('click', function () { override({ action: 'home', person: 'parv', atHome: !shownHome(HOME.parv) }, 'Updating Parv'); });
+  }
+
   /* ── boot (admin only, gated exactly like settings.js) ── */
   function boot() {
     if (boot._on) return; boot._on = true;
@@ -222,8 +318,10 @@
     if (!u || u.person !== 'parv') { location.replace('index.html'); return; }
     try { db = firebase.firestore(); } catch (e) { status('Firestore did not load.'); return; }
     wireLoads();
-    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', crawl);
+    wireHome();
+    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); });
     crawl();
+    readHome();
   }
   /* back arrow → native back, so it returns to the Settings entry this was
      opened from instead of PUSHING a new one. A plain href here pushed a fresh

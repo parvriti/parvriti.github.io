@@ -2235,6 +2235,19 @@ body[data-page="periods"] .tt-btn:active { color: #20264a; background: rgba(32,3
 .dev-op-r { font-size: .8rem; color: #a89598; font-variant-numeric: tabular-nums; }
 .dev-op-r .dev-num { color: #f0dfe2; font-weight: 600; font-size: .92rem; }
 
+/* Home & Together live state */
+.dev-home { display: flex; flex-direction: column; gap: 9px; }
+.dev-home-r { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+.dev-home-r b { font-size: .92rem; color: #f0dfe2; font-weight: 600; }
+.dev-home-r span { font-size: .74rem; color: #a89598; font-variant-numeric: tabular-nums; }
+.dev-home-r.ok { border-color: rgba(120,190,140,.35); background: rgba(120,190,140,.07); }
+.dev-home-r.warn { border-color: rgba(230,170,60,.4); background: rgba(230,170,60,.08); }
+.dev-flag { color: #ecc267 !important; font-style: italic; }
+.dev-home-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.dev-home-btns .set-btn { flex: 1 1 auto; }
+.dev-home-btns .set-btn:disabled { opacity: .4; pointer-events: none; }
+
 /* the "Developer" entry row at the bottom of Settings */
 .set-devlink { display: block; text-decoration: none; color: inherit; transition: transform .12s ease, border-color .2s ease; }
 .set-devlink:active { transform: scale(.99); }

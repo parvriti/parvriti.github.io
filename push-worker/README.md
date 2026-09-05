@@ -85,11 +85,13 @@ so the admin Settings page can retune it with no redeploy:
 
 - `hsRule` — `apart` (default) · `always` · `evening` · `off`
 - `hsOnePerDay` (bool, default true) — at most the first arrival per IST day
-- `hsTogetherHrs` (int, default 6) — for `apart`, suppress only if BOTH are at
-  Gurugram and the partner arrived there within this many hours (a stale
-  Gurugram is treated as "unknown" and still pings — a redundant ping beats a
-  missed one). Solo-home arrivals (Noida/Rohtak) always ping.
 - `hsAfterHour` (int, default 18) — cutoff hour for the `evening` rule
+
+  (The `apart` rule stays silent when the arrival puts you *together* — that is
+  computed from the live arrival records, not a tunable window: same home label
+  with the partner still there within a 7-day self-heal, OR both arriving within
+  ~6 min of each other. The old `hsTogetherHrs` setting fed nothing and was
+  removed.)
 - `hsHomeRitiNoida` / `hsHomeRitiGurugram` / `hsHomeParvRohtak` /
   `hsHomeParvGurugram` (bool) — per-home mutes
 

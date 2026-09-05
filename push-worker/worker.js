@@ -44,6 +44,9 @@ export default {
     // clear the live Home tracker (flightActive/now is worker-only, so the site asks us);
     // the kept log record in /flights is left untouched.
     if (path === '/flight/clear') return handleFlightClear(request, env);
+    // dev-panel manual override of the home/together state (Firebase-token authed, admin only):
+    // revert a mislabeled-geofence "Together", or set a person's home/away line by hand.
+    if (path === '/home/override') return handleHomeOverride(request, env);
     // everything else is the site's own "send a push to the other person" call.
     return handlePush(request, env);
   },
@@ -209,7 +212,7 @@ function fval(v) {
    the feature works fully before the Settings page ever writes the doc. */
 async function getHomeCfg(accessToken) {
   const d = {
-    enabled: true, rule: 'apart', onePerDay: true, afterHour: 18, togetherHrs: 6,
+    enabled: true, rule: 'apart', onePerDay: true, afterHour: 18,
     homes: { 'riti-noida': true, 'riti-gurugram': true, 'parv-rohtak': true, 'parv-gurugram': true },
     muteAll: false, nHome: { riti: true, parv: true }
   };
@@ -221,7 +224,6 @@ async function getHomeCfg(accessToken) {
     if ('hsRule' in f) d.rule = fval(f.hsRule) || d.rule;
     if ('hsOnePerDay' in f) d.onePerDay = fval(f.hsOnePerDay) !== false;
     if ('hsAfterHour' in f) { const v = fval(f.hsAfterHour); if (typeof v === 'number' && v >= 0 && v <= 23) d.afterHour = v; }
-    if ('hsTogetherHrs' in f) d.togetherHrs = fval(f.hsTogetherHrs) || d.togetherHrs;
     const map = { hsHomeRitiNoida: 'riti-noida', hsHomeRitiGurugram: 'riti-gurugram', hsHomeParvRohtak: 'parv-rohtak', hsHomeParvGurugram: 'parv-gurugram' };
     for (const k in map) if (k in f) d.homes[map[k]] = fval(f[k]) !== false;
     d.muteAll = fval(f.muteAll) === true;
@@ -307,21 +309,27 @@ async function handleHomeArrival(request, env) {
   // Are we together? Two independent signals, because iOS geofences on two phones
   // routinely disagree on the LABEL for the same place (real case: both physically at
   // parv-gurugram, but Parv's phone fired 'parv-rohtak' - a mislabeled geofence):
-  //   1. SAME place label, partner still there, within the client's 72h self-heal; OR
+  //   1. SAME place label, partner still there, within the client's 168h self-heal; OR
   //   2. both hit a home within ~6 min of each other -> you ARRIVED TOGETHER, whatever
   //      the labels say (a real ground-truth signal, and label-agnostic).
   // Either person actually leaving clears it at once (the 'leave' branch above), a
   // false "together" self-heals, and a couple who lives together co-locates far more
   // often than they land at separate homes 6 min apart - so this errs the right way.
-  let together = false;
+  let together = false, togMeta = null;
   if (home) {
     const partner = await getArrival(recipient, accessToken);
-    const stillThere = partner.at > (partner.leftAt || 0);                                 // partner arrived and hasn't left since
-    const samePlaceFresh = partner.home === home && (now - partner.at) < 72 * 3600 * 1000; // same label, within the client's self-heal
-    const arrivedTogether = Math.abs(now - partner.at) < 6 * 60 * 1000;                     // OR within ~6 min -> arrived together, label-agnostic
-    if (stillThere && (samePlaceFresh || arrivedTogether)) together = true;
+    const stillThere = partner.at > (partner.leftAt || 0);                                  // partner arrived and hasn't left since
+    const samePlaceFresh = partner.home === home && (now - partner.at) < 168 * 3600 * 1000; // same label, within the 7-day self-heal (they stay home for long stretches)
+    const arrivedTogether = Math.abs(now - partner.at) < 6 * 60 * 1000;                      // OR within ~6 min -> arrived together, label-agnostic
+    if (stillThere && (samePlaceFresh || arrivedTogether)) {
+      together = true;
+      // provenance for the dev panel: which signal set it + how stale the partner's
+      // arrival was (a same-place match older than 72h is one ONLY the extended
+      // 7-day window enables, so the panel can flag it for review).
+      togMeta = { via: arrivedTogether ? 'arrived-together' : 'same-place', partnerAt: partner.at, homeLabel: home };
+    }
   }
-  await setTogether(together, now, accessToken);   // drives the "Together right now" line for both
+  await setTogether(together, now, accessToken, togMeta);   // drives the "Together right now" line for both
 
   // Settings matrix: master mute + this recipient's "got home safe" toggle
   if (cfg.muteAll) { console.log('home: muted-all'); return json({ ok: true, muted: 'all' }); }
@@ -401,13 +409,62 @@ async function setHomeState(person, atHome, ms, accessToken) {
    that BOTH apps read to show the "Together right now" line. Written true on an
    arrival that puts you at the same place as your partner, false on every leave
    and on any arrival that does not. The same read-only /homeState rule covers it. */
-async function setTogether(on, ms, accessToken) {
+async function setTogether(on, ms, accessToken, meta) {
   try {
-    await fetch(DOCS + '/homeState/together?updateMask.fieldPaths=together&updateMask.fieldPaths=since', {
+    const m = meta || {};
+    // provenance fields (via/partnerAt/homeLabel) let the dev panel show WHEN and HOW
+    // "Together" was set, and offer a manual revert. Cleared when apart. The client
+    // render ignores them (it only reads together + since), so this is additive.
+    const fields = {
+      together: { booleanValue: !!on },
+      since: { integerValue: String(ms) },
+      via: { stringValue: on ? (m.via || 'same-place') : (m.via || '') },   // ''|same-place|arrived-together|manual-revert
+      partnerAt: { integerValue: String(on ? (m.partnerAt || 0) : 0) },      // partner's arrival ms at match time
+      homeLabel: { stringValue: on ? (m.homeLabel || '') : '' }             // where they matched
+    };
+    const mask = ['together', 'since', 'via', 'partnerAt', 'homeLabel'].map(function (k) { return 'updateMask.fieldPaths=' + k; }).join('&');
+    await fetch(DOCS + '/homeState/together?' + mask, {
       method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: { together: { booleanValue: !!on }, since: { integerValue: String(ms) } } })
+      body: JSON.stringify({ fields: fields })
     });
   } catch (e) {}
+}
+
+/* Dev-panel manual overrides (admin only, Firebase-token authed exactly like
+   /flight/*). Lets Parv correct the home/together state from inside the app
+   without waiting for a real arrive/leave event:
+     { action: 'apart' }                     -> force homeState/together = false
+     { action: 'home', person, atHome:bool } -> set homeState/<person> home/away
+   homeState is worker-only for writes (the app has a read-only rule), so the
+   panel routes through here rather than writing Firestore directly. */
+async function handleHomeOverride(request, env) {
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!idToken) return json({ error: 'no token' }, 401);
+  const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
+  if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
+  if (ALLOWED.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed' }, 403);
+  let body; try { body = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
+  const action = body && typeof body.action === 'string' ? body.action : '';
+  let sa; try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return json({ error: 'no sa' }, 500); }
+  const at = await getAccessToken(sa);
+  if (!at) return json({ error: 'auth failed' }, 500);
+  const now = Date.now();
+  if (action === 'apart') {
+    await setTogether(false, now, at, { via: 'manual-revert' });
+    console.log('home-override: ' + v.email + ' forced apart');
+    return json({ ok: true, together: false });
+  }
+  if (action === 'home') {
+    const person = body.person === 'parv' ? 'parv' : body.person === 'riti' ? 'riti' : '';
+    if (!person) return json({ error: 'bad person' }, 400);
+    const atHome = body.atHome !== false;
+    await setHomeState(person, atHome, now, at);
+    if (!atHome) await setArrival(person, { leftAt: now }, at);   // keep the arrival record consistent with "away"
+    console.log('home-override: ' + v.email + ' set ' + person + ' atHome=' + atHome);
+    return json({ ok: true, person: person, atHome: atHome });
+  }
+  return json({ error: 'bad action' }, 400);
 }
 
 /* ══════════════ midnight birthday / anniversary push ══════════════ */

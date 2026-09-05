@@ -9,12 +9,12 @@
    touched. A deploy bumps CACHE; activate purges the old one, so the next
    navigation is fresh - one stale nav right after a deploy, by design.
    ===================================================================== */
-var CACHE = 'parvriti-v134';
+var CACHE = 'parvriti-v135';
 var CORE = [
   'index.html', 'open-when.html', 'board.html', 'doodles.html', 'periods.html', 'settings.html', 'dev.html',
-  'css/styles.css?v=134', 'css/theme.css?v=134',
-  'js/common.js?v=134', 'js/open-when.js?v=134', 'js/board.js?v=134', 'js/doodle.js?v=134',
-  'js/periods.js?v=134', 'js/settings.js?v=134', 'js/dev.js?v=134', 'js/native.js?v=134', 'js/flight.js?v=134',
+  'css/styles.css?v=135', 'css/theme.css?v=135',
+  'js/common.js?v=135', 'js/open-when.js?v=135', 'js/board.js?v=135', 'js/doodle.js?v=135',
+  'js/periods.js?v=135', 'js/settings.js?v=135', 'js/dev.js?v=135', 'js/native.js?v=135', 'js/flight.js?v=135',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.json'
 ];
 

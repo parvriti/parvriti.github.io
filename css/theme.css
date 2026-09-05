@@ -202,6 +202,13 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .dev-num.warn { color: #9a6a0d; }
 :root[data-theme="light"] .dev-num.hot { color: #c62b3f; }
 :root[data-theme="light"] .dev-col-sub.hot-t { color: #c62b3f; }
+/* Home & Together live card - light mode */
+:root[data-theme="light"] .dev-home-r { background: #fbeef0; border-color: #f0d8dd; }
+:root[data-theme="light"] .dev-home-r b { color: var(--l-ink); }
+:root[data-theme="light"] .dev-home-r span { color: var(--l-ink2); }
+:root[data-theme="light"] .dev-home-r.ok { background: #e9f6ec; border-color: #bfe3c8; }
+:root[data-theme="light"] .dev-home-r.warn { background: #fdf3e0; border-color: #f0d7a6; }
+:root[data-theme="light"] .dev-flag { color: #9a6a0d !important; }
 /* the "turn on notifications?" prompt was a dark pill with light ink; relight it for the light UI. */
 :root[data-theme="light"] .notif-prompt { background: rgba(255,255,255,.94); border-color: #f0c8d0; box-shadow: 0 8px 24px rgba(120,40,60,.14); }
 :root[data-theme="light"] .np-text { color: #5a3540; }

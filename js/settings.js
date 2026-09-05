@@ -13,9 +13,9 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v134';
+  var VERSION = 'v135';
   var DEFAULTS = {
-    hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18, hsTogetherHrs: 6,
+    hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
     // notifications matrix (n_<type>_<recipient>) + master mute
     n_openwhen_riti: true, n_openwhen_parv: true, n_read_riti: true, n_read_parv: true, n_board_riti: true, n_board_parv: true,
@@ -38,7 +38,7 @@
     stHomeRitiNoida: 'hsHomeRitiNoida', stHomeRitiGurugram: 'hsHomeRitiGurugram',
     stHomeParvRohtak: 'hsHomeParvRohtak', stHomeParvGurugram: 'hsHomeParvGurugram'
   };
-  var STEPPERS = { stTogether: 'hsTogetherHrs', stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen', stCyLead: 'cyNotifLead' };
+  var STEPPERS = { stAfterHour: 'hsAfterHour', stCyLen: 'cyLen', stCyFlag: 'cyFlagAt', stCyDef: 'cyDefaultLen', stCyLead: 'cyNotifLead' };
 
   var db = null, DOC = null, cfg = {}, saveTimer = null, isAdmin = false;
 
@@ -177,10 +177,9 @@
     el.dataset.val = v;
   }
 
-  /* ── conditional rows: together-window only for "apart", cutoff only for "evening" ── */
+  /* ── conditional rows: evening cutoff only for "evening" ── */
   function conditional() {
     var r = cfg.hsRule;
-    $('rowTogether').classList.toggle('hide', r !== 'apart');
     $('rowAfter').classList.toggle('hide', r !== 'evening');
   }
 
