@@ -153,7 +153,7 @@
   function renderEstimates() {
     var n = DATA.notes || {}, r = DATA.roomItems || {}, s = DATA.canvasStrokes || {}, cy = DATA.cycle || {}, sd = DATA.savedDoodles || {};
     // egress: blob-heavy pages re-pull their whole collection on each open
-    // (savedDoodles is lazy — the shelf pulls it only when opened, ~once per doodles session, so it rides the same per-load model)
+    // (savedDoodles is lazy: the shelf pulls it only when opened, ~once per doodles session, so it rides the same per-load model)
     var perLoad = (n.bytes || 0) + (r.bytes || 0) + (s.bytes || 0) + (sd.bytes || 0);
     var monthly = perLoad * loads * 30;
     var egrPct = monthly / EGRESS_CAP * 100;
@@ -261,10 +261,10 @@
         '<b>💞 Together right now</b>' +
         '<span>since ' + esc(ago(tog.since)) + (tog.homeLabel ? ' · ' + esc(tog.homeLabel) : '') + '</span>' +
         '<span>via ' + esc(tog.via || '?') + (tog.partnerAt ? ' · partner arrived ' + esc(ago(tog.partnerAt)) : '') + '</span>' +
-        (extended ? '<span class="dev-flag">⚠ held on only by the 7-day window — review</span>' : '') +
+        (extended ? '<span class="dev-flag">⚠ held on only by the 7-day window · review</span>' : '') +
         '</div>';
     } else {
-      rows += '<div class="dev-home-r"><b>💔 Apart</b><span>' +
+      rows += '<div class="dev-home-r"><b>↔️ Apart</b><span>' +
         (tog.since ? 'since ' + esc(ago(tog.since)) : 'no together record') +
         (tog.via === 'manual-revert' ? ' · manually reverted' : '') + '</span></div>';
     }
