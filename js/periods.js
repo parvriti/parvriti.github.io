@@ -7,7 +7,10 @@
    DESIGN RULES baked in here, do not quietly undo them:
      · Predictions are RANGES, never a single confident date.
      · The three levels are generic cycle tendencies, not readings of her.
-       Never add a "mood" row and never attribute a feeling to her cycle.
+       Never add a "mood" row; the levels stay generic. The per-phase HINT is
+       action-first advice to HIM. The pre-menstrual line is the ONE owner-
+       approved exception that names a mood ("if she's snappy…"), kept on
+       purpose (Parv, v137) — do not quietly revert it.
      · Fertility is a loose calendar estimate, explicitly not medical advice.
      · NO push notifications from this tab, ever.
      · NO personal data in this file. Her history lives in Firestore behind
@@ -133,14 +136,14 @@
 
   /* ── what he can actually do. Action first, never a diagnosis of her ── */
   var HINT = {
-    menstrual: 'Heat, and take things off her plate. Days one and two are the worst of them.',
-    follicular: 'Easy stretch. Good week to make plans and say yes to things.',
-    fertile: 'Good window for the fun stuff. Ask her out properly.',
-    luteal: 'Smaller, softer plans. Start restocking what she will want.',
-    pms: 'Be the steady one. Supplies stocked, nothing heavy scheduled.',
-    due: 'Could be any day now. Keep everything within reach.',
-    late: 'Running long is normal for her. Nothing to do differently.',
-    overdue: 'Longer than her recent cycles. Most likely one went unlogged, so hold the drop to add it.',
+    menstrual: 'Keep a hot-water bottle ready and love her a little extra.',
+    follicular: 'Good week to make plans.',
+    fertile: 'Dates, and all the fun stuff 💦',
+    luteal: 'Smaller, cosier plans from here.',
+    pms: "If she's snappy, it's the week, not you. Give extra slack.",
+    due: 'Could be any day now.',
+    late: 'Running late is normal.',
+    overdue: 'Longer than her recent cycles. Probably one went unlogged, hold the drop to add it.',
     none: 'Nothing logged yet. Tap the drop when her period begins.'
   };
 
