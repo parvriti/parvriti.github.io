@@ -47,7 +47,7 @@ function startNotes() {
     db.collection('notes').onSnapshot(function (snap) {
       liveNotes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
       onLive();
-    }, function (err) { console.warn('notes listen error', err); });
+    }, function (err) { console.warn('notes listen error', err); if (window.parvritiFsError) window.parvritiFsError(err); });   // a used-up quota shows up as "seeds only"; say why
     db.collection('openWhenReads').doc('seeds').onSnapshot(function (snap) {
       seedReads = (snap.exists && snap.data()) ? snap.data() : {};
       seedReadsLoaded = true;
@@ -213,6 +213,7 @@ function maybeNotifyOpen(e, env) {
   var guard = e.seed ? ('seed_' + seedReadKey(e)) : e.id;
   if (!guard || openNotified[guard]) return;
   if (e.seed) {
+    if (!seedReadsLoaded) return;                // the read-state snapshot hasn't landed yet: don't re-stamp (and re-push) a letter she opened long ago
     if (seedReads[seedReadKey(e)]) return;       // already opened
     openNotified[guard] = true;
     if (db) { var patch = {}; patch[seedReadKey(e)] = { by: reader, at: Date.now() }; db.collection('openWhenReads').doc('seeds').set(patch, { merge: true }).catch(function (err) { console.warn(err); }); }
@@ -573,14 +574,18 @@ function closeAdd() {
   if (window.parvritiTyping) window.parvritiTyping(false);
 }
 
+let saving = false;   // in-flight guard: a second Save tap during a slow write (a voice clip on cellular takes 1-3s) used to create a duplicate note AND a duplicate push
 function saveForm(ev) {
   if (ev) ev.preventDefault();
+  if (saving) return false;
   const err = document.getElementById('owFormErr');
   const body = document.getElementById('owInBody').value.replace(/\s+$/, '');
   if (!body.trim()) { err.textContent = 'Write a few words 💛'; return false; }
   if (!db) { err.textContent = "couldn't reach the server, try again"; return false; }
-  const done = function () { closeAdd(); };
-  const fail = function (e) { console.warn(e); err.textContent = "couldn't save, try again"; };
+  const saveBtn = document.querySelector('#owForm .ow-save');
+  const lock = function (on) { saving = on; if (saveBtn) saveBtn.disabled = on; };
+  const done = function () { lock(false); closeAdd(); };
+  const fail = function (e) { lock(false); console.warn(e); err.textContent = "couldn't save, try again"; };
 
   const voice = recData || null;
   const voiceType = recData ? recType : null;
@@ -607,8 +612,10 @@ function saveForm(ev) {
   };
 
   if (formMode === 'edit') {
+    lock(true);
     db.collection('notes').doc(formEntry.id).update({ body: body, voice: voice, voiceType: voiceType, editedAt: serverTime() }).then(done).catch(fail);
   } else if (formMode === 'add') {
+    lock(true);
     db.collection('notes').add({
       side: currentSide, emotion: formEnv.emotion, emoji: formEnv.emoji, title: formEnv.title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
@@ -618,6 +625,7 @@ function saveForm(ev) {
     const emoji = document.getElementById('owInEmoji').value.trim() || (currentSide === 'parv' ? '💙' : '💌');
     if (!title) { err.textContent = 'Give it a title 💛'; return false; }
     const key = newKey();
+    lock(true);
     db.collection('notes').add({
       side: currentSide, emotion: key, emoji: emoji, title: title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null

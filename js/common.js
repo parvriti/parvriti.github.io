@@ -405,7 +405,7 @@
     function beat(extra) {
       var d = { at: FV.serverTimestamp(), atMs: Date.now(), page: page, hidden: !!document.hidden, gone: false, activity: curAct, activityLabel: curActLabel, typing: curTyping };
       if (extra) for (var k in extra) d[k] = extra[k];
-      meRef.set(d, { merge: true }).catch(function () {});
+      meRef.set(d, { merge: true }).catch(fsError);
     }
     beat();
     setInterval(function () { if (!document.hidden) beat(); }, 25000);   // don't write while backgrounded
@@ -422,7 +422,7 @@
     };
     /* open-when.js calls this when a note is opened → the "last opened" line */
     window.parvritiSetLastOpened = function (title) {
-      meRef.set({ lastOpenedTitle: String(title || '').slice(0, 60), atMs: Date.now(), at: FV.serverTimestamp(), gone: false, hidden: false }, { merge: true }).catch(function () {});
+      meRef.set({ lastOpenedTitle: String(title || '').slice(0, 60), atMs: Date.now(), at: FV.serverTimestamp(), gone: false, hidden: false }, { merge: true }).catch(fsError);
     };
     /* open-when.js / doodle.js set a live activity ("reading X", "drawing"). It
        rides the online window, and every beat rewrites it, so a fresh page load
@@ -440,7 +440,7 @@
       lastOther = snap.exists ? snap.data() : null;
       renderPresence(lastOther, other);
       renderLastSeen(lastOther, other);
-    }, function () {});
+    }, fsError);
     setInterval(function () { renderPresence(lastOther, other); renderLastSeen(lastOther, other); }, 15000);
 
     /* home page only: the optional "♡ Riti is home / away" line (line 3). Dormant
@@ -463,7 +463,7 @@
       if (pingFirst) { pingFirst = false; return; }   // ignore whatever is already there on load
       if (!snap.exists) return;
       pulseHeart(snap.data());
-    }, function () {});
+    }, fsError);
     // heartbeat button everywhere (incl. home, after sign-in) except the
     // wedding invite, which stays full-screen, and Periods, where the log
     // drop takes the same slot on purpose so switching tabs reads as one
@@ -549,15 +549,15 @@
       cdb.collection('homeState').doc(other).onSnapshot(function (snap) {
         homeStateOther = snap.exists ? snap.data() : null;
         renderHomeState(el, other);
-      }, function () {});
+      }, fsError);
       // shared "together" flag (a boolean + time, never a location), written by
       // the worker when an arrival puts you both at the same place.
       cdb.collection('homeState').doc('together').onSnapshot(function (snap) {
         homeStateTog = snap.exists ? snap.data() : null;
         renderHomeState(el, other);
-      }, function () {});
+      }, fsError);
       setInterval(function () { renderHomeState(el, other); }, 60000);   // re-heal a stale "home"/"together"
-    }).catch(function () {});
+    }).catch(fsError);
   }
   function renderHomeState(el, other) {
     if (!el) return;
@@ -622,6 +622,22 @@
       setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 400);
     }, 1600);
   }
+
+  /* One visible line when Firestore itself is the problem. Every listener used to
+     swallow errors, so a used-up daily quota (Spark resets at midnight Pacific =
+     12:30/13:30 IST, i.e. it runs out in OUR evening) looked like an empty, broken
+     app: seeds only, presence "left", no pushes, no explanation. Toast it once per
+     page load; the presence beat retries every 25s so it would otherwise nag. */
+  var fsErrShown = false;
+  function fsError(e) {
+    var code = (e && e.code) ? String(e.code) : '';
+    if (code === 'resource-exhausted') {
+      if (!fsErrShown) { fsErrShown = true; toast("today's data quota is used up, things will look empty until it resets around lunchtime"); }
+    } else if (code === 'permission-denied') {
+      try { console.warn('firestore: permission denied (a rule not published yet?)', e); } catch (x) {}
+    }
+  }
+  window.parvritiFsError = fsError;   // page scripts (open-when.js etc.) route their own listener errors here
 
   /* ══════════════ celebrations: birthdays (confetti blast) + anniversary (fireworks) ══════════════
      Dormant every normal day. Fires only on the three dates, or when forced with

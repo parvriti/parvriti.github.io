@@ -308,6 +308,37 @@
       .catch(function () { status('network error'); readHome(); });
   }
 
+  /* ══ Worker crons: heartbeat age per cron (workerHealth/<cron>, worker-written) ══
+     `every` is the cron's cadence in hours; a marker older than 1.5x that is flagged.
+     Needs the read-only /workerHealth rule published, else it says so. */
+  var CRONS = [
+    { id: 'celebration', label: '🎂 Midnight wish', every: 24 },
+    { id: 'cycle',       label: '🌙 9am cycle nudge', every: 24 },
+    { id: 'capsule',     label: '⏳ 9am capsule nudge', every: 24 },
+    { id: 'flight',      label: '✈️ Flight poll (hourly beat)', every: 1 }
+  ];
+  function readHealth() {
+    if (!db) return;
+    var host = $('devHealth'); if (host) host.textContent = 'reading…';
+    Promise.all(CRONS.map(function (c) { return db.collection('workerHealth').doc(c.id).get(); })).then(function (snaps) {
+      var now = Date.now(), rows = '';
+      CRONS.forEach(function (c, i) {
+        var d = snaps[i].exists ? snaps[i].data() : null;
+        var at = d && d.at ? +d.at : 0;
+        var late = at ? (now - at) > c.every * 3600 * 1000 * 1.5 : true;
+        rows += '<div class="dev-home-r ' + (late ? 'warn' : 'ok') + '"><b>' + c.label + '</b><span>' +
+          (at ? 'last ran ' + esc(ago(at)) : 'never ran') +
+          (late ? ' <span class="dev-flag">' + (at ? '⚠ overdue' : '⚠ no heartbeat yet') + '</span>' : ' ✓') +
+          (d && d.note ? ' · ' + esc(d.note) : '') +
+          '</span></div>';
+      });
+      if (host) host.innerHTML = rows;
+    }).catch(function (e) {
+      var denied = e && e.code === 'permission-denied';
+      if (host) host.textContent = denied ? 'publish the workerHealth read rule (firestore.rules) to see this' : 'could not read worker health';
+    });
+  }
+
   function wireHome() {
     var a = $('devApart'); if (a) a.addEventListener('click', function () { override({ action: 'apart' }, 'Marking apart'); });
     var r = $('devRiti'); if (r) r.addEventListener('click', function () { override({ action: 'home', person: 'riti', atHome: !shownHome(HOME.riti) }, 'Updating Riti'); });
@@ -322,9 +353,10 @@
     try { db = firebase.firestore(); } catch (e) { status('Firestore did not load.'); return; }
     wireLoads();
     wireHome();
-    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); });
+    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); readHealth(); });
     crawl();
     readHome();
+    readHealth();
   }
   /* back arrow → native back, so it returns to the Settings entry this was
      opened from instead of PUSHING a new one. A plain href here pushed a fresh

@@ -21,6 +21,7 @@
 
 const PROJECT_ID = 'parvriti';
 const ALLOWED = ['parvbajaj2000@gmail.com', 'aritika2000@gmail.com', 'parvbajaj2480@gmail.com'];
+const ADMINS = ['parvbajaj2000@gmail.com', 'parvbajaj2480@gmail.com'];   // Parv's accounts: the only callers of the dev-panel /home/override
 const SITE = 'https://parvriti.github.io';
 const CORS = {
   'Access-Control-Allow-Origin': SITE,
@@ -51,16 +52,28 @@ export default {
     return handlePush(request, env);
   },
 
-  /* Two Cron Triggers:
-       "30 18 * * *" = 00:00 IST -> birthday / anniversary wish to BOTH phones.
-       "30 3 * * *"  = 09:00 IST -> cycle heads-up (upcoming period + phase changes),
-                                    per person, gated on their own Periods visibility.
-     Add the 09:00 trigger in Cloudflare (Workers -> the worker -> Triggers -> Cron)
-     the same way the midnight one was added. Until it exists, cycle nudges never run. */
+  /* Three Cron Triggers (wrangler.toml):
+       "30 18 * * *"  = 00:00 IST -> birthday / anniversary wish to BOTH phones.
+       "30 3 * * *"   = 09:00 IST -> cycle heads-up (upcoming period + phase changes),
+                                     per person, gated on their own Periods visibility,
+                                     plus the time-capsule "unlocked today" nudge.
+       "*\/15 * * * *" = flight poll, AND a birthday catch-up: if the midnight tick was
+                        skipped or its token mint failed, the wish still goes out the
+                        same day (only when the sent-marker is confirmed missing).
+     Every cron writes a workerHealth/<cron> heartbeat so the dev panel can show
+     "last ran Xh ago"; a stale one is how a dead cron becomes visible BEFORE a
+     missed birthday. */
   async scheduled(event, env, ctx) {
-    if (event.cron === '*/15 * * * *') { ctx.waitUntil(runFlightPoll(event, env)); return; }
+    if (event.cron === '*/15 * * * *') {
+      ctx.waitUntil(runFlightPoll(event, env));
+      // skip the one tick that coincides with the midnight run itself (18:30 UTC), or the
+      // two would race on a missing marker and both send. First catch-up is 00:15 IST.
+      const d = new Date(event.scheduledTime || Date.now());
+      if (!(d.getUTCHours() === 18 && d.getUTCMinutes() === 30)) ctx.waitUntil(runCelebration(event, env, true));
+      return;
+    }
     if (event.cron === '30 3 * * *') { ctx.waitUntil(runCycleNudges(event, env)); ctx.waitUntil(runCapsuleNudges(event, env)); }
-    else ctx.waitUntil(runCelebration(event, env));
+    else ctx.waitUntil(runCelebration(event, env, false));
   }
 };
 
@@ -294,11 +307,17 @@ async function handleHomeArrival(request, env) {
   }
 
   const cfg = await getHomeCfg(accessToken);
-  const state = await getArrival(sender, accessToken);
+  // the sender's OWN record: an unreadable one is treated as "no record" (we're about
+  // to overwrite it with this arrival anyway); only the partner lookup below is strict.
+  const state = (await getArrival(sender, accessToken)) || Object.assign({}, EMPTY_ARRIVAL);
 
-  // swallow geofence double-fires; keep current-home fresh
-  if (state.at && (now - state.at) < DEDUP_MS) {
+  // swallow geofence double-fires; keep current-home fresh. A REAL leave since the
+  // last arrival (leftAt > at) is never a bounce: they went out and came back, so it
+  // must fall through and record a fresh arrival. (Before this guard, "arrive 10:00,
+  // leave 10:04, back 10:07" was swallowed here and both phones showed "away".)
+  if (state.at && (now - state.at) < DEDUP_MS && !(state.leftAt > state.at)) {
     if (home && home !== state.home) await setArrival(sender, { at: now, home: home }, accessToken);
+    await setHomeState(sender, true, now, accessToken);   // a bounce still means "here" (re-asserts the line if a manual "away" slipped in)
     console.log('home: ' + sender + ' deduped bounce');
     return json({ ok: true, deduped: true });
   }
@@ -315,21 +334,28 @@ async function handleHomeArrival(request, env) {
   // Either person actually leaving clears it at once (the 'leave' branch above), a
   // false "together" self-heals, and a couple who lives together co-locates far more
   // often than they land at separate homes 6 min apart - so this errs the right way.
-  let together = false, togMeta = null;
+  let together = false, togMeta = null, togKnown = true;
   if (home) {
     const partner = await getArrival(recipient, accessToken);
-    const stillThere = partner.at > (partner.leftAt || 0);                                  // partner arrived and hasn't left since
-    const samePlaceFresh = partner.home === home && (now - partner.at) < 168 * 3600 * 1000; // same label, within the 7-day self-heal (they stay home for long stretches)
-    const arrivedTogether = Math.abs(now - partner.at) < 6 * 60 * 1000;                      // OR within ~6 min -> arrived together, label-agnostic
-    if (stillThere && (samePlaceFresh || arrivedTogether)) {
-      together = true;
-      // provenance for the dev panel: which signal set it + how stale the partner's
-      // arrival was (a same-place match older than 72h is one ONLY the extended
-      // 7-day window enables, so the panel can flag it for review).
-      togMeta = { via: arrivedTogether ? 'arrived-together' : 'same-place', partnerAt: partner.at, homeLabel: home };
+    if (partner === null) {
+      // the partner's record could not be READ (transient Firestore error, not "no record").
+      // Don't let an unknown overwrite a true "Together" with false: leave the flag alone.
+      togKnown = false;
+      console.log('home: partner record unreadable, leaving together untouched');
+    } else {
+      const stillThere = partner.at > (partner.leftAt || 0);                                  // partner arrived and hasn't left since
+      const samePlaceFresh = partner.home === home && (now - partner.at) < 168 * 3600 * 1000; // same label, within the 7-day self-heal (they stay home for long stretches)
+      const arrivedTogether = Math.abs(now - partner.at) < 6 * 60 * 1000;                      // OR within ~6 min -> arrived together, label-agnostic
+      if (stillThere && (samePlaceFresh || arrivedTogether)) {
+        together = true;
+        // provenance for the dev panel: which signal set it + how stale the partner's
+        // arrival was (a same-place match older than 72h is one ONLY the extended
+        // 7-day window enables, so the panel can flag it for review).
+        togMeta = { via: arrivedTogether ? 'arrived-together' : 'same-place', partnerAt: partner.at, homeLabel: home };
+      }
     }
   }
-  await setTogether(together, now, accessToken, togMeta);   // drives the "Together right now" line for both
+  if (togKnown) await setTogether(together, now, accessToken, togMeta);   // drives the "Together right now" line for both
 
   // Settings matrix: master mute + this recipient's "got home safe" toggle
   if (cfg.muteAll) { console.log('home: muted-all'); return json({ ok: true, muted: 'all' }); }
@@ -364,10 +390,16 @@ async function handleHomeArrival(request, env) {
 /* homeArrivals/<person>: { at (ms), home (coarse label), sentDay (IST date) }.
    No coordinates, ever. Written by the service account, so no client rule is
    needed (the app never touches this collection). */
+/* Returns the record, an EMPTY record when the doc simply doesn't exist yet (404),
+   or null when it could not be read at all (5xx / network). Callers that decide
+   something destructive from the partner's record (the together-check) must treat
+   null as "unknown" and skip, never as "not there". */
+const EMPTY_ARRIVAL = { at: 0, home: '', sentDay: '', leftAt: 0 };
 async function getArrival(person, accessToken) {
   try {
     const r = await fetch(DOCS + '/homeArrivals/' + person, { headers: { Authorization: 'Bearer ' + accessToken } });
-    if (!r.ok) return { at: 0, home: '', sentDay: '' };
+    if (r.status === 404) return Object.assign({}, EMPTY_ARRIVAL);
+    if (!r.ok) return null;
     const f = (await r.json()).fields || {};
     return {
       at: f.at && f.at.integerValue ? parseInt(f.at.integerValue, 10) : 0,
@@ -375,7 +407,7 @@ async function getArrival(person, accessToken) {
       sentDay: f.sentDay && f.sentDay.stringValue ? f.sentDay.stringValue : '',
       leftAt: f.leftAt && f.leftAt.integerValue ? parseInt(f.leftAt.integerValue, 10) : 0
     };
-  } catch (e) { return { at: 0, home: '', sentDay: '', leftAt: 0 }; }
+  } catch (e) { return null; }
 }
 async function setArrival(person, obj, accessToken) {
   try {
@@ -443,7 +475,10 @@ async function handleHomeOverride(request, env) {
   if (!idToken) return json({ error: 'no token' }, 401);
   const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
   if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
-  if (ALLOWED.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed' }, 403);
+  // admin only: the dev panel is gated to Parv on the page, so the endpoint must be too
+  // (ALLOWED would also admit Riti's token). Mirrors common.js personFor(): Riti's
+  // address maps to 'riti', every other allowed address is Parv.
+  if (ADMINS.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed' }, 403);
   let body; try { body = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
   const action = body && typeof body.action === 'string' ? body.action : '';
   let sa; try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return json({ error: 'no sa' }, 500); }
@@ -484,27 +519,55 @@ function celebrationTitle(event) {
   return null;
 }
 
-async function runCelebration(event, env) {
+/* catchUp=false: the midnight tick. Marks its heartbeat every night (celebration day
+   or not), then sends unless the marker says "already sent" (an unreadable marker
+   still sends: better a rare duplicate than a missed birthday).
+   catchUp=true: the every-15-min safety net. Costs nothing on a normal day (returns
+   before minting a token), never touches the heartbeat (so a dead midnight cron
+   still reads as dead), and sends ONLY when the marker is confirmed missing (404),
+   so a flaky Firestore read can't repeat the wish every 15 minutes. */
+async function runCelebration(event, env, catchUp) {
   const occ = celebrationTitle(event);
-  if (!occ) return;                                 // nothing to celebrate today
+  if (catchUp && !occ) return;                      // catch-up tick on a normal day: nothing to do, no token needed
   let sa;
   try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
   const accessToken = await getAccessToken(sa);
   if (!accessToken) return;
-  if (await celebrationDone(occ.id, accessToken)) return;   // never send the same one twice
+  if (!catchUp) await healthMark('celebration', accessToken);
+  if (!occ) return;                                 // nothing to celebrate today
+  const st = await celebrationState(occ.id, accessToken);
+  if (st === 'done') return;                        // never send the same one twice
+  if (catchUp && st !== 'missing') { console.log('celebration catch-up: marker ' + st + ', not sending'); return; }
   const devices = (await getTokens('parv', accessToken)).concat(await getTokens('riti', accessToken));
   for (const d of devices) {
     const res = await sendPush(accessToken, d.token, occ.title, '', SITE + '/index.html?moment=celebrate');   // tap -> Home shows the takeover
     if (!res.ok && res.dead) await deleteDoc(d.name, accessToken);
   }
   await celebrationMark(occ.id, accessToken);
+  console.log('celebration: ' + occ.id + ' sent to ' + devices.length + ' device(s)' + (catchUp ? ' (catch-up)' : ''));
 }
 
-async function celebrationDone(id, accessToken) {
+/* 'done' = marker exists (already sent), 'missing' = confirmed 404, 'unknown' = could
+   not tell (5xx / network). The two callers treat 'unknown' differently on purpose. */
+async function celebrationState(id, accessToken) {
   try {
     const r = await fetch(DOCS + '/celebrations/' + id, { headers: { Authorization: 'Bearer ' + accessToken } });
-    return r.ok;   // 200 = the doc exists = already sent today
-  } catch (e) { return false; }   // on error, better to allow the wish than skip it
+    if (r.ok) return 'done';
+    if (r.status === 404) return 'missing';
+    return 'unknown';
+  } catch (e) { return 'unknown'; }
+}
+
+/* workerHealth/<cron> = { at, note }: one heartbeat per cron run, written by the SA
+   (the app has a read-only rule). The dev panel shows each marker's age; a stale
+   one is the only way a dead cron becomes visible before something is missed. */
+async function healthMark(cron, accessToken, note) {
+  try {
+    await fetch(DOCS + '/workerHealth/' + cron + '?updateMask.fieldPaths=at&updateMask.fieldPaths=note', {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { at: { integerValue: String(Date.now()) }, note: { stringValue: String(note || '') } } })
+    });
+  } catch (e) {}
 }
 async function celebrationMark(id, accessToken) {
   try {
@@ -654,6 +717,7 @@ async function runCycleNudges(event, env) {
   try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
   const accessToken = await getAccessToken(sa);
   if (!accessToken) return;
+  await healthMark('cycle', accessToken);   // before any business early-return: "the cron ticked", not "it sent"
 
   const cfg = await getCycleCfg(accessToken);
   if (cfg.muteAll) { console.log('cycle: muted-all'); return; }
@@ -723,6 +787,7 @@ async function runCapsuleNudges(event, env) {
   try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
   const accessToken = await getAccessToken(sa);
   if (!accessToken) return;
+  await healthMark('capsule', accessToken);
 
   const notif = await getOwNotif(accessToken);
   if (notif.muteAll) { console.log('capsule: muted-all'); return; }
@@ -1027,6 +1092,9 @@ async function handleFlightClear(request, env) {
 async function runFlightPoll(event, env) {
   let sa; try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { return; }
   const at = await getAccessToken(sa); if (!at) return;
+  // heartbeat once an hour (the :00 tick), not all 96 runs a day: enough to prove the
+  // poll is alive, cheap on the write quota. Written before the "no active flight" exit.
+  if (new Date(event && event.scheduledTime ? event.scheduledTime : Date.now()).getUTCMinutes() === 0) await healthMark('flight', at);
   let cur;
   try {
     const r = await fetch(DOCS + '/flightActive/now', { headers: { Authorization: 'Bearer ' + at } });
