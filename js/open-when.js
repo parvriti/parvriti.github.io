@@ -610,6 +610,12 @@ function saveForm(ev) {
       window.parvritiNotify(currentSide, who + ' left you a note 💌', noteTitle || '', url, 'openwhen');
     }
   };
+  // stamp "I left you a letter" on my presence doc so the Letters tab on THEIR phone gets its dot
+  // (never for a note on my own side, never for an edit)
+  const markLeft = function () {
+    const meP = mePerson();
+    if (meP && currentSide !== meP && window.parvritiLeftLetter) window.parvritiLeftLetter();
+  };
 
   if (formMode === 'edit') {
     lock(true);
@@ -619,7 +625,7 @@ function saveForm(ev) {
     db.collection('notes').add({
       side: currentSide, emotion: formEnv.emotion, emoji: formEnv.emoji, title: formEnv.title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(function () { pendingOpen = formEnv.emotion; notifyRecipient(formEnv.title, formEnv.emotion); done(); }).catch(fail);   // set pendingOpen only on success, else a failed save leaves it to auto-open later
+    }).then(function () { pendingOpen = formEnv.emotion; notifyRecipient(formEnv.title, formEnv.emotion); markLeft(); done(); }).catch(fail);   // set pendingOpen only on success, else a failed save leaves it to auto-open later
   } else {
     const title = document.getElementById('owInTitle').value.trim();
     const emoji = document.getElementById('owInEmoji').value.trim() || (currentSide === 'parv' ? '💙' : '💌');
@@ -629,7 +635,7 @@ function saveForm(ev) {
     db.collection('notes').add({
       side: currentSide, emotion: key, emoji: emoji, title: title,
       body: body, voice: voice, voiceType: voiceType, openDate: openDate, date: todayStr(), createdAt: serverTime(), editedAt: null
-    }).then(function () { pendingOpen = key; notifyRecipient(title, key); done(); }).catch(fail);
+    }).then(function () { pendingOpen = key; notifyRecipient(title, key); markLeft(); done(); }).catch(fail);
   }
   return false;
 }

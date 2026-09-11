@@ -50,6 +50,28 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 .proto-tab svg { width: 23px; height: 23px; }
 .proto-tab.on { color: #e07090; }
 .proto-tab:active { transform: scale(.9); }
+/* ── Letters tab dot: a note left for you since you last looked ──
+   Driven by body[data-letter-dot] (common.js, from the other's presence doc). A 6px
+   rose point tucked at the envelope's top-right corner, ringed in the bar colour so it
+   reads crisp over the icon strokes, with a faint bloom. Always present but scaled to
+   nothing; it TRANSITIONS in when the attribute flips, so it settles in once when a
+   letter actually arrives mid-session and is simply there (no re-pop) on a page load
+   or when the bar is rebuilt. Never shown while on Letters itself (being there = seen). */
+.proto-tab, .ps-item { position: relative; }
+.proto-tab[data-p="open-when"]::after, .ps-item[data-p="open-when"]::after {
+  content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: #e07090;
+  box-shadow: 0 0 0 2px rgba(16, 7, 11, .92), 0 0 10px rgba(224, 112, 144, .45);
+  transform: scale(0); opacity: 0; pointer-events: none;
+  transition: transform .28s cubic-bezier(.2, .9, .3, 1.25), opacity .2s ease;
+}
+.proto-tab[data-p="open-when"]::after { top: 2px; left: calc(50% + 8px); }
+.ps-item[data-p="open-when"]::after { top: 8px; left: 29px; }
+body[data-letter-dot="1"] .proto-tab[data-p="open-when"]::after,
+body[data-letter-dot="1"] .ps-item[data-p="open-when"]::after { transform: scale(1); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .proto-tab[data-p="open-when"]::after, .ps-item[data-p="open-when"]::after { transition: none; }
+}
 
 /* ── frosted corner buttons: theme toggle (left) + gear (right) ── */
 .proto-corner {
@@ -109,6 +131,11 @@ body { padding-bottom: calc(env(safe-area-inset-bottom) + 74px) !important; }
 :root[data-theme="light"] .proto-tabbar { background: rgba(251,241,241,.82); border-top-color: var(--l-line); }
 :root[data-theme="light"] .proto-tab { color: var(--l-ink3); }
 :root[data-theme="light"] .proto-tab.on { color: var(--l-accent); }
+:root[data-theme="light"] body[data-letter-dot="1"] .proto-tab[data-p="open-when"]::after,
+:root[data-theme="light"] body[data-letter-dot="1"] .ps-item[data-p="open-when"]::after {
+  background: var(--l-accent);
+  box-shadow: 0 0 0 2px rgba(251, 241, 241, .96), 0 0 8px rgba(192, 66, 90, .28);
+}
 :root[data-theme="light"] .proto-corner { background: rgba(255,255,255,.72); border-color: var(--l-line); color: var(--l-ink2); box-shadow: var(--l-sh); }
 
 /* HOME */

@@ -66,14 +66,14 @@
     var bar = doc.getElementById('protoTabbar');
     if (!bar) { bar = doc.createElement('nav'); bar.id = 'protoTabbar'; bar.className = 'proto-tabbar'; bar.setAttribute('aria-label', 'Main'); body.appendChild(bar); }
     var bh = '';
-    for (var i = 0; i < items.length; i++) { var m = items[i]; bh += '<a class="proto-tab' + (m.p === page ? ' on' : '') + '" href="' + m.href + '">' + svg(m.ic) + '<span>' + m.label + '</span></a>'; }
+    for (var i = 0; i < items.length; i++) { var m = items[i]; bh += '<a class="proto-tab' + (m.p === page ? ' on' : '') + '" data-p="' + m.p + '" href="' + m.href + '">' + svg(m.ic) + '<span>' + m.label + '</span></a>'; }
     bar.innerHTML = bh;
 
     /* left sidebar (iPad/Mac) */
     var side = doc.getElementById('protoSidebar');
     if (!side) { side = doc.createElement('nav'); side.id = 'protoSidebar'; side.className = 'proto-sidebar'; side.setAttribute('aria-label', 'Sidebar'); body.appendChild(side); }
     var sh = '<div class="ps-brand"><span class="ps-flower">🌸</span><span class="ps-name">Parvriti</span></div><div class="ps-list">';
-    for (var j = 0; j < items.length; j++) { var mm = items[j]; sh += '<a class="ps-item' + (mm.p === page ? ' on' : '') + '" href="' + mm.href + '">' + svg(mm.ic) + '<span>' + mm.label + '</span></a>'; }
+    for (var j = 0; j < items.length; j++) { var mm = items[j]; sh += '<a class="ps-item' + (mm.p === page ? ' on' : '') + '" data-p="' + mm.p + '" href="' + mm.href + '">' + svg(mm.ic) + '<span>' + mm.label + '</span></a>'; }
     sh += '</div><div class="ps-foot">';
     if (showSettings) sh += '<a class="ps-item' + (page === 'settings' ? ' on' : '') + '" href="settings.html">' + GEAR + '<span>Settings</span></a>';
     sh += '<button class="ps-item ps-toggle" type="button">' + THEME_SVG + '<span>Theme</span></button></div>';

@@ -27,6 +27,11 @@
 
   var body = document.body;
   var page = body.dataset.page || '';
+  /* Letters tab dot: a note left for me since I last looked at Letters. The live
+     state comes from the other's presence doc (their letterAt) once realtime starts;
+     restoring the last known state synchronously here keeps the dot from blinking
+     out and back in on every tab change (the bar is pinned across navigations). */
+  try { if (sessionStorage.getItem('parvritiLetterDot') === '1' && page !== 'open-when') body.setAttribute('data-letter-dot', '1'); } catch (e) {}
   var INITIAL_SEARCH = (location.search || '');   // captured before any page strips it (for the deep-link gate)
   var auth = null;
   var cdb = null;
@@ -409,7 +414,7 @@
     }
     beat();
     setInterval(function () { if (!document.hidden) beat(); }, 25000);   // don't write while backgrounded
-    document.addEventListener('visibilitychange', function () { beat(); });
+    document.addEventListener('visibilitychange', function () { beat(); if (!document.hidden) renderLetterDot(lastOther); });   // coming back to Letters counts as seen
     window.addEventListener('focus', function () { beat(); });
     window.addEventListener('pagehide', function () { beat({ gone: true }); });
 
@@ -432,6 +437,12 @@
       curActLabel = String(label || '').slice(0, 60);
       beat();
     };
+    /* open-when.js calls this after saving a note FOR the other person: stamps my
+       presence doc so THEIR Letters tab shows the dot. Their listener already watches
+       this doc, so it costs no extra reads and lands live. Merge keeps every beat field. */
+    window.parvritiLeftLetter = function () {
+      meRef.set({ letterAt: Date.now() }, { merge: true }).catch(fsError);
+    };
 
     /* watch the other person */
     var lastOther = null;
@@ -440,6 +451,7 @@
       lastOther = snap.exists ? snap.data() : null;
       renderPresence(lastOther, other);
       renderLastSeen(lastOther, other);
+      renderLetterDot(lastOther);
     }, fsError);
     setInterval(function () { renderPresence(lastOther, other); renderLastSeen(lastOther, other); }, 15000);
 
@@ -611,6 +623,23 @@
       ov.classList.remove('go');
       setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 300);
     }, 1200);
+  }
+  /* The Letters tab dot: on when the other person's letterAt (the last time they
+     saved a note FOR me) is newer than the last letterAt I've seen. Standing on the
+     Letters page with it in front of me counts as seen (per device, localStorage),
+     and "seen" is stored as that letterAt itself, so device clock skew can't matter. */
+  function renderLetterDot(d) {
+    var at = (d && d.letterAt) ? +d.letterAt : 0;
+    if (!(at > 0)) at = 0;   // a missing / malformed stamp is "no letter", never NaN
+    var seen = 0;
+    try { seen = +(localStorage.getItem('parvritiLetterSeen') || 0); } catch (e) {}
+    if (at && page === 'open-when' && !document.hidden && at > seen) {
+      seen = at;
+      try { localStorage.setItem('parvritiLetterSeen', String(at)); } catch (e) {}
+    }
+    var on = at > seen;
+    if (on) body.setAttribute('data-letter-dot', '1'); else body.removeAttribute('data-letter-dot');
+    try { sessionStorage.setItem('parvritiLetterDot', on ? '1' : '0'); } catch (e) {}
   }
   function toast(msg) {
     var t = document.createElement('div');
