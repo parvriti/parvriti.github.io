@@ -766,6 +766,31 @@
       cb(late.length ? 'late' : 'ok', late);
     }).catch(function () { cb('unknown', []); });          // offline or denied: unknown
   }
+  /* A push target that DIED is the one fault that would otherwise be total silence:
+     her notifications simply stop and nothing anywhere says so. The worker records
+     the count per person hourly (the app cannot read deviceTokens itself).
+     It fires on the TRANSITION, never on the state, because "zero" is ambiguous:
+     it means either her last device stopped being reachable OR she turned
+     notifications off on purpose, and iOS gives us no way to tell those apart.
+     So we only speak up when a count we have SEEN HEALTHY drops to zero, and the
+     Developer panel can accept the new state as normal, which ends it for good. */
+  function checkTokens(cb) {   // cb('lost', [people]) | cb('ok') | cb('unknown')
+    if (!cdb) { cb('unknown', []); return; }
+    cdb.collection('workerHealth').doc('tokens').get().then(function (s) {
+      var d = s.exists ? (s.data() || {}) : null;
+      if (!d || !d.at || (Date.now() - (+d.at)) > 6 * 3600000) { cb('unknown', []); return; }   // never written, or too stale to trust
+      var base = {};
+      try { base = JSON.parse(localStorage.getItem('parvritiTokenBase') || '{}'); } catch (e) {}
+      var lost = [], dirty = false;
+      ['parv', 'riti'].forEach(function (p) {
+        var n = +d[p] || 0;
+        if (n > 0) { if (base[p] !== n) { base[p] = n; dirty = true; } }        // remember the healthy state
+        else if (base[p] > 0) lost.push(p);                                     // seen healthy before, now zero
+      });
+      if (dirty) { try { localStorage.setItem('parvritiTokenBase', JSON.stringify(base)); } catch (e) {} }
+      cb(lost.length ? 'lost' : 'ok', lost);
+    }).catch(function () { cb('unknown', []); });
+  }
   function refreshDevAlert() {
     var u = window.__parvritiUser;
     if (!u || u.person !== 'parv') return;                 // Riti never sees this
@@ -774,19 +799,22 @@
     if (Date.now() - last < 1800000) return;               // at most once per 30 min, so tab taps cost nothing
     checkUpgrade(function (up) {
       checkCrons(function (state, late) {
+       checkTokens(function (tstate, lost) {
         var prev = '';
         try { prev = sessionStorage.getItem(DEV_KEY) || ''; } catch (e) {}
         var v, why;
         if (state === 'late') { v = 'rose'; why = 'cron has not run: ' + late.join(', '); }
+        else if (tstate === 'lost') { v = 'rose'; why = lost.map(function (p) { return p === 'riti' ? 'Riti' : 'Parv'; }).join(' and ') + ' has no working push target'; }
         else if (up.amber) { v = 'amber'; why = up.why; }
-        else if (state === 'ok') { v = ''; why = ''; }
-        else { v = prev === 'rose' ? 'rose' : ''; why = v ? 'cron state unknown, keeping the last verdict' : ''; }
+        else if (state === 'ok' && tstate !== 'unknown') { v = ''; why = ''; }
+        else { v = prev === 'rose' ? 'rose' : ''; why = v ? 'still unknown, keeping the last verdict' : ''; }
         try {
           sessionStorage.setItem(DEV_KEY, v);
           sessionStorage.setItem(DEV_KEY + 'Why', why);
           sessionStorage.setItem(DEV_KEY + 'At', String(Date.now()));
         } catch (e) {}
         applyDevAlert();
+       });
       });
     });
   }

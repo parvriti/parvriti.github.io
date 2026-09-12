@@ -214,6 +214,13 @@
     // editing a kept doodle clears its signature on purpose, so this is expected, not a fault
     rows += chkRow('kept doodles', 'ok', SANITY.sigless ? (SANITY.sigless + ' edited, so Keep cannot toggle those from the pad (by design)') : 'all have a signature');
 
+    // push targets the dot is watching, and the baseline it compares against
+    var tb = {};
+    try { tb = JSON.parse(localStorage.getItem('parvritiTokenBase') || '{}'); } catch (e) {}
+    if (tb.parv || tb.riti) {
+      rows += chkRow('push target baseline', 'ok', 'last healthy: Parv ' + (tb.parv || 0) + ', Riti ' + (tb.riti || 0) + '. The dot speaks up only if one of these drops to zero.');
+    }
+
     // anything that actually went wrong this session
     var log = [];
     try { log = JSON.parse(sessionStorage.getItem('parvritiDevLog') || '[]'); } catch (e) {}
@@ -293,6 +300,21 @@
     var miss = Object.keys(w.secrets || {}).filter(function (k) { return !w.secrets[k]; });
     rows += chkRow('worker secrets', miss.length ? 'warn' : 'ok', miss.length ? ('MISSING: ' + miss.join(', ')) : 'all present');
     return rows;
+  }
+
+  /* the dot fires on a push target that was healthy and went to zero. If that was
+     deliberate (she turned notifications off), this accepts the new state as normal
+     and the dot stops, until it changes again. */
+  function acceptTokenState() {
+    if (!db) return;
+    db.collection('workerHealth').doc('tokens').get().then(function (s) {
+      var d = s.exists ? (s.data() || {}) : {};
+      var base = { parv: +d.parv || 0, riti: +d.riti || 0 };
+      try { localStorage.setItem('parvritiTokenBase', JSON.stringify(base)); } catch (e) {}
+      if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert();
+      setTimeout(renderChecks, 400);
+      status('push state accepted as normal');
+    }).catch(function () { status('could not read it, try again'); });
   }
 
   function runProbe() {
@@ -521,6 +543,7 @@
     wireHome();
     var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); readHealth(); if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert(); });
     var pb = $('devProbe'); if (pb) pb.addEventListener('click', runProbe);
+    var ab = $('devAccept'); if (ab) ab.addEventListener('click', acceptTokenState);
     crawl();
     readHome();
     readHealth();

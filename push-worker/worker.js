@@ -508,6 +508,50 @@ async function handleHomeOverride(request, env) {
   return json({ error: 'bad action' }, 400);
 }
 
+/* Push targets per person: counts and ages only. The field mask means the token
+   STRINGS are never even requested, so they cannot leak into any response or doc.
+   Returns null when unreadable, which every caller must treat as unknown. */
+async function countTokens(accessToken) {
+  try {
+    const r = await fetch(DOCS + '/deviceTokens?pageSize=100&mask.fieldPaths=person&mask.fieldPaths=updatedAt',
+      { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) return null;
+    const docs = (await r.json()).documents || [];
+    const by = { parv: [], riti: [] };
+    for (const d of docs) {
+      const f = d.fields || {};
+      const p = f.person && f.person.stringValue;
+      const u = (f.updatedAt && f.updatedAt.timestampValue) ? Date.parse(f.updatedAt.timestampValue) : 0;
+      if (by[p]) by[p].push(u);
+    }
+    const out = {};
+    for (const p of ['parv', 'riti']) {
+      const list = by[p].sort((a, b) => a - b);
+      out[p] = { count: list.length, oldest: list.length ? list[0] : 0, newest: list.length ? list[list.length - 1] : 0 };
+    }
+    return out;
+  } catch (e) { return null; }
+}
+
+/* workerHealth/tokens = { at, parv, riti }: the push-target count per person,
+   refreshed on the hourly beat. The app cannot read deviceTokens (read:false), so
+   this tiny doc is how the Settings dot can notice that somebody's last device
+   stopped being reachable, WITHOUT the phone having to call the worker at all. */
+async function markTokenCounts(accessToken) {
+  const t = await countTokens(accessToken);
+  if (!t) return;   // unreadable: leave the old counts alone rather than writing a false zero
+  try {
+    await fetch(DOCS + '/workerHealth/tokens?updateMask.fieldPaths=at&updateMask.fieldPaths=parv&updateMask.fieldPaths=riti', {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: {
+        at: { integerValue: String(Date.now()) },
+        parv: { integerValue: String(t.parv.count) },
+        riti: { integerValue: String(t.riti.count) }
+      } })
+    });
+  } catch (e) {}
+}
+
 /* Developer-panel health (admin only, Firebase-token authed like /home/override).
    Reports ONLY what the app cannot read for itself:
      · deviceTokens  read:false in the rules, so the site cannot see whether a
@@ -538,26 +582,7 @@ async function handleDevHealth(request, env) {
   const at = await getAccessToken(sa);
   if (!at) { out.ok = false; out.error = 'could not mint a service-account token'; return json(out); }
 
-  // push targets: counts and ages only (mask = no token strings leave the worker)
-  try {
-    const r = await fetch(DOCS + '/deviceTokens?pageSize=100&mask.fieldPaths=person&mask.fieldPaths=updatedAt',
-      { headers: { Authorization: 'Bearer ' + at } });
-    if (r.ok) {
-      const docs = (await r.json()).documents || [];
-      const by = { parv: [], riti: [] };
-      for (const d of docs) {
-        const f = d.fields || {};
-        const p = f.person && f.person.stringValue;
-        const u = (f.updatedAt && f.updatedAt.timestampValue) ? Date.parse(f.updatedAt.timestampValue) : 0;
-        if (by[p]) by[p].push(u);
-      }
-      out.tokens = {};
-      for (const p of ['parv', 'riti']) {
-        const list = by[p].sort(function (a, b) { return a - b; });
-        out.tokens[p] = { count: list.length, oldest: list.length ? list[0] : 0, newest: list.length ? list[list.length - 1] : 0 };
-      }
-    }
-  } catch (e) {}   // unreadable stays null, which the panel shows as unknown rather than as a fault
+  out.tokens = await countTokens(at);   // null when unreadable, which the panel shows as unknown rather than as a fault
 
   // last arrival per person: getArrival returns null when it could not be READ,
   // which must stay "unknown" and never be rendered as "the Shortcut is dead"
@@ -1161,7 +1186,10 @@ async function runFlightPoll(event, env) {
   const at = await getAccessToken(sa); if (!at) return;
   // heartbeat once an hour (the :00 tick), not all 96 runs a day: enough to prove the
   // poll is alive, cheap on the write quota. Written before the "no active flight" exit.
-  if (new Date(event && event.scheduledTime ? event.scheduledTime : Date.now()).getUTCMinutes() === 0) await healthMark('flight', at);
+  if (new Date(event && event.scheduledTime ? event.scheduledTime : Date.now()).getUTCMinutes() === 0) {
+    await healthMark('flight', at);
+    await markTokenCounts(at);   // same hourly moment: one extra read and one tiny write
+  }
   let cur;
   try {
     const r = await fetch(DOCS + '/flightActive/now', { headers: { Authorization: 'Bearer ' + at } });
