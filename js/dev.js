@@ -211,7 +211,8 @@
     // anything that actually went wrong this session
     var log = [];
     try { log = JSON.parse(sessionStorage.getItem('parvritiDevLog') || '[]'); } catch (e) {}
-    rows += chkRow('faults this session', log.length ? 'warn' : 'ok', log.length ? (log.length + ' recorded, newest: ' + log[log.length - 1].kind + ' on ' + (log[log.length - 1].page || '?')) : 'none');
+    var lastF = log[log.length - 1];
+    rows += chkRow('faults this session', log.length ? 'warn' : 'ok', log.length ? (log.length + ' recorded, newest: ' + lastF.kind + (lastF.n > 1 ? ' x' + lastF.n : '') + ' on ' + (lastF.page || '?')) : 'none');
 
     // the rules probe, only if you asked for it
     if (probeResult === 'running') rows += chkRow('firestore rules', 'unknown', 'probing…');

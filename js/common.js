@@ -696,7 +696,11 @@
   function devLog(kind, detail) {
     try {
       var list = JSON.parse(sessionStorage.getItem('parvritiDevLog') || '[]');
-      list.push({ at: Date.now(), kind: kind, detail: String(detail || '').slice(0, 120), page: page || '' });
+      var last = list[list.length - 1];
+      // a real quota exhaustion trips every listener at once. Collapse a repeat into a
+      // count instead of letting one burst push everything else out of a capped log.
+      if (last && last.kind === kind && last.detail === detail) { last.n = (last.n || 1) + 1; last.at = Date.now(); }
+      else list.push({ at: Date.now(), kind: kind, detail: String(detail || '').slice(0, 120), page: page || '', n: 1 });
       while (list.length > 12) list.shift();
       sessionStorage.setItem('parvritiDevLog', JSON.stringify(list));
     } catch (x) {}
