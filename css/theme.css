@@ -131,6 +131,32 @@ body[data-letter-dot="1"] .ps-item[data-p="open-when"]::after { transform: scale
 :root[data-theme="light"] .proto-tabbar { background: rgba(251,241,241,.82); border-top-color: var(--l-line); }
 :root[data-theme="light"] .proto-tab { color: var(--l-ink3); }
 :root[data-theme="light"] .proto-tab.on { color: var(--l-accent); }
+
+/* ── Settings dot: something in the Developer panel wants you ──
+   amber = an upgrade is stuck, rose = a worker cron has stopped running.
+   Driven by body[data-dev-alert], which common.js only ever sets for Parv. */
+#protoGear, .ps-item[data-p="settings"], .set-devlink { position: relative; }
+body[data-dev-alert] #protoGear::after,
+body[data-dev-alert] .ps-item[data-p="settings"]::after,
+body[data-dev-alert] .set-devlink::after {
+  content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%;
+  background: #e0a33a; box-shadow: 0 0 0 2px rgba(16, 7, 11, .92), 0 0 10px rgba(224, 163, 58, .45);
+  pointer-events: none;
+}
+body[data-dev-alert="rose"] #protoGear::after,
+body[data-dev-alert="rose"] .ps-item[data-p="settings"]::after,
+body[data-dev-alert="rose"] .set-devlink::after {
+  background: #e0506a; box-shadow: 0 0 0 2px rgba(16, 7, 11, .92), 0 0 10px rgba(224, 80, 106, .45);
+}
+body[data-dev-alert] #protoGear::after { top: 2px; right: 2px; }
+body[data-dev-alert] .ps-item[data-p="settings"]::after { top: 9px; left: 29px; }
+body[data-dev-alert] .set-devlink::after { top: 15px; right: 15px; }
+:root[data-theme="light"] body[data-dev-alert] #protoGear::after,
+:root[data-theme="light"] body[data-dev-alert] .ps-item[data-p="settings"]::after,
+:root[data-theme="light"] body[data-dev-alert] .set-devlink::after { box-shadow: 0 0 0 2px rgba(251, 241, 241, .96), 0 0 8px rgba(224, 163, 58, .3); }
+:root[data-theme="light"] body[data-dev-alert="rose"] #protoGear::after,
+:root[data-theme="light"] body[data-dev-alert="rose"] .ps-item[data-p="settings"]::after,
+:root[data-theme="light"] body[data-dev-alert="rose"] .set-devlink::after { background: #c0425a; box-shadow: 0 0 0 2px rgba(251, 241, 241, .96), 0 0 8px rgba(192, 66, 90, .3); }
 :root[data-theme="light"] body[data-letter-dot="1"] .proto-tab[data-p="open-when"]::after,
 :root[data-theme="light"] body[data-letter-dot="1"] .ps-item[data-p="open-when"]::after {
   background: var(--l-accent);

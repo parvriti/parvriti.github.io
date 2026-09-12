@@ -78,6 +78,8 @@
     if (user && user.email) window.__parvritiUser = { email: user.email, person: personFor(user.email) };
     try { window.dispatchEvent(new Event('parvriti-authed')); } catch (e) {}
     proceed();
+    try { applyDevAlert(); } catch (e) {}                                        // paint the last known verdict immediately, no work
+    setTimeout(function () { try { refreshDevAlert(); } catch (e) {} }, 4000);   // recompute well after first paint, at most once per 30 min
     try { startRealtime(); } catch (e) {}
     try { celebrate(); } catch (e) {}
     try { setupMessaging(); } catch (e) {}
@@ -322,7 +324,23 @@
   /* ── install the app (offline + home-screen icon) ── */
   function registerSW() {
     if (!('serviceWorker' in navigator)) return;
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () {}); });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+        /* sw.js aborts the whole install if any precached file is missing, on purpose,
+           so a bad deploy cannot half-replace a working app. The new worker then goes
+           'redundant' without ever activating and BOTH phones silently stay on the old
+           version. That is the deploy failure worth surfacing, so record the outcome. */
+        try {
+          reg.addEventListener('updatefound', function () {
+            var w = reg.installing; if (!w) return;
+            w.addEventListener('statechange', function () {
+              if (w.state === 'activated') { try { localStorage.removeItem('parvritiUpdateFailed'); localStorage.removeItem('parvritiVerSince'); } catch (e) {} }
+              else if (w.state === 'redundant') { try { localStorage.setItem('parvritiUpdateFailed', String(Date.now())); } catch (e) {} devLog('update', 'a downloaded update failed to install'); }
+            });
+          });
+        } catch (e) {}
+      }).catch(function () { devLog('sw', 'the service worker did not register'); });
+    });
   }
 
   /* ══════════════ push notifications (reaches a closed phone) ══════════════ */
@@ -407,16 +425,16 @@
     var inner = page && page !== 'home';
     var curAct = null, curActLabel = '', curTyping = false;   // live "reading/drawing/typing" state, rewritten on every beat
 
-    function beat(extra) {
+    function beat(extra, quiet) {
       var d = { at: FV.serverTimestamp(), atMs: Date.now(), page: page, hidden: !!document.hidden, gone: false, activity: curAct, activityLabel: curActLabel, typing: curTyping };
       if (extra) for (var k in extra) d[k] = extra[k];
-      meRef.set(d, { merge: true }).catch(fsError);
+      meRef.set(d, { merge: true }).catch(quiet ? function () {} : fsError);
     }
     beat();
     setInterval(function () { if (!document.hidden) beat(); }, 25000);   // don't write while backgrounded
     document.addEventListener('visibilitychange', function () { beat(); if (!document.hidden) renderLetterDot(lastOther); });   // coming back to Letters counts as seen
     window.addEventListener('focus', function () { beat(); });
-    window.addEventListener('pagehide', function () { beat({ gone: true }); });
+    window.addEventListener('pagehide', function () { beat({ gone: true }, true); });   // teardown: a failed write here is routine, never log it or the panel fills with noise
 
     /* open-when.js calls this while the note box is being typed in */
     var typingOffT = null;
@@ -662,11 +680,117 @@
     var code = (e && e.code) ? String(e.code) : '';
     if (code === 'resource-exhausted') {
       if (!fsErrShown) { fsErrShown = true; toast("today's data quota is used up, things will look empty until it resets around lunchtime"); }
+      devLog('quota', 'firestore daily quota reached');
     } else if (code === 'permission-denied') {
       try { console.warn('firestore: permission denied (a rule not published yet?)', e); } catch (x) {}
+      devLog('denied', 'permission denied (a rule not published?)');
     }
+    /* deliberately NOT logged: unavailable / cancelled / aborted. Those mean a lift,
+       a tunnel or iOS suspending the app, and logging them would fill the panel with
+       noise until you stopped reading it. */
   }
   window.parvritiFsError = fsError;   // page scripts (open-when.js etc.) route their own listener errors here
+
+  /* A short, strictly-scoped record of things that actually indicate a fault, for
+     the Developer panel. Session-scoped and capped, so it can never grow. */
+  function devLog(kind, detail) {
+    try {
+      var list = JSON.parse(sessionStorage.getItem('parvritiDevLog') || '[]');
+      list.push({ at: Date.now(), kind: kind, detail: String(detail || '').slice(0, 120), page: page || '' });
+      while (list.length > 12) list.shift();
+      sessionStorage.setItem('parvritiDevLog', JSON.stringify(list));
+    } catch (x) {}
+  }
+
+  /* ══════════════ the Settings dot: something wants you ══════════════
+     amber  an upgrade is stuck: a downloaded update failed to install, or this
+            page and the service worker cache have disagreed for over 10 minutes.
+     rose   a worker cron has not run in far longer than its schedule, which is
+            how a dead worker (and so a missed birthday) becomes visible.
+     THE RULE THAT KEEPS IT HONEST: missing data means UNKNOWN, never failure.
+     Offline, a Firestore blip, or iOS freezing the app mid-check leaves the last
+     verdict alone. A dot that cries wolf in a lift gets ignored, and then it is
+     worse than nothing. Parv only. */
+  var DEV_KEY = 'parvritiDevAlert';
+  var CRON_MAX = { celebration: 36, cycle: 36, capsule: 36, flight: 3 };   // hours, generous: free-plan crons are not punctual
+  function applyDevAlert() {
+    var v = '';
+    try { v = sessionStorage.getItem(DEV_KEY) || ''; } catch (e) {}
+    if (v === 'rose' || v === 'amber') body.setAttribute('data-dev-alert', v);
+    else body.removeAttribute('data-dev-alert');
+  }
+  function pageVersion() {
+    try {
+      var s = document.querySelector('script[src*="js/common.js?v="]');
+      var m = s && s.src.match(/[?&]v=(\d+)/);
+      return m ? m[1] : '';
+    } catch (e) { return ''; }
+  }
+  function checkUpgrade(cb) {   // entirely local: no network, so it cannot false-fire
+    var out = { amber: false, why: '' }, failed = 0;
+    try { failed = +(localStorage.getItem('parvritiUpdateFailed') || 0); } catch (e) {}
+    if (failed) { cb({ amber: true, why: 'a downloaded update failed to install' }); return; }
+    if (!window.caches || !caches.keys) { cb(out); return; }
+    caches.keys().then(function (keys) {
+      var mine = keys.filter(function (k) { return /^parvriti-v\d+$/.test(k); });
+      var pv = pageVersion();
+      if (mine.length > 1) { cb({ amber: true, why: mine.length + ' app caches present, the last activate did not finish' }); return; }
+      if (!mine.length || !pv) { cb(out); return; }
+      var cv = mine[0].replace('parvriti-v', '');
+      if (cv === pv) { try { localStorage.removeItem('parvritiVerSince'); } catch (e) {} cb(out); return; }
+      // one stale navigation right after a deploy is BY DESIGN, so only call it stuck after 10 minutes
+      var since = 0;
+      try {
+        since = +(localStorage.getItem('parvritiVerSince') || 0);
+        if (!since) { since = Date.now(); localStorage.setItem('parvritiVerSince', String(since)); }
+      } catch (e) {}
+      if (since && Date.now() - since > 600000) cb({ amber: true, why: 'this page is v' + pv + ' but the app cache is v' + cv });
+      else cb(out);
+    }).catch(function () { cb(out); });
+  }
+  function checkCrons(cb) {   // 'late' | 'ok' | 'unknown'
+    if (!cdb) { cb('unknown', []); return; }
+    var ids = Object.keys(CRON_MAX);
+    Promise.all(ids.map(function (id) { return cdb.collection('workerHealth').doc(id).get(); })).then(function (snaps) {
+      var late = [];
+      for (var i = 0; i < snaps.length; i++) {
+        var d = snaps[i].exists ? (snaps[i].data() || {}) : null;
+        if (!d || !d.at) { cb('unknown', []); return; }   // never run yet: unknown, not broken
+        if (Date.now() - (+d.at) > CRON_MAX[ids[i]] * 3600000) late.push(ids[i]);
+      }
+      cb(late.length ? 'late' : 'ok', late);
+    }).catch(function () { cb('unknown', []); });          // offline or denied: unknown
+  }
+  function refreshDevAlert() {
+    var u = window.__parvritiUser;
+    if (!u || u.person !== 'parv') return;                 // Riti never sees this
+    var last = 0;
+    try { last = +(sessionStorage.getItem(DEV_KEY + 'At') || 0); } catch (e) {}
+    if (Date.now() - last < 1800000) return;               // at most once per 30 min, so tab taps cost nothing
+    checkUpgrade(function (up) {
+      checkCrons(function (state, late) {
+        var prev = '';
+        try { prev = sessionStorage.getItem(DEV_KEY) || ''; } catch (e) {}
+        var v, why;
+        if (state === 'late') { v = 'rose'; why = 'cron has not run: ' + late.join(', '); }
+        else if (up.amber) { v = 'amber'; why = up.why; }
+        else if (state === 'ok') { v = ''; why = ''; }
+        else { v = prev === 'rose' ? 'rose' : ''; why = v ? 'cron state unknown, keeping the last verdict' : ''; }
+        try {
+          sessionStorage.setItem(DEV_KEY, v);
+          sessionStorage.setItem(DEV_KEY + 'Why', why);
+          sessionStorage.setItem(DEV_KEY + 'At', String(Date.now()));
+        } catch (e) {}
+        applyDevAlert();
+      });
+    });
+  }
+  /* the Developer panel's Refresh re-evaluates the dot immediately instead of
+     waiting out the 30 minute throttle */
+  window.parvritiRefreshDevAlert = function () {
+    try { sessionStorage.removeItem(DEV_KEY + 'At'); } catch (e) {}
+    refreshDevAlert();
+  };
 
   /* ══════════════ celebrations: birthdays (confetti blast) + anniversary (fireworks) ══════════════
      Dormant every normal day. Fires only on the three dates, or when forced with

@@ -87,9 +87,21 @@
   }
 
   /* ── the crawl: one .get() per collection, aggregate sizes ── */
+  /* mirrors the validation in periods.js: a doc failing this is silently dropped
+     from her history, which is exactly the kind of quiet loss worth surfacing */
+  function validCycle(id, v) {
+    if (typeof id !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(id)) return false;
+    if (!v || typeof v.start !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v.start)) return false;
+    var p = v.start.split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]);
+    if (isNaN(d.getTime())) return false;
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) === v.start;
+  }
+  var SANITY = { cycleBad: 0, sigless: 0 };
+
   function crawl() {
     if (!db) return;
     status('reading your data…');
+    SANITY = { cycleBad: 0, sigless: 0 };
     var refresh = $('devRefresh'); if (refresh) refresh.disabled = true;
     var out = {};
     var jobs = COLS.map(function (c) {
@@ -98,6 +110,9 @@
         snap.forEach(function (doc) {
           var data = doc.data() || {}, b = 0;
           try { b = JSON.stringify(data).length; } catch (e) {}
+          // these ride the crawl we are already paying for: zero extra reads
+          if (c.id === 'cycle' && !validCycle(doc.id, data)) SANITY.cycleBad++;
+          if (c.id === 'savedDoodles' && !data.sig) SANITY.sigless++;
           bytes += b; count++; if (b > largest) largest = b;
           if (c.blob) {
             var fields = (typeof c.blob === 'string') ? [c.blob] : c.blob;   // a collection can have >1 blob field (doodles: pts + png fills)
@@ -147,6 +162,94 @@
 
     renderEstimates();
     renderLimits();
+    renderChecks();
+  }
+
+  /* ══ Checks ══════════════════════════════════════════════════════════
+     Everything here is either free (local state, or counted during the crawl we
+     already pay for) or explicitly on demand. Nothing runs on its own, and an
+     unreachable Firestore is reported as "unknown" rather than as a fault. */
+  var PROBE = [
+    { c: 'notes', want: 'read' }, { c: 'presence', want: 'read' }, { c: 'pings', want: 'read' },
+    { c: 'roomItems', want: 'read' }, { c: 'canvasStrokes', want: 'read' }, { c: 'savedDoodles', want: 'read' },
+    { c: 'settings', want: 'read' }, { c: 'homeState', want: 'read' }, { c: 'workerHealth', want: 'read' },
+    { c: 'openWhenReads', want: 'read' }, { c: 'flightActive', want: 'read' }, { c: 'flights', want: 'read' },
+    { c: 'cycle', want: 'read' },
+    // worker-only by design: a READ here SHOULD fail
+    { c: 'deviceTokens', want: 'denied' }, { c: 'celebrations', want: 'denied' }, { c: 'homeArrivals', want: 'denied' }
+  ];
+  var probeResult = null;
+
+  function chkRow(label, state, detail) {
+    var mark = state === 'ok' ? '✓' : state === 'unknown' ? '·' : '⚠';
+    return '<div class="dev-home-r ' + (state === 'ok' ? 'ok' : state === 'unknown' ? '' : 'warn') + '">' +
+      '<b>' + mark + ' ' + esc(label) + '</b><span>' + esc(detail || '') + '</span></div>';
+  }
+
+  function renderChecks() {
+    var host = $('devChecks'); if (!host) return;
+    var rows = '';
+
+    // the dot, and why it is lit
+    var verdict = '', why = '';
+    try { verdict = sessionStorage.getItem('parvritiDevAlert') || ''; why = sessionStorage.getItem('parvritiDevAlertWhy') || ''; } catch (e) {}
+    rows += chkRow('settings dot', verdict ? 'warn' : 'ok', verdict ? (verdict + ': ' + why) : 'not lit, nothing is asking for you');
+
+    // app version and update health, all local
+    var failed = 0;
+    try { failed = +(localStorage.getItem('parvritiUpdateFailed') || 0); } catch (e) {}
+    rows += chkRow('last app update', failed ? 'warn' : 'ok', failed ? ('a downloaded update failed to install ' + ago(failed)) : 'installed cleanly');
+    var ctrl = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+    rows += chkRow('service worker', ctrl ? 'ok' : 'unknown', ctrl ? 'controlling this page' : 'not controlling yet (normal right after a refresh)');
+    var perm = (typeof Notification === 'undefined') ? 'unsupported' : Notification.permission;
+    rows += chkRow('notifications on THIS device', perm === 'granted' ? 'ok' : 'warn', perm + (perm === 'granted' ? '' : ', pushes will not arrive here'));
+
+    // data sanity, counted during the crawl
+    rows += chkRow('cycle records', SANITY.cycleBad ? 'warn' : 'ok', SANITY.cycleBad ? (SANITY.cycleBad + ' malformed, silently dropped from her history') : 'all well formed');
+    rows += chkRow('kept doodles', SANITY.sigless ? 'warn' : 'ok', SANITY.sigless ? (SANITY.sigless + ' with no signature (edited ones), they can never toggle Keep again') : 'all have a signature');
+
+    // anything that actually went wrong this session
+    var log = [];
+    try { log = JSON.parse(sessionStorage.getItem('parvritiDevLog') || '[]'); } catch (e) {}
+    rows += chkRow('faults this session', log.length ? 'warn' : 'ok', log.length ? (log.length + ' recorded, newest: ' + log[log.length - 1].kind + ' on ' + (log[log.length - 1].page || '?')) : 'none');
+
+    // the rules probe, only if you asked for it
+    if (probeResult === 'running') rows += chkRow('firestore rules', 'unknown', 'probing…');
+    else if (probeResult) {
+      var bad = probeResult.filter(function (r) { return r.got !== r.want && r.got !== 'unknown'; });
+      var unk = probeResult.filter(function (r) { return r.got === 'unknown'; });
+      rows += chkRow('firestore rules', bad.length ? 'warn' : (unk.length ? 'unknown' : 'ok'),
+        bad.length ? bad.map(function (r) { return r.c + ' is ' + r.got + ', expected ' + r.want; }).join(' · ')
+          : (unk.length ? (unk.length + ' unreachable, try again when online') : (probeResult.length + ' collections behave exactly as the rules say')));
+    }
+
+    // version, async, appended last
+    host.innerHTML = rows;
+    if (window.caches && caches.keys) {
+      caches.keys().then(function (keys) {
+        var mine = keys.filter(function (k) { return /^parvriti-v\d+$/.test(k); });
+        var sc = document.querySelector('script[src*="js/common.js?v="]');
+        var m = sc && sc.src.match(/[?&]v=(\d+)/), pv = m ? m[1] : '?';
+        var okv = mine.length === 1 && mine[0] === 'parvriti-v' + pv;
+        host.innerHTML += chkRow('app version', okv ? 'ok' : 'warn',
+          'this page is v' + pv + ', cache is ' + (mine.length ? mine.join(' + ') : 'none') + (mine.length > 1 ? ' (an activate did not finish)' : ''));
+      }).catch(function () {});
+    }
+  }
+
+  function runProbe() {
+    if (!db) return;
+    probeResult = 'running'; renderChecks();
+    var b = $('devProbe'); if (b) b.disabled = true;
+    Promise.all(PROBE.map(function (p) {
+      // a get on a document that does not exist still evaluates the rule, costs one
+      // read, and downloads nothing: the cheapest possible permission test
+      return db.collection(p.c).doc('___probe___').get()
+        .then(function () { return { c: p.c, want: p.want, got: 'read' }; })
+        .catch(function (e) { return { c: p.c, want: p.want, got: (e && e.code === 'permission-denied') ? 'denied' : 'unknown' }; });
+    })).then(function (res) {
+      probeResult = res; if (b) b.disabled = false; renderChecks();
+    });
   }
 
   /* egress + ops both scale with the loads/day model */
@@ -353,7 +456,8 @@
     try { db = firebase.firestore(); } catch (e) { status('Firestore did not load.'); return; }
     wireLoads();
     wireHome();
-    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); readHealth(); });
+    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); readHealth(); if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert(); });
+    var pb = $('devProbe'); if (pb) pb.addEventListener('click', runProbe);
     crawl();
     readHome();
     readHealth();
