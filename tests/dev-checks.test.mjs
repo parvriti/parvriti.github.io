@@ -29,6 +29,7 @@ async function panel(o) {
     window.fetch = function (u, o2) { window.__fetches.push({ u: String(u), auth: (o2 && o2.headers || {}).Authorization });
       return HEALTH === null ? Promise.reject(new Error('offline')) : Promise.resolve({ json: function () { return Promise.resolve(HEALTH); } }); };
     window.__parvritiUser = { person: 'parv' }; window.__parvritiAuthed = true;
+    window.__refreshCalls = 0; window.parvritiRefreshDevAlert = function () { window.__refreshCalls++; };
   `;
   const dom = new JSDOM(`<!doctype html><html><body data-page="dev">${body}<script>${stub}</script><script src="js/dev.js?v=142"></script><script>${devJs}</script></body></html>`,
     { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://parvriti.github.io/dev.html' });
@@ -82,6 +83,24 @@ console.log('\nB2. the card and the dot must agree on when a cron is late');
   check('the panel reads the dot’s thresholds', /window.parvritiCronMax/.test(dev) && /window.parvritiCronMax = CRON_MAX/.test(com));
   const fb = (dev.match(/{ celebration: 36, cycle: 36, capsule: 36, flight: 3 }/g) || []).length;
   check('its offline fallback matches the dot exactly', fb === 1, 'copies=' + fb);
+}
+
+console.log('\nB3. a deep check must not leave duplicate rows or a stale verdict');
+{
+  const now = Date.now();
+  const good = { ok: true, tokens: { parv: { count: 4, newest: now, oldest: now }, riti: { count: 0, newest: 0, oldest: 0 } },
+    arrivals: { parv: { at: now, home: 'parv-rohtak' }, riti: { at: now, home: 'riti-noida' } },
+    secrets: { serviceAccount: true, firebaseApiKey: true, homeSecretParv: true, homeSecretRiti: true, aerodataboxKey: true } };
+  const w = await panel({ health: good });
+  const count = () => (txt(w).match(/app version/g) || []).length;
+  check('one app-version row on open', count() === 1, 'rows=' + count());
+  w.document.getElementById('devProbe').click();
+  await sleep(1200);
+  check('STILL one after a deep check (it used to stack one per render)', count() === 1, 'rows=' + count());
+  w.document.getElementById('devProbe').click();
+  await sleep(1200);
+  check('and still one after running it twice', count() === 1, 'rows=' + count());
+  check('the deep check asks the dot to re-evaluate, so it cannot show a stale all-clear', w.__refreshCalls >= 1, 'calls=' + w.__refreshCalls);
 }
 
 console.log('\nC. what the worker reports');

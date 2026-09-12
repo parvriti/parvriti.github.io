@@ -239,18 +239,28 @@
 
     rows += renderWorkerHealth();
 
-    // version, async, appended last
+    rows += verRow;   // computed once; appending it asynchronously stacked a copy per render
     host.innerHTML = rows;
-    if (window.caches && caches.keys) {
-      caches.keys().then(function (keys) {
-        var mine = keys.filter(function (k) { return /^parvriti-v\d+$/.test(k); });
-        var sc = document.querySelector('script[src*="js/common.js?v="]');
-        var m = sc && sc.src.match(/[?&]v=(\d+)/), pv = m ? m[1] : '?';
-        var okv = mine.length === 1 && mine[0] === 'parvriti-v' + pv;
-        host.innerHTML += chkRow('app version', okv ? 'ok' : 'warn',
-          'this page is v' + pv + ', cache is ' + (mine.length ? mine.join(' + ') : 'none') + (mine.length > 1 ? ' (an activate did not finish)' : ''));
-      }).catch(function () {});
+  }
+
+  /* Reading the cache list is async, but the card is rebuilt several times during a
+     deep check. Appending after the rebuild therefore left one extra copy of this
+     row per render. Compute it ONCE, then render it synchronously with the rest. */
+  var verRow = '';
+  function loadVersionRow(then) {
+    var sc = document.querySelector('script[src*="js/common.js?v="]');
+    var m = sc && sc.src.match(/[?&]v=(\d+)/), pv = m ? m[1] : '?';
+    if (!window.caches || !caches.keys) {
+      verRow = chkRow('app version', 'unknown', 'this page is v' + pv + ', cache storage is not available here');
+      if (then) then(); return;
     }
+    caches.keys().then(function (keys) {
+      var mine = keys.filter(function (k) { return /^parvriti-v\d+$/.test(k); });
+      var okv = mine.length === 1 && mine[0] === 'parvriti-v' + pv;
+      verRow = chkRow('app version', okv ? 'ok' : 'warn',
+        'this page is v' + pv + ', cache is ' + (mine.length ? mine.join(' + ') : 'none') + (mine.length > 1 ? ' (an activate did not finish)' : ''));
+      if (then) then();
+    }).catch(function () { verRow = ''; if (then) then(); });
   }
 
   /* the worker's view: deviceTokens is read:false and homeArrivals is ruleless, so
@@ -330,6 +340,11 @@
         .catch(function (e) { return { c: p.c, want: p.want, got: (e && e.code === 'permission-denied') ? 'denied' : 'unknown' }; });
     })).then(function (res) {
       probeResult = res; if (b) b.disabled = false; renderChecks();
+      /* We have just read the very facts the dot exists to watch. Its own check is
+         throttled to once per 30 minutes, so without this the card could show
+         "Riti has NO push target" three lines under "the dot is not lit". */
+      if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert();
+      setTimeout(renderChecks, 700);
     });
   }
 
@@ -544,6 +559,7 @@
     var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); readHealth(); if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert(); });
     var pb = $('devProbe'); if (pb) pb.addEventListener('click', runProbe);
     var ab = $('devAccept'); if (ab) ab.addEventListener('click', acceptTokenState);
+    loadVersionRow(function () { if (DATA) renderChecks(); });
     crawl();
     readHome();
     readHealth();
