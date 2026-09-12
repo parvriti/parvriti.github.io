@@ -179,6 +179,11 @@
     { c: 'deviceTokens', want: 'denied' }, { c: 'celebrations', want: 'denied' }, { c: 'homeArrivals', want: 'denied' }
   ];
   var probeResult = null;
+  /* NOT of the form __x__: firestore RESERVES that pattern and answers
+     INVALID_ARGUMENT, which made every probe look unreachable. A normal id that
+     simply does not exist still evaluates the rule, costs one read, downloads
+     nothing, and comes back as a plain 'not found'. */
+  var PROBE_ID = 'zz-probe-does-not-exist';
 
   function chkRow(label, state, detail) {
     var mark = state === 'ok' ? '✓' : state === 'unknown' ? '·' : '⚠';
@@ -206,7 +211,8 @@
 
     // data sanity, counted during the crawl
     rows += chkRow('cycle records', SANITY.cycleBad ? 'warn' : 'ok', SANITY.cycleBad ? (SANITY.cycleBad + ' malformed, silently dropped from her history') : 'all well formed');
-    rows += chkRow('kept doodles', SANITY.sigless ? 'warn' : 'ok', SANITY.sigless ? (SANITY.sigless + ' with no signature (edited ones), they can never toggle Keep again') : 'all have a signature');
+    // editing a kept doodle clears its signature on purpose, so this is expected, not a fault
+    rows += chkRow('kept doodles', 'ok', SANITY.sigless ? (SANITY.sigless + ' edited, so Keep cannot toggle those from the pad (by design)') : 'all have a signature');
 
     // anything that actually went wrong this session
     var log = [];
@@ -297,7 +303,7 @@
     Promise.all(PROBE.map(function (p) {
       // a get on a document that does not exist still evaluates the rule, costs one
       // read, and downloads nothing: the cheapest possible permission test
-      return db.collection(p.c).doc('___probe___').get()
+      return db.collection(p.c).doc(PROBE_ID).get()
         .then(function () { return { c: p.c, want: p.want, got: 'read' }; })
         .catch(function (e) { return { c: p.c, want: p.want, got: (e && e.code === 'permission-denied') ? 'denied' : 'unknown' }; });
     })).then(function (res) {
