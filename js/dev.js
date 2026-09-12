@@ -223,6 +223,8 @@
           : (unk.length ? (unk.length + ' unreachable, try again when online') : (probeResult.length + ' collections behave exactly as the rules say')));
     }
 
+    rows += renderWorkerHealth();
+
     // version, async, appended last
     host.innerHTML = rows;
     if (window.caches && caches.keys) {
@@ -237,9 +239,59 @@
     }
   }
 
+  /* the worker's view: deviceTokens is read:false and homeArrivals is ruleless, so
+     these two facts are invisible to the app itself. Counts and ages only, never a
+     token string (the worker masks them out before they leave Firestore). */
+  var workerHealth = null;
+  function askWorker() {
+    var user = firebase.auth().currentUser;
+    if (!user) { workerHealth = { error: 'sign-in needed' }; renderChecks(); return Promise.resolve(); }
+    workerHealth = 'running'; renderChecks();
+    return user.getIdToken()
+      .then(function (idt) { return fetch(WORKER + '/dev/health', { method: 'POST', headers: { Authorization: 'Bearer ' + idt } }); })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { workerHealth = j; })
+      .catch(function () { workerHealth = { error: 'could not reach the worker' }; });
+  }
+  function renderWorkerHealth() {
+    if (!workerHealth) return '';
+    if (workerHealth === 'running') return chkRow('the worker', 'unknown', 'asking…');
+    var w = workerHealth, rows = '';
+    if (w.error || w.ok === false) return chkRow('the worker', 'warn', w.error || 'reported a problem');
+    // push targets: somebody at zero means every notification to them vanishes silently
+    if (!w.tokens) rows += chkRow('push targets', 'unknown', 'could not be read, try again');
+    else {
+      ['parv', 'riti'].forEach(function (p) {
+        var t = w.tokens[p] || { count: 0 };
+        var name = p === 'parv' ? 'Parv' : 'Riti';
+        if (!t.count) rows += chkRow('push targets: ' + name, 'warn', 'NONE. every notification to them vanishes silently');
+        else {
+          var age = t.newest ? (Date.now() - t.newest) / 86400000 : 999;
+          rows += chkRow('push targets: ' + name, age > 30 ? 'warn' : 'ok',
+            t.count + (t.count === 1 ? ' device' : ' devices') + ', last seen ' + ago(t.newest) + (age > 30 ? ' (that phone may have stopped opening the app)' : ''));
+        }
+      });
+    }
+    // a Shortcut that iOS quietly disabled stops reporting arrivals
+    if (!w.arrivals) rows += chkRow('home shortcuts', 'unknown', 'could not be read, try again');
+    else {
+      ['parv', 'riti'].forEach(function (p) {
+        var a = w.arrivals[p], name = p === 'parv' ? 'Parv' : 'Riti';
+        if (!a) { rows += chkRow('home shortcuts: ' + name, 'unknown', 'no record yet'); return; }
+        var days = a.at ? (Date.now() - a.at) / 86400000 : 999;
+        rows += chkRow('home shortcuts: ' + name, days > 14 ? 'warn' : 'ok',
+          (a.home || 'somewhere') + ', ' + ago(a.at) + (days > 14 ? ' (nothing in over 2 weeks: the Shortcut may be switched off)' : ''));
+      });
+    }
+    var miss = Object.keys(w.secrets || {}).filter(function (k) { return !w.secrets[k]; });
+    rows += chkRow('worker secrets', miss.length ? 'warn' : 'ok', miss.length ? ('MISSING: ' + miss.join(', ')) : 'all present');
+    return rows;
+  }
+
   function runProbe() {
     if (!db) return;
     probeResult = 'running'; renderChecks();
+    askWorker().then(renderChecks);
     var b = $('devProbe'); if (b) b.disabled = true;
     Promise.all(PROBE.map(function (p) {
       // a get on a document that does not exist still evaluates the rule, costs one

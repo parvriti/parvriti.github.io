@@ -48,6 +48,9 @@ export default {
     // dev-panel manual override of the home/together state (Firebase-token authed, admin only):
     // revert a mislabeled-geofence "Together", or set a person's home/away line by hand.
     if (path === '/home/override') return handleHomeOverride(request, env);
+    // admin-only health report for the Developer panel: the two facts the app
+    // itself can never see, because their collections are worker-only.
+    if (path === '/dev/health') return handleDevHealth(request, env);
     // everything else is the site's own "send a push to the other person" call.
     return handlePush(request, env);
   },
@@ -503,6 +506,70 @@ async function handleHomeOverride(request, env) {
     return json({ ok: true, person: person, atHome: atHome });
   }
   return json({ error: 'bad action' }, 400);
+}
+
+/* Developer-panel health (admin only, Firebase-token authed like /home/override).
+   Reports ONLY what the app cannot read for itself:
+     · deviceTokens  read:false in the rules, so the site cannot see whether a
+       person still has a working push target. Somebody at zero tokens means every
+       notification to them vanishes in total silence.
+     · homeArrivals  ruleless (worker-only). A phone whose Shortcut got disabled
+       silently stops appearing here, and Together can never fire again.
+   Never returns a token STRING: the field mask keeps them out of the response
+   entirely, and secrets are reported as booleans, never values. 5 subrequests. */
+async function handleDevHealth(request, env) {
+  if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+  const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!idToken) return json({ error: 'no token' }, 401);
+  const v = await verifyCaller(idToken, env.FIREBASE_API_KEY);
+  if (!v.email) return json({ error: 'verify', detail: v.detail }, 403);
+  if (ADMINS.indexOf(v.email.toLowerCase()) === -1) return json({ error: 'notallowed' }, 403);
+
+  const out = {
+    ok: true, at: Date.now(), tokens: null, arrivals: null,
+    secrets: {   // presence only. A missing one here is why pushes or flights died.
+      serviceAccount: !!env.SERVICE_ACCOUNT, firebaseApiKey: !!env.FIREBASE_API_KEY,
+      homeSecretParv: !!env.HOME_SECRET_PARV, homeSecretRiti: !!env.HOME_SECRET_RITI,
+      aerodataboxKey: !!env.AERODATABOX_KEY
+    }
+  };
+  let sa;
+  try { sa = JSON.parse(env.SERVICE_ACCOUNT); } catch (e) { out.ok = false; out.error = 'no service account'; return json(out); }
+  const at = await getAccessToken(sa);
+  if (!at) { out.ok = false; out.error = 'could not mint a service-account token'; return json(out); }
+
+  // push targets: counts and ages only (mask = no token strings leave the worker)
+  try {
+    const r = await fetch(DOCS + '/deviceTokens?pageSize=100&mask.fieldPaths=person&mask.fieldPaths=updatedAt',
+      { headers: { Authorization: 'Bearer ' + at } });
+    if (r.ok) {
+      const docs = (await r.json()).documents || [];
+      const by = { parv: [], riti: [] };
+      for (const d of docs) {
+        const f = d.fields || {};
+        const p = f.person && f.person.stringValue;
+        const u = (f.updatedAt && f.updatedAt.timestampValue) ? Date.parse(f.updatedAt.timestampValue) : 0;
+        if (by[p]) by[p].push(u);
+      }
+      out.tokens = {};
+      for (const p of ['parv', 'riti']) {
+        const list = by[p].sort(function (a, b) { return a - b; });
+        out.tokens[p] = { count: list.length, oldest: list.length ? list[0] : 0, newest: list.length ? list[list.length - 1] : 0 };
+      }
+    }
+  } catch (e) {}   // unreadable stays null, which the panel shows as unknown rather than as a fault
+
+  // last arrival per person: getArrival returns null when it could not be READ,
+  // which must stay "unknown" and never be rendered as "the Shortcut is dead"
+  try {
+    const a = await getArrival('parv', at), b = await getArrival('riti', at);
+    out.arrivals = {
+      parv: a ? { at: a.at, home: a.home, leftAt: a.leftAt } : null,
+      riti: b ? { at: b.at, home: b.home, leftAt: b.leftAt } : null
+    };
+  } catch (e) {}
+  console.log('dev-health: served to ' + v.email);
+  return json(out);
 }
 
 /* ══════════════ midnight birthday / anniversary push ══════════════ */
