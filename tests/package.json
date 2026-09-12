@@ -1,0 +1,10 @@
+{
+  "name": "parvriti-tests",
+  "private": true,
+  "description": "Regression suites for the Parvriti app. Not shipped to the site.",
+  "scripts": { "test": "bash run.sh" },
+  "devDependencies": {
+    "jsdom": "^24.0.0",
+    "playwright-core": "1.61.0"
+  }
+}

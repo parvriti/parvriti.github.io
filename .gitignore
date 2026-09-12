@@ -43,3 +43,8 @@ firestore-rules/
 
 # local QA harnesses (generated firebase-stub copies of pages — never ship)
 _qa_*.html
+
+# test deps and artefacts
+tests/node_modules/
+tests/.shots/
+tests/worker-under-test.mjs
