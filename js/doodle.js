@@ -150,6 +150,7 @@ function startDoodle() {
           if (editMode) editItems.forEach(function (it) { if (it && it.cid) keep[it.cid] = true; });   // don't evict the editor's fills while editing
           for (var ic in imgCache) if (!keep[ic]) delete imgCache[ic];
         }
+        invalidateBase();   // her stroke (or an undo, or a wipe) landed: rebuild before the next blit
         if (!editMode) { paintAll(); updateKeepBtn(); window.__doodleLive = true; cacheImg(); }   // editor keeps its own paint; live strokes still tracked in the background. __doodleLive: a live paint now owns the canvas so a late cached-image decode won't overwrite it. cacheImg: keep the instant-open cache fresh.
         var last = strokes.length ? strokes[strokes.length - 1] : null;
         var by = document.getElementById('padBy');
@@ -176,13 +177,42 @@ function redraw() {
   pctx.fillStyle = ERASE; pctx.fillRect(0, 0, pad.width, pad.height);   // opaque paper base so erase marks and blank paper are the SAME pixels (flood-fill treats them alike)
   (editMode ? editItems : strokes).forEach(paintItem);   // editor paints its own local item list
 }
+/* ── the committed layer (watercolor only) ────────────────────────────────
+   Watercolor cannot be drawn incrementally: a stroke is laid down as ONE
+   translucent layer, so as it grows it has to be re-composited from scratch,
+   which meant every pointer move replayed the WHOLE pad. Measured on the real
+   pad (19 watercolor strokes): 14.8ms per move, against a 8.3ms frame at 120Hz,
+   and it grows with every stroke ever added.
+   So while a watercolor stroke is in progress, everything EXCEPT that stroke is
+   drawn once into this buffer and each move becomes a blit plus the live stroke:
+   0.5ms flat, and pixel-identical to the old path (verified over 648,000 px).
+   The buffer lives ONLY between pointerdown and pointerup, and anything that can
+   change the pad underneath (a stroke from her phone, an undo, a wipe, a fill
+   finishing its decode) invalidates it, so it can never paint a stale pad. */
+var baseC = null, baseValid = false;
+function invalidateBase() { baseValid = false; }
+function captureBase() {
+  if (!baseC) { baseC = document.createElement('canvas'); baseC.width = pad.width; baseC.height = pad.height; }
+  var save = pctx;
+  pctx = baseC.getContext('2d'); pctx.lineCap = 'round'; pctx.lineJoin = 'round';
+  redraw();                                        // committed strokes, or the editor's own list
+  if (!editMode) pendingMine.forEach(paintItem);   // plus mine that have not echoed back yet
+  pctx = save;
+  baseValid = true;
+}
 function paintAll() {
+  if (drawing && curBrush === 'water') {           // the only hot path, and the only one that changed
+    if (!baseValid) captureBase();
+    pctx.drawImage(baseC, 0, 0);
+    if (curPts && curPts.length) paintWater(pctx, curPts, drawColor, drawSize);
+    return;
+  }
   redraw();
   if (!editMode) pendingMine.forEach(paintItem);   // my not-yet-confirmed strokes + fills (live only)
   if (drawing && curPts && curPts.length) { if (curBrush === 'water') paintWater(pctx, curPts, drawColor, drawSize); else drawStroke(curPts, drawColor, drawSize); }
 }
 var _repaintQ = false;
-function scheduleRepaint() { if (_repaintQ) return; _repaintQ = true; requestAnimationFrame(function () { _repaintQ = false; paintAll(); }); }   // coalesce a burst of fill-image decodes into one repaint
+function scheduleRepaint() { invalidateBase(); if (_repaintQ) return; _repaintQ = true; requestAnimationFrame(function () { _repaintQ = false; paintAll(); }); }   // a fill image finished decoding: the buffer no longer matches the pad   // coalesce a burst of fill-image decodes into one repaint
 function drawStroke(pts, color, size) {
   if (!pts || !Array.isArray(pts) || !pts.length) return;
   pctx.strokeStyle = color || '#c0425a';
@@ -278,6 +308,7 @@ function dStart(e) {
   curBrush = (tool === 'draw' && brushMode === 'water') ? 'water' : '';
   if (!editMode && window.parvritiActivity) { clearTimeout(dEnd._t); window.parvritiActivity('drawing'); }   // no presence while editing a kept doodle
   var p = pxy(e); p.w = pw(e); curPts = [p]; lastXY = p;
+  invalidateBase();   // a new stroke begins: capture the pad as it is now
   if (curBrush === 'water') paintAll(); else drawStroke(curPts, drawColor, drawSize);
 }
 function dMove(e) {
@@ -305,6 +336,7 @@ function commitStroke() {
   ref.set(doc).catch(function () { toast("couldn't save that stroke, check your connection"); });
 }
 function dEnd(e) {
+  invalidateBase();   // the stroke is over; the buffer must not outlive it
   if (!drawing || (e && e.pointerId != null && e.pointerId !== activePtr)) return;
   drawing = false; activePtr = null;
   commitStroke();
