@@ -77,8 +77,21 @@ Called by the iPhone "Arrive" automations (Shortcuts), not the website. Auth is
 a per-person secret in the `Authorization: Bearer <secret>` header, and WHO
 arrived is decided only by which secret matched (never a body field), so it
 cannot be spoofed. Riti's secret notifies Parv; Parv's notifies Riti. The
-Shortcut also sends a coarse `{"home":"noida"|"gurugram"|"rohtak"}` label (never
-coordinates) used only for the together-check; it is never in the notification.
+Shortcut also sends a coarse `{"home":"<label>"}` (never coordinates) used only for
+the together-check; it is never in the notification. Labels are PREFIXED with whose
+home it is, and each person may only send their own allowed set:
+
+| sender | allowed `home` labels |
+|--------|----------------------|
+| Riti (`HOME_SECRET_RITI`) | `riti-noida` · `riti-gurugram` · `parv-gurugram` · `parv-rohtak` |
+| Parv (`HOME_SECRET_PARV`) | `parv-gurugram` · `parv-rohtak` · `riti-noida` |
+
+> **Use the exact prefixed label.** Anything else (a bare `gurugram`, a typo, an
+> empty field) is DROPPED to `''`: the "got home safe" push still goes out, so the
+> automation LOOKS fine, but the Worker no longer knows where you are and can never
+> say "Together". A bare label cost us an afternoon of debugging once. `wrangler tail`
+> prints the verdict for every call, e.g.
+> `RX /automation/home: person=parv event=arrive home="gurugram" (DROPPED: not in parv's allowed homes)`.
 
 **Behaviour (default: apart-aware, one per day).** Read live from `settings/app`
 so the admin Settings page can retune it with no redeploy:
@@ -95,8 +108,13 @@ so the admin Settings page can retune it with no redeploy:
 - `hsHomeRitiNoida` / `hsHomeRitiGurugram` / `hsHomeParvRohtak` /
   `hsHomeParvGurugram` (bool) — per-home mutes
 
-State lives in `homeArrivals/<person>` = `{ at, home, sentDay }` — no
-coordinates, ever. 10-minute `DEDUP_MS` swallows geofence double-fires.
+State lives in `homeArrivals/<person>` = `{ at, home, sentDay, leftAt }`, never any
+coordinates. A 10-minute `DEDUP_MS` swallows geofence double-fires, EXCEPT
+when a real Leave happened since the last arrival (`leftAt > at`): stepping out and
+coming back inside 10 minutes is a genuine arrival, not a bounce, so it re-arms
+"home" and recomputes Together. The app reads only `homeState/<person>` =
+`{ atHome, since }` and the shared `homeState/together`; both are worker-written
+and read-only to the two of you.
 
 Add two secrets and redeploy:
 
@@ -106,23 +124,34 @@ Add two secrets and redeploy:
 (or Cloudflare dashboard -> Worker -> Settings -> Variables and Secrets -> add as
 encrypted Secrets, then Deploy.)
 
-### The 4 iPhone automations
+### The iPhone automations (an Arrive AND a Leave per home)
 
-Settings app -> **Shortcuts** -> **Automation** -> **+** -> **Arrive**. Pick the
-address, **When Arriving**, **Run Immediately** (turn OFF "Notify When Run"),
-Next -> **New Blank Automation** -> add one action **Get Contents of URL**:
+Settings app -> **Shortcuts** -> **Automation** -> **+** -> **Arrive** (or
+**Leave**). Pick the address, **When Arriving** / **When I Leave**, **Run
+Immediately** (turn OFF "Notify When Run"), Next -> **New Blank Automation** ->
+add one action **Get Contents of URL**:
 
 - URL `https://parvriti-push.parvbajaj2000.workers.dev/automation/home`
 - (expand ▸) Method **POST**
 - Headers: **Authorization** = `Bearer <that person's secret>`
-- Request Body **JSON**: one field `home` (Text) = the home name below
+- Request Body **JSON**:
+  - `home` (Text) = the exact prefixed label from the table below
+  - `event` (Text) = `leave`, **only on the Leave automations**. Arrive
+    automations omit it entirely (the Worker defaults to `arrive`).
 
-| # | Arrive at | secret | `home` |
-|---|-----------|--------|--------|
-| 1 | Riti → Noida    | `HOME_SECRET_RITI` | `noida` |
-| 2 | Riti → Gurugram | `HOME_SECRET_RITI` | `gurugram` |
-| 3 | Parv → Rohtak   | `HOME_SECRET_PARV` | `rohtak` |
-| 4 | Parv → Gurugram | `HOME_SECRET_PARV` | `gurugram` |
+| Arrive at | secret | `home` | also build a Leave |
+|-----------|--------|--------|-----|
+| Riti → her Noida home    | `HOME_SECRET_RITI` | `riti-noida`     | yes |
+| Riti → her Gurugram home | `HOME_SECRET_RITI` | `riti-gurugram`  | yes |
+| Riti → Parv's Gurugram   | `HOME_SECRET_RITI` | `parv-gurugram`  | yes |
+| Riti → Parv's Rohtak     | `HOME_SECRET_RITI` | `parv-rohtak`    | yes |
+| Parv → his Gurugram home | `HOME_SECRET_PARV` | `parv-gurugram`  | yes |
+| Parv → his Rohtak home   | `HOME_SECRET_PARV` | `parv-rohtak`    | yes |
+| Parv → Riti's Noida      | `HOME_SECRET_PARV` | `riti-noida`     | yes |
 
-The exact street addresses live only in each phone's Arrive trigger; the Worker
-never receives or stores them.
+A Leave is silent (no push). It only flips the home/away line, stamps `leftAt`,
+and ends "Together". Without the Leave automations the line self-heals only after
+7 days, so build both halves for every home.
+
+The exact street addresses live only in each phone's own trigger; the Worker never
+receives or stores them.
