@@ -135,7 +135,9 @@ body[data-letter-dot="1"] .ps-item[data-p="open-when"]::after { transform: scale
 /* ── Settings dot: something in the Developer panel wants you ──
    amber = an upgrade is stuck, rose = a worker cron has stopped running.
    Driven by body[data-dev-alert], which common.js only ever sets for Parv. */
-#protoGear, .ps-item[data-p="settings"], .set-devlink { position: relative; }
+/* NOT #protoGear: it is already position:fixed, and an ID selector here would
+   OVERRIDE that and drop it out of its corner. Only the two static ones need it. */
+.ps-item[data-p="settings"], .set-devlink { position: relative; }
 body[data-dev-alert] #protoGear::after,
 body[data-dev-alert] .ps-item[data-p="settings"]::after,
 body[data-dev-alert] .set-devlink::after {

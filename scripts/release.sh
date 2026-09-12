@@ -70,7 +70,19 @@ preflight() {
   done
   [ "$jsbad" -eq 0 ] && ok "all javascript parses"
 
-  # 6. owner rule: no em dashes in shipped text
+  # 6. an ID selector that sets 'position' outranks a class and can drag fixed
+  #    chrome out of its corner. This exact mistake once moved the settings gear
+  #    from the top right to the bottom of the page.
+  local idpos
+  idpos=$(grep -nE '^#[A-Za-z][^{]*\{[^}]*position:' css/*.css 2>/dev/null | head -5)
+  if [ -n "$idpos" ]; then
+    bad "an ID selector sets 'position' (it will outrank .proto-corner and friends):"
+    printf '      %s\n' "$idpos"
+  else
+    ok "no ID selector overrides position"
+  fi
+
+  # 7. owner rule: no em dashes in shipped text
   local em
   em=$(grep -l $'—' $(version_files) js/*.js 2>/dev/null | tr '\n' ' ')
   [ -n "$em" ] && warn "em dashes present in: $em" || ok "no em dashes"
