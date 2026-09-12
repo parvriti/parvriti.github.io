@@ -10,7 +10,7 @@
        Never add a "mood" row; the levels stay generic. The per-phase HINT is
        action-first advice to HIM. The pre-menstrual line is the ONE owner-
        approved exception that names a mood ("if she's snappy…"), kept on
-       purpose (Parv, v137) — do not quietly revert it.
+       purpose (Parv, v137), do not quietly revert it.
      · Fertility is a loose calendar estimate, explicitly not medical advice.
      · NO push notifications from this tab, ever.
      · NO personal data in this file. Her history lives in Firestore behind

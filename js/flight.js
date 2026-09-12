@@ -1,5 +1,5 @@
 /* =====================================================================
-   flight.js — the flight feature, an isolated fail-open leaf on the Home.
+   flight.js: the flight feature, an isolated fail-open leaf on the Home.
 
    Off-by-default per person (settings v_flights_<person>). When on for THIS
    viewer: a faint corner plane opens a tiny entry (flight number + P/R/PR),
@@ -297,17 +297,17 @@
     }
     if (!rows.length) { list.innerHTML = '<div class="fl-dr-none">' + (live.length ? 'nothing matches that' : 'press the ✈ to add your first flight') + '</div>'; return; }
     // per-year counts (of the filtered rows)
-    var counts = {}; rows.forEach(function (f) { var p = dParts(f.date); var y = p ? p.y : '—'; counts[y] = (counts[y] || 0) + 1; });
+    var counts = {}; rows.forEach(function (f) { var p = dParts(f.date); var y = p ? p.y : '·'; counts[y] = (counts[y] || 0) + 1; });
     var html = '', yr = null, n = 0;
     rows.forEach(function (f) {
-      var p = dParts(f.date), y = p ? p.y : '—';
+      var p = dParts(f.date), y = p ? p.y : '·';
       if (y !== yr) { yr = y; html += '<div class="fl-yr">' + y + '<span>' + counts[y] + '</span></div>'; }
       var dstr = p ? (p.d + ' ' + MON[p.mi]) : (f.date || '');   // escaped once at the sink below (esc(dstr))
       var city = f.routeText || ((f.fromCity || '') + (f.toCity ? ' to ' + f.toCity : ''));
       html += '<div class="fl-lrow" data-id="' + esc(f.id) + '" style="animation-delay:' + (n * 22) + 'ms">' +
           '<span class="fl-lp">' + PLANE + '</span>' +
           '<div class="fl-lmain">' +
-            '<div class="fl-lroute"><b>' + esc(f.from || '—') + '</b><i>→</i><b>' + esc(f.to || '—') + '</b>' + (f.number ? '<span class="fl-lno">' + esc(f.number) + '</span>' : '') + '</div>' +
+            '<div class="fl-lroute"><b>' + esc(f.from || '·') + '</b><i>→</i><b>' + esc(f.to || '·') + '</b>' + (f.number ? '<span class="fl-lno">' + esc(f.number) + '</span>' : '') + '</div>' +
             (city ? '<div class="fl-lcity">' + esc(city) + '</div>' : '') +
           '</div>' +
           '<div class="fl-lmeta"><span class="fl-ldate">' + esc(dstr) + '</span><span class="fl-lwho w-' + whoCls(f.who) + '">' + whoLabel(f.who) + '</span></div>' +
@@ -445,7 +445,7 @@
     toastUndo._t = setTimeout(function () { t.classList.remove('on', 'has-undo'); }, 5000);
   }
 
-  /* boot once auth resolves — common.js fires 'parvriti-authed' on window + sets __parvritiUser */
+  /* boot once auth resolves. common.js fires 'parvriti-authed' on window + sets __parvritiUser */
   window.addEventListener('parvriti-authed', boot);
   if (window.__parvritiUser) boot();
 })();
