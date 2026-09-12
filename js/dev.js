@@ -474,11 +474,15 @@
      `every` is the cron's cadence in hours; a marker older than 1.5x that is flagged.
      Needs the read-only /workerHealth rule published, else it says so. */
   var CRONS = [
-    { id: 'celebration', label: '🎂 Midnight wish', every: 24 },
-    { id: 'cycle',       label: '🌙 9am cycle nudge', every: 24 },
-    { id: 'capsule',     label: '⏳ 9am capsule nudge', every: 24 },
-    { id: 'flight',      label: '✈️ Flight poll (hourly beat)', every: 1 }
+    { id: 'celebration', label: '🎂 Midnight wish' },
+    { id: 'cycle',       label: '🌙 9am cycle nudge' },
+    { id: 'capsule',     label: '⏳ 9am capsule nudge' },
+    { id: 'flight',      label: '✈️ Flight poll (hourly beat)' }
   ];
+  /* the same thresholds the Settings dot uses, so the card and the dot can never
+     disagree. The flight beat is written only on the hour, so it is legitimately
+     up to an hour old at any moment, and free-plan crons run late. */
+  function cronMaxH(id) { var m = window.parvritiCronMax || { celebration: 36, cycle: 36, capsule: 36, flight: 3 }; return m[id] || 36; }
   function readHealth() {
     if (!db) return;
     var host = $('devHealth'); if (host) host.textContent = 'reading…';
@@ -487,7 +491,7 @@
       CRONS.forEach(function (c, i) {
         var d = snaps[i].exists ? snaps[i].data() : null;
         var at = d && d.at ? +d.at : 0;
-        var late = at ? (now - at) > c.every * 3600 * 1000 * 1.5 : true;
+        var late = at ? (now - at) > cronMaxH(c.id) * 3600 * 1000 : true;
         rows += '<div class="dev-home-r ' + (late ? 'warn' : 'ok') + '"><b>' + c.label + '</b><span>' +
           (at ? 'last ran ' + esc(ago(at)) : 'never ran') +
           (late ? ' <span class="dev-flag">' + (at ? '⚠ overdue' : '⚠ no heartbeat yet') + '</span>' : ' ✓') +

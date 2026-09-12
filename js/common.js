@@ -717,6 +717,7 @@
      worse than nothing. Parv only. */
   var DEV_KEY = 'parvritiDevAlert';
   var CRON_MAX = { celebration: 36, cycle: 36, capsule: 36, flight: 3 };   // hours, generous: free-plan crons are not punctual
+  window.parvritiCronMax = CRON_MAX;   // the Developer panel reads the SAME numbers, so the dot and the card can never disagree
   function applyDevAlert() {
     var v = '';
     try { v = sessionStorage.getItem(DEV_KEY) || ''; } catch (e) {}
