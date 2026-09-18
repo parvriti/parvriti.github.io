@@ -15,8 +15,9 @@ var CACHE = 'parvriti-v150';
    every precached file from origin (cache:'reload') into the SAME v150 cache, so the fix still
    arrives while Settings keeps saying v150. Fine for wording and style fixes; a big change
    would deserve a real version bump (release.sh bump), whose install is fully atomic.
-   r2 (2026-09-18): "Notifications off on purpose" button + its note, one-line action pills. */
-var REVISION = 2;
+   r2 (2026-09-18): "Notifications off on purpose" button + its note, one-line action pills.
+   r3 (2026-09-18): shorter Faults card note. */
+var REVISION = 3;
 var CORE = [
   'index.html', 'open-when.html', 'board.html', 'doodles.html', 'periods.html', 'settings.html', 'dev.html',
   'css/styles.css?v=150', 'css/theme.css?v=150',
