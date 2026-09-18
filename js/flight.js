@@ -39,7 +39,7 @@
       fdb.collection('flightActive').doc('now').onSnapshot(function (snap) {
         var f = snap.exists ? (snap.data() || null) : null;
         renderTracker(f);
-      }, function () { renderTracker(null); });
+      }, function (e) { if (window.parvritiFault) window.parvritiFault(e, 'flight'); renderTracker(null); });
     } catch (e) { renderTracker(null); }
   }
 
@@ -270,7 +270,7 @@
         FLIGHTS = arr;
         if (isLogOpen()) renderLog(qval());
         if (editId && !findFlight(editId)) closeEdit();   // removed elsewhere -> don't leave a stale sheet
-      }, function () { flSub = null; if (FLIGHTS == null) FLIGHTS = []; if (isLogOpen()) renderLog(qval()); });   // permission-denied (rules not published yet) terminates the listener; drop the handle so the next openLog retries
+      }, function (e) { if (window.parvritiFault) window.parvritiFault(e, 'flight log'); flSub = null; if (FLIGHTS == null) FLIGHTS = []; if (isLogOpen()) renderLog(qval()); });   // permission-denied (rules not published yet) terminates the listener; drop the handle so the next openLog retries
     } catch (e) { FLIGHTS = []; }
   }
 

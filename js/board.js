@@ -137,7 +137,7 @@ function startItems() {
       if (first) { boardLoaded = true; var st = document.getElementById('boardStage'); if (st) st.classList.remove('veil-load'); }
       renderBoard();   // boardLoaded set FIRST so the empty-state gate is correct, then paint
       if (first && boardVeil) boardVeil.done();   // content is painted -> end the veil in the same tick (exact hand-off)
-    }, function (e) { console.warn('roomItems listen', e); if (!boardLoaded && boardVeil) boardVeil.fail("couldn't load, check your connection"); });
+    }, function (e) { if (window.parvritiFault) window.parvritiFault(e, 'board'); console.warn('roomItems listen', e); if (!boardLoaded && boardVeil) boardVeil.fail("couldn't load, check your connection"); });
   } catch (e) { console.warn(e); if (!boardLoaded && boardVeil) boardVeil.fail("couldn't load, check your connection"); }
 }
 

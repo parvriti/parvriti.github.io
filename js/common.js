@@ -37,6 +37,15 @@
   var cdb = null;
   var quietTimer = null;   // gate-quiet safety fallback (see buildGate)
 
+  /* fault recorder state (see "fault recorder" further down). Declared up here, before
+     anything else runs, so an error thrown while the rest of this file is still loading
+     finds it ready rather than undefined. */
+  var FAULT_OUT = 'parvritiFaultOutbox', FAULT_SENT = 'parvritiFaultSent', FAULT_DEV = 'parvritiDeviceId';
+  var FAULT_MAX = 20, FAULT_PAGE_MAX = 30, FAULT_SAVE_MS = 5000, FAULT_EVERY = 6 * 3600000, FAULT_KEEP = 30 * 86400000;
+  var FAULT_TRANSIENT = { 'unavailable': 1, 'cancelled': 1, 'aborted': 1, 'deadline-exceeded': 1, 'auth/network-request-failed': 1 };
+  var faultPend = {}, faultPendN = 0, faultT = null, faultBusy = false, faultDev = null, faultVer = null;
+  installFaultRecorder();
+
   registerSW();
   setupHaptics();
   buildGate();   // opaque overlay covers everything until we know who this is
@@ -62,9 +71,11 @@
       });
     } else {
       // Firebase failed to load. The static pages are public anyway, so don't trap anyone.
+      // Offline right after a deploy is the harmless way to get here, so that case never lights the dot.
+      recordFault('sdk', 'Firebase did not load', '', 0, !navigator.onLine);
       unlock();
     }
-  } catch (e) { unlock(); }
+  } catch (e) { recordFault('sdk', 'Firebase failed to start: ' + ((e && e.message) || e), '', 0, false); unlock(); }
 
   function unlock(user) {
     clearTimeout(quietTimer);
@@ -84,6 +95,8 @@
     try { celebrate(); } catch (e) {}
     try { setupMessaging(); } catch (e) {}
     try { handleMoment(); } catch (e) {}
+    // hand this phone's recorded faults to the Developer panel, well after first paint
+    if (!unlock._faults) { unlock._faults = true; setTimeout(function () { try { saveFaults(); deliverFaults(false); } catch (e) {} }, 10000); }
   }
 
   /* a notification tap can land on Home with ?moment=… to replay the moment
@@ -681,15 +694,32 @@
     if (code === 'resource-exhausted') {
       if (!fsErrShown) { fsErrShown = true; toast("today's data quota is used up, things will look empty until it resets around lunchtime"); }
       devLog('quota', 'firestore daily quota reached');
+      recordFault('quota', 'firestore daily quota reached', '', 0, false, true);
     } else if (code === 'permission-denied') {
       try { console.warn('firestore: permission denied (a rule not published yet?)', e); } catch (x) {}
       devLog('denied', 'permission denied (a rule not published?)');
+      recordFault('denied', 'permission denied (a rule not published?)', '', 0, false, true);
+    } else if (code && !FAULT_TRANSIENT[code]) {
+      // failed-precondition, internal, unimplemented...: the kind that means something changed
+      // underneath us (an index, the SDK, the backend). Recorded quietly, never shown.
+      recordFault('firestore', 'firestore said ' + code, '', 0, false);
     }
     /* deliberately NOT logged: unavailable / cancelled / aborted. Those mean a lift,
        a tunnel or iOS suspending the app, and logging them would fill the panel with
        noise until you stopped reading it. */
   }
   window.parvritiFsError = fsError;   // page scripts (open-when.js etc.) route their own listener errors here
+  /* Page scripts hand their OWN listener errors here too (board, doodles, periods,
+     flights, letters). They already show the person whatever they need to; this is
+     only so a failure there is not invisible to Parv. It never shows anything. */
+  window.parvritiFault = function (err, where) {
+    try {
+      var code = (err && err.code) ? String(err.code) : '';
+      if (FAULT_TRANSIENT[code]) return;
+      var kind = code === 'resource-exhausted' ? 'quota' : code === 'permission-denied' ? 'denied' : 'firestore';
+      recordFault(kind, (where ? where + ': ' : '') + (code || (err && err.message) || 'failed'), '', 0, false);
+    } catch (x) {}
+  };
 
   /* A short, strictly-scoped record of things that actually indicate a fault, for
      the Developer panel. Session-scoped and capped, so it can never grow. */
@@ -706,9 +736,193 @@
     } catch (x) {}
   }
 
+  /* ══════════════ fault recorder ══════════════
+     Catches what nothing else would: an error nobody caught, a promise nobody handled,
+     one of our own scripts failing to load, Firebase not loading, and any Firestore
+     failure that is more than a tunnel. It only RECORDS. It never shows anything to
+     anyone, never changes how an error behaves (no preventDefault), and cannot throw.
+       · in memory first: a render bug that throws on every frame costs one counter
+         bump, not 60 storage writes a second
+       · then a small outbox on this phone, saved at most once every 5 seconds
+       · then faults/<person>, at most once every 6 hours, so Parv's Developer panel
+         sees BOTH phones (a fault only on Riti's phone used to be invisible)
+     Deciding what is harmless noise happens in the panel (Mute), never in code. */
+  function installFaultRecorder() {
+    try {
+      // capture phase, so one of our own page scripts failing to load is seen too. That covers the
+      // scripts after this file (the page's own js, native.js, flight.js); head stylesheets and the
+      // SDK fail before this listener exists, and "Firebase did not load" covers the SDK instead.
+      window.addEventListener('error', function (e) {
+        try {
+          var t = e && e.target;
+          if (t && t !== window && t.tagName) {
+            var isScript = t.tagName === 'SCRIPT', isSheet = t.tagName === 'LINK' && /stylesheet/i.test(t.rel || '');
+            var src = t.src || t.href || '', own = false;
+            try { own = new URL(src, location.href).origin === location.origin; } catch (x) {}
+            // our own files come from the offline cache, so one failing is real. Google's (SDK, fonts)
+            // failing is nearly always the network: kept for the record, quiet. "Firebase did not load"
+            // is its own fault and covers the case that matters.
+            if ((isScript || isSheet) && src) recordFault('load', (isScript ? 'script' : 'stylesheet') + ' did not load', faultFile(src), 0, !navigator.onLine || !own);
+            return;   // images and media failing is ordinary life, not a fault
+          }
+          var msg = (e && e.message) || (e && e.error && e.error.message) || '';
+          var file = faultFile(e && e.filename), line = (e && e.lineno) || 0;
+          // "Script error." with no file is a cross-origin script (the Firebase SDK) the browser
+          // will not describe. Kept for the record, but it can never light the dot: nothing to act on.
+          var quiet = (!file && /^script error\.?$/i.test(msg)) || /ResizeObserver loop/i.test(msg);
+          recordFault('error', msg || 'unknown error', file, line, quiet);
+        } catch (x) {}
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        try {
+          var r = e ? e.reason : null;
+          var code = (r && r.code) ? String(r.code) : '';
+          if (FAULT_TRANSIENT[code]) return;   // offline, or iOS suspending the app: a tunnel, not a fault
+          var msg = r == null ? '' : (r.message || (typeof r === 'string' ? r : '') || code || String(r));
+          // the browser skipping a page-to-page animation (theme.css @view-transition) rejects with
+          // AbortError "Transition was skipped" on a quick tab tap: pure animation, not even worth a line
+          if (r && r.name === 'AbortError' && /transition/i.test(msg)) return;
+          var at = faultFromStack(r && r.stack);
+          // a dropped connection surfaces as a bare "Load failed" (Safari) or "Failed to fetch", and an
+          // interrupted or not-yet-allowed playback as AbortError / NotAllowedError: ordinary life, nothing to fix
+          var nm = (r && r.name) ? String(r.name) : '';
+          var quiet = !msg || /^(TypeError: )?(Load failed|Failed to fetch|NetworkError)/i.test(msg) || nm === 'AbortError' || nm === 'NotAllowedError';
+          recordFault('promise', msg || 'a promise failed with no reason', at.f, at.l, quiet);
+        } catch (x) {}
+      });
+      window.addEventListener('pagehide', function () { try { if (faultT) saveFaults(); } catch (x) {} });
+    } catch (e) {}
+  }
+  function recordFault(kind, msg, file, line, quiet, noSessionLog) {
+    if (faultBusy) return;   // a fault raised while recording one is dropped, so this can never loop
+    if (window.__parvritiSigningOut) return;   // signing out makes every open listener fail on purpose
+    faultBusy = true;
+    try {
+      var m = faultClean(msg), f = String(file || ''), l = +line || 0, now = Date.now();
+      var sig = faultHash(kind + '|' + f + '|' + l + '|' + m);
+      var e = faultPend[sig];
+      if (!e && faultPendN >= FAULT_PAGE_MAX) {   // a page spraying different faults: fold the rest into one line
+        kind = 'overflow'; m = 'more than ' + FAULT_PAGE_MAX + ' different faults on one page load'; f = ''; l = 0;
+        sig = faultHash('overflow'); e = faultPend[sig];
+      }
+      var logLine = (f ? f + (l ? ':' + l : '') + ' ' : '') + m;
+      if (e) {
+        e.n++; e.last = now;
+        // once ANY occurrence is loud it stays loud (a fault first seen offline must not stay quiet forever)
+        if (e.q && !quiet) { e.q = false; if (!noSessionLog) devLog(kind, logLine); }
+      } else {
+        faultPendN++;
+        faultPend[sig] = { s: sig, k: kind, m: m, f: f, l: l, p: page || '', v: faultVersion(), n: 1, first: now, last: now, q: !!quiet };
+        // the Checks card's session row: once per distinct fault, and never for quiet ones
+        if (!noSessionLog && !quiet) devLog(kind, logLine);
+      }
+      if (!faultT) faultT = setTimeout(saveFaults, FAULT_SAVE_MS);
+    } catch (x) {}
+    faultBusy = false;
+  }
+  /* no data leaves the phone inside a message: values Safari quotes, email addresses
+     and long numbers are stripped. Code (a property path in single quotes) is kept,
+     because that is what says where it broke. */
+  function faultClean(m) {
+    return String(m == null ? '' : m)
+      .replace(/[^\s@'"]+@[^\s@'"]+\.[^\s@'"]+/g, '(email)')
+      .replace(/"[^"]*"/g, '"…"')
+      .replace(/'([^']*)'/g, function (a, s) { return /^[\w$.()[\]]{1,60}$/.test(s) ? a : "'…'"; })
+      .replace(/\d{3,}/g, '#')
+      .replace(/\s+/g, ' ').trim().slice(0, 120);
+  }
+  function faultHash(s) {   // FNV-1a: a short stable id for "the same fault"
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(36);
+  }
+  function faultFile(src) {   // our own file by name (no ?v=), anyone else's by host
+    if (!src) return '';
+    try { var u = new URL(String(src), location.href); return u.origin === location.origin ? (u.pathname.split('/').pop() || 'page') : u.hostname; } catch (e) { return ''; }
+  }
+  function faultFromStack(stack) {   // the first frame that names a .js file and a line
+    var m = /([^\s@()]+\.js)(?:\?[^\s:()]*)?:(\d+)(?::\d+)?/.exec(String(stack || ''));
+    return m ? { f: faultFile(m[1]), l: +m[2] } : { f: '', l: 0 };
+  }
+  function faultVersion() { if (faultVer === null) faultVer = pageVersion(); return faultVer; }
+  function faultDevice() {
+    if (faultDev) return faultDev;
+    var ua = navigator.userAgent || '', label = 'other', id = '';
+    if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) label = 'iPad';
+    else if (/iPhone|iPod/.test(ua)) label = 'iPhone';
+    else if (/Android/.test(ua)) label = 'Android';
+    else if (/Macintosh/.test(ua)) label = 'Mac';
+    try {
+      id = localStorage.getItem(FAULT_DEV) || '';
+      if (!/^[a-z0-9]{4}$/.test(id)) { id = (Math.random().toString(36).slice(2) + '0000').slice(0, 4); localStorage.setItem(FAULT_DEV, id); }
+    } catch (e) { id = 'anon'; }
+    return (faultDev = { label: label, id: id });
+  }
+  function readOutbox() {
+    try { var a = JSON.parse(localStorage.getItem(FAULT_OUT) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  }
+  function saveFaults() {
+    if (faultT) { clearTimeout(faultT); faultT = null; }
+    try {
+      var out = readOutbox(), idx = {}, now = Date.now(), dirty = false;
+      out.forEach(function (e) { if (e && e.s) idx[e.s] = e; });
+      for (var s in faultPend) {
+        var p = faultPend[s];
+        if (!p.n) continue;   // nothing new for this one since the last save
+        var o = idx[s];
+        if (o) { o.n = (+o.n || 0) + p.n; if (p.last > (+o.last || 0)) o.last = p.last; o.p = p.p; o.v = p.v; o.q = !!(o.q && p.q); }
+        else { o = { s: p.s, k: p.k, m: p.m, f: p.f, l: p.l, p: p.p, v: p.v, n: p.n, first: p.first, last: p.last, q: p.q }; idx[s] = o; out.push(o); }
+        p.n = 0; dirty = true;
+      }
+      if (!dirty) return;
+      // keep the 20 that matter most: loud before quiet (a spray of harmless noise must never push
+      // out a real fault), then newest first
+      out = out.filter(function (e) { return e && e.s && now - (+e.last || 0) < FAULT_KEEP; })
+               .sort(function (a, b) { return ((a.q ? 1 : 0) - (b.q ? 1 : 0)) || ((+b.last || 0) - (+a.last || 0)); })
+               .slice(0, FAULT_MAX);
+      localStorage.setItem(FAULT_OUT, JSON.stringify(out));
+    } catch (e) {}
+  }
+  /* one write to faults/<me>, at most once every 6 hours, only when something is new.
+     The doc is keyed by fault + this device, so no two phones ever overwrite each other. */
+  function deliverFaults(force) {
+    var u = window.__parvritiUser;
+    if (!u || !u.person || !cdb || typeof firebase === 'undefined' || !firebase.firestore) return Promise.resolve('skip');
+    try {
+      var now = Date.now(), sent = {}, dev = faultDevice(), payload = {}, keep = {}, any = false;
+      try { sent = JSON.parse(localStorage.getItem(FAULT_SENT) || '{}') || {}; } catch (e) { sent = {}; }
+      if (!force && now - (+sent._at || 0) < FAULT_EVERY) return Promise.resolve('throttled');
+      readOutbox().forEach(function (e) {
+        if (!e || !e.s || (+sent[e.s] || 0) >= (+e.last || 0)) return;   // this state was delivered already
+        if (now - (+e.last || 0) >= FAULT_KEEP) return;                   // a month old: never send it back after pruning it
+        // r = when it ARRIVED. A fault that happened before Parv tapped "Mark all seen" but was
+        // delivered after it is still new to him; comparing only `last` would swallow it.
+        payload[e.s + '_' + dev.id] = { s: e.s, k: e.k, m: e.m, f: e.f, l: e.l, p: e.p, v: e.v, n: e.n, first: e.first, last: e.last, r: now, q: !!e.q, d: dev.label };
+        keep[e.s] = e.last; any = true;
+      });
+      if (!any) return Promise.resolve('none');
+      // what this phone delivered over a month ago comes back out of the doc as we pass
+      var del = firebase.firestore.FieldValue.delete();
+      for (var s in sent) if (s !== '_at' && !keep[s] && now - (+sent[s] || 0) > FAULT_KEEP) { payload[s + '_' + dev.id] = del; delete sent[s]; }
+      sent._at = now;   // stamped BEFORE the write: a denied or failed write waits its 6 hours too, so it can never storm
+      try { localStorage.setItem(FAULT_SENT, JSON.stringify(sent)); } catch (e) {}
+      return cdb.collection('faults').doc(u.person).set({ f: payload, at: now }, { merge: true }).then(function () {
+        for (var k in keep) sent[k] = keep[k];
+        try { localStorage.setItem(FAULT_SENT, JSON.stringify(sent)); } catch (e) {}
+        return 'sent';
+      }, function () { return 'failed'; });   // never recorded as a fault itself: a quota-out would otherwise feed itself
+    } catch (e) { return Promise.resolve('failed'); }
+  }
+  window.parvritiFaults = {
+    local: readOutbox, flush: saveFaults, deliver: deliverFaults, record: recordFault,
+    device: function () { return faultDevice(); }
+  };
+
   /* ══════════════ the Settings dot: something wants you ══════════════
      amber  an upgrade is stuck: a downloaded update failed to install, or this
             page and the service worker cache have disagreed for over 10 minutes.
+            Or, lowest of all: a fault either phone recorded that Parv has not
+            seen or muted yet (the Developer panel's Faults card).
      rose   a worker cron has not run in far longer than its schedule, which is
             how a dead worker (and so a missed birthday) becomes visible.
      THE RULE THAT KEEPS IT HONEST: missing data means UNKNOWN, never failure.
@@ -791,6 +1005,55 @@
       cb(lost.length ? 'lost' : 'ok', lost);
     }).catch(function () { cb('unknown', []); });
   }
+  /* The fault inbox, as the dot sees it: something either phone recorded that Parv
+     has not seen or muted. Two reads, inside the same 30 minute throttle as the rest.
+     When the inbox cannot be read, the LAST KNOWN answer stands; it is never invented,
+     and with no last answer it is simply unknown. */
+  function checkFaults(cb) {   // cb('new', why) | cb('none') | cb('unknown')
+    if (!cdb) { cb('unknown', ''); return; }
+    Promise.all([cdb.collection('faults').doc('parv').get(), cdb.collection('faults').doc('riti').get()]).then(function (s) {
+      var mine = s[0].exists ? (s[0].data() || {}) : {};
+      var r = faultVerdict(mine, s[1].exists ? (s[1].data() || {}) : {});
+      try { sessionStorage.setItem('parvritiFaultLast', JSON.stringify(r)); } catch (e) {}
+      saveFaultPrefs(mine);
+      cb(r.state, r.why);
+    }).catch(function () {
+      // unreadable (offline, or the rule not published yet): the last known answer stands, and this
+      // device's own outbox still counts, judged by the last known mute list, exactly as the panel shows it
+      var last = null;
+      try { last = JSON.parse(sessionStorage.getItem('parvritiFaultLast') || 'null'); } catch (e) {}
+      var local = faultVerdict(readFaultPrefs(), {});
+      if (last && last.state === 'new') cb('new', last.why || local.why);
+      else if (local.state === 'new') cb('new', local.why);
+      else if (last && last.state) cb(last.state, '');
+      else cb('unknown', '');
+    });
+  }
+  /* Parv's mute list + "seen" time, remembered on this device so the dot and the panel judge
+     faults the same way even while the inbox cannot be read. */
+  function saveFaultPrefs(mine) {
+    try { localStorage.setItem('parvritiFaultPrefs', JSON.stringify({ muted: (mine && mine.muted) || {}, seenAt: +(mine && mine.seenAt) || 0 })); } catch (e) {}
+  }
+  function readFaultPrefs() {
+    try { return JSON.parse(localStorage.getItem('parvritiFaultPrefs') || '{}') || {}; } catch (e) { return {}; }
+  }
+  window.parvritiFaultPrefs = { read: readFaultPrefs, save: saveFaultPrefs };
+  function faultVerdict(mine, hers) {
+    var muted = (mine && mine.muted) || {}, seen = +(mine && mine.seenAt) || 0, now = Date.now(), hit = {}, list = [];
+    function take(e, who) {
+      if (!e || !e.s || e.q || muted[e.s] || hit[e.s]) return;   // quiet or muted never lights it
+      var last = +e.last || 0, at = Math.max(last, +e.r || 0);    // new if it HAPPENED or ARRIVED after "seen"
+      if (at <= seen || now - last > FAULT_KEEP) return;           // already seen, or over a month old
+      hit[e.s] = 1; list.push({ who: who, e: e });
+    }
+    [['Riti', hers], ['Parv', mine]].forEach(function (x) { var f = (x[1] && x[1].f) || {}; for (var k in f) take(f[k], x[0]); });
+    readOutbox().forEach(function (e) { take(e, 'this device'); });   // before it has even been delivered
+    if (!list.length) return { state: 'none', why: '' };
+    list.sort(function (a, b) { return (+b.e.last || 0) - (+a.e.last || 0); });
+    var t = list[0];
+    return { state: 'new', why: list.length + (list.length === 1 ? ' new fault' : ' new faults') + ', latest on ' + t.who +
+      (t.e.d ? ' (' + t.e.d + ')' : '') + ': ' + t.e.k + (t.e.f ? ' in ' + t.e.f : '') };
+  }
   function refreshDevAlert() {
     var u = window.__parvritiUser;
     if (!u || u.person !== 'parv') return;                 // Riti never sees this
@@ -799,22 +1062,27 @@
     if (Date.now() - last < 1800000) return;               // at most once per 30 min, so tab taps cost nothing
     checkUpgrade(function (up) {
       checkCrons(function (state, late) {
-       checkTokens(function (tstate, lost) {
-        var prev = '';
-        try { prev = sessionStorage.getItem(DEV_KEY) || ''; } catch (e) {}
-        var v, why;
-        if (state === 'late') { v = 'rose'; why = 'cron has not run: ' + late.join(', '); }
-        else if (tstate === 'lost') { v = 'rose'; why = lost.map(function (p) { return p === 'riti' ? 'Riti' : 'Parv'; }).join(' and ') + ' has no working push target'; }
-        else if (up.amber) { v = 'amber'; why = up.why; }
-        else if (state === 'ok' && tstate !== 'unknown') { v = ''; why = ''; }
-        else { v = prev === 'rose' ? 'rose' : ''; why = v ? 'still unknown, keeping the last verdict' : ''; }
-        try {
-          sessionStorage.setItem(DEV_KEY, v);
-          sessionStorage.setItem(DEV_KEY + 'Why', why);
-          sessionStorage.setItem(DEV_KEY + 'At', String(Date.now()));
-        } catch (e) {}
-        applyDevAlert();
-       });
+        checkTokens(function (tstate, lost) {
+          checkFaults(function (fstate, fwhy) {
+            var prev = '';
+            try { prev = sessionStorage.getItem(DEV_KEY) || ''; } catch (e) {}
+            var v, why;
+            if (state === 'late') { v = 'rose'; why = 'cron has not run: ' + late.join(', '); }
+            else if (tstate === 'lost') { v = 'rose'; why = lost.map(function (p) { return p === 'riti' ? 'Riti' : 'Parv'; }).join(' and ') + ' has no working push target'; }
+            else if (up.amber) { v = 'amber'; why = up.why; }
+            else if (state === 'ok' && tstate !== 'unknown') { v = ''; why = ''; }
+            else if (prev === 'rose') { v = 'rose'; why = 'still unknown, keeping the last verdict'; }   // an outage never downgrades a rose
+            else { v = ''; why = ''; }
+            // lowest of all: a new fault only speaks where the dot would otherwise be clear
+            if (!v && fstate === 'new') { v = 'amber'; why = fwhy; }
+            try {
+              sessionStorage.setItem(DEV_KEY, v);
+              sessionStorage.setItem(DEV_KEY + 'Why', why);
+              sessionStorage.setItem(DEV_KEY + 'At', String(Date.now()));
+            } catch (e) {}
+            applyDevAlert();
+          });
+        });
       });
     });
   }

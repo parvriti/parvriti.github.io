@@ -174,7 +174,7 @@
     { c: 'roomItems', want: 'read' }, { c: 'canvasStrokes', want: 'read' }, { c: 'savedDoodles', want: 'read' },
     { c: 'settings', want: 'read' }, { c: 'homeState', want: 'read' }, { c: 'workerHealth', want: 'read' },
     { c: 'openWhenReads', want: 'read' }, { c: 'flightActive', want: 'read' }, { c: 'flights', want: 'read' },
-    { c: 'cycle', want: 'read' },
+    { c: 'cycle', want: 'read' }, { c: 'faults', want: 'read' },
     // worker-only by design: a READ here SHOULD fail
     { c: 'deviceTokens', want: 'denied' }, { c: 'celebrations', want: 'denied' }, { c: 'homeArrivals', want: 'denied' }
   ];
@@ -542,6 +542,128 @@
     });
   }
 
+  /* ══ Faults (both phones) ══════════════════════════════════════════════
+     What common.js's recorder caught on either phone: faults/parv and faults/riti
+     (two reads, on open and on Refresh), plus anything on THIS device that has not
+     been delivered yet. Mute and "mark all seen" live on faults/parv, so every one of
+     Parv's devices agrees about them. Nothing here ever reaches Riti. */
+  var FAULTS = null, FAULT_KEEP = 30 * 86400000;
+  function readFaults() {
+    if (!db) return;
+    var prefs = window.parvritiFaultPrefs;
+    Promise.all([db.collection('faults').doc('parv').get(), db.collection('faults').doc('riti').get()]).then(function (s) {
+      FAULTS = { parv: s[0].exists ? (s[0].data() || {}) : {}, riti: s[1].exists ? (s[1].data() || {}) : {}, err: '' };
+      try { if (prefs) prefs.save(FAULTS.parv); } catch (e) {}
+      renderFaults();
+      /* the dot re-checks at most every 30 minutes, so on first open the Checks card could say
+         "not lit" right above a fault this card calls new. Sync it once, as the deep check does. */
+      if (!readFaults._synced) {
+        readFaults._synced = true;
+        if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert();
+        setTimeout(renderChecks, 700);
+      }
+    }).catch(function (e) {
+      // judge this device's own faults by the last known mute list + seen time, exactly as the dot does
+      var known = {};
+      try { known = prefs ? prefs.read() : {}; } catch (x) {}
+      FAULTS = { parv: { muted: known.muted || {}, seenAt: known.seenAt || 0 }, riti: {}, err: (e && e.code === 'permission-denied') ? 'denied' : 'offline' };
+      renderFaults();
+    });
+  }
+  function isFresh(e, seen) { return Math.max(+e.last || 0, +e.r || 0) > seen; }   // happened OR arrived after "seen"
+  function faultList() {
+    var now = Date.now(), list = [], mineId = '';
+    var api = window.parvritiFaults;
+    try { mineId = api && api.device ? api.device().id : ''; } catch (e) {}
+    var byKey = {};
+    [['riti', 'Riti'], ['parv', 'Parv']].forEach(function (p) {
+      var f = (FAULTS[p[0]] && FAULTS[p[0]].f) || {};
+      for (var k in f) {
+        var e = f[k];
+        if (e && e.s && now - (+e.last || 0) < FAULT_KEEP) { byKey[k] = { e: e, who: p[1] + (e.d ? ' · ' + e.d : ''), key: k }; list.push(byKey[k]); }
+      }
+    });
+    // this device's outbox: new ones are added; one fresher than its delivered copy REPLACES that row
+    var local = [];
+    try { local = api && api.local ? api.local() : []; } catch (e) {}
+    local.forEach(function (e) {
+      if (!e || !e.s || now - (+e.last || 0) >= FAULT_KEEP) return;
+      var row = byKey[e.s + '_' + mineId];
+      if (row) {
+        if ((+row.e.last || 0) >= (+e.last || 0)) return;   // the delivered copy is already as fresh
+        row.e = e; row.who = 'this device · newest not sent yet'; return;
+      }
+      list.push({ e: e, who: 'this device · not sent yet', key: 'local_' + e.s });
+    });
+    list.sort(function (a, b) { return (+b.e.last || 0) - (+a.e.last || 0); });
+    return list;
+  }
+  function renderFaults() {
+    var host = $('devFaults'); if (!host || !FAULTS) return;
+    var muted = (FAULTS.parv && FAULTS.parv.muted) || {}, seen = +(FAULTS.parv && FAULTS.parv.seenAt) || 0;
+    var list = faultList(), fresh = 0, rows = '', counted = {};
+    // count distinct faults exactly the way the dot does, so the card and the dot never disagree
+    list.forEach(function (x) { var e = x.e; if (!e.q && !muted[e.s] && isFresh(e, seen) && !counted[e.s]) { counted[e.s] = 1; fresh++; } });
+    if (FAULTS.err === 'denied') rows += chkRow('fault inbox', 'warn', 'publish the faults rule (firestore.rules) so Riti’s phone can report here. Only this device is shown until then.');
+    else if (FAULTS.err) rows += chkRow('fault inbox', 'unknown', 'could not be read, showing this device only. Try again when online.');
+    if (!list.length) rows += chkRow('faults', 'ok', 'nothing has broken on either phone in the last 30 days');
+    else rows += chkRow('faults', fresh ? 'warn' : 'ok', fresh ? (fresh + ' new since you last looked') : 'nothing new since you last looked');
+    list.slice(0, 15).forEach(function (x) {
+      var e = x.e, isMuted = !!muted[e.s], isNew = !e.q && !isMuted && isFresh(e, seen);
+      rows += '<div class="dev-home-r' + (isNew ? ' warn' : '') + '">' +
+        '<b>' + (isNew ? '⚠ ' : '') + esc(x.who) + '</b>' +
+        '<span>' + esc(e.k) + (e.f ? ' · ' + esc(e.f) + (e.l ? ':' + esc(e.l) : '') : '') + (e.p ? ' · on ' + esc(e.p) : '') + (e.v ? ' · v' + esc(e.v) : '') + '</span>' +
+        (e.m ? '<span>' + esc(e.m) + '</span>' : '') +
+        '<span>' + esc(e.n || 1) + 'x · last ' + esc(ago(+e.last)) +
+          (e.q ? ' · never lights the dot' : '') + (isMuted ? ' · muted' : '') + '</span>' +
+        (e.q ? '' : '<button type="button" class="dev-fault-mute" data-sig="' + esc(e.s) + '" data-act="' + (isMuted ? 'unmute' : 'mute') + '">' + (isMuted ? 'Unmute' : 'Mute') + '</button>') +
+        '</div>';
+    });
+    if (list.length > 15) rows += chkRow('older', 'unknown', (list.length - 15) + ' more, older than these');
+    host.innerHTML = rows;
+    var sb = $('devFaultSeen'); if (sb) sb.disabled = !fresh;
+  }
+  /* feedback right under the Faults card: the page's status line is thousands of pixels up */
+  function faultMsg(t) {
+    status(t);
+    var m = $('devFaultMsg'); if (m) m.textContent = t || '';
+  }
+  function afterFaultWrite(msg) {
+    faultMsg(msg);
+    try { sessionStorage.removeItem('parvritiFaultLast'); } catch (e) {}   // the dot must re-read, not reuse what it knew
+    readFaults();
+    if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert();
+    setTimeout(renderChecks, 700);
+  }
+  function faultWriteFailed(e) {
+    faultMsg(e && e.code === 'permission-denied' ? 'publish the faults rule first (firestore.rules)' : 'could not save, try again');
+    renderFaults();   // put the buttons back the way they were
+  }
+  function muteFault(sig, mute) {
+    if (!db || !sig) return;
+    var m = {}; m[sig] = mute ? true : firebase.firestore.FieldValue.delete();
+    faultMsg(mute ? 'muting…' : 'unmuting…');
+    db.collection('faults').doc('parv').set({ muted: m }, { merge: true })
+      .then(function () { afterFaultWrite(mute ? 'muted: it will never light the dot again' : 'unmuted'); }, faultWriteFailed);
+  }
+  function markFaultsSeen() {
+    if (!db) return;
+    var sb = $('devFaultSeen'); if (sb) sb.disabled = true;   // no second write while this one is in flight
+    faultMsg('marking seen…');
+    db.collection('faults').doc('parv').set({ seenAt: Date.now() }, { merge: true })
+      .then(function () { afterFaultWrite('all faults marked seen'); }, faultWriteFailed);
+  }
+  function wireFaults() {
+    var host = $('devFaults');
+    if (host) host.addEventListener('click', function (ev) {
+      var b = ev.target && ev.target.closest ? ev.target.closest('.dev-fault-mute') : null;
+      if (!b) return;
+      b.disabled = true;
+      muteFault(b.getAttribute('data-sig'), b.getAttribute('data-act') === 'mute');
+    });
+    var sb = $('devFaultSeen'); if (sb) sb.addEventListener('click', markFaultsSeen);
+  }
+
   function wireHome() {
     var a = $('devApart'); if (a) a.addEventListener('click', function () { override({ action: 'apart' }, 'Marking apart'); });
     var r = $('devRiti'); if (r) r.addEventListener('click', function () { override({ action: 'home', person: 'riti', atHome: !shownHome(HOME.riti) }, 'Updating Riti'); });
@@ -556,13 +678,15 @@
     try { db = firebase.firestore(); } catch (e) { status('Firestore did not load.'); return; }
     wireLoads();
     wireHome();
-    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); readHealth(); if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert(); });
+    wireFaults();
+    var rb = $('devRefresh'); if (rb) rb.addEventListener('click', function () { crawl(); readHome(); readHealth(); readFaults(); if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert(); });
     var pb = $('devProbe'); if (pb) pb.addEventListener('click', runProbe);
     var ab = $('devAccept'); if (ab) ab.addEventListener('click', acceptTokenState);
     loadVersionRow(function () { if (DATA) renderChecks(); });
     crawl();
     readHome();
     readHealth();
+    readFaults();
   }
   /* back arrow → native back, so it returns to the Settings entry this was
      opened from instead of PUSHING a new one. A plain href here pushed a fresh

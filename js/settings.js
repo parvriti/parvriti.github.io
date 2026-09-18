@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  var VERSION = 'v149';
+  var VERSION = 'v150';
   var DEFAULTS = {
     hsRule: 'apart', hsOnePerDay: true, hsAfterHour: 18,
     hsHomeRitiNoida: true, hsHomeRitiGurugram: true, hsHomeParvRohtak: true, hsHomeParvGurugram: true,
@@ -263,6 +263,7 @@
     try {
       sessionStorage.removeItem('riti_open');
       try { localStorage.removeItem('parvritiReturning'); } catch (e) {}   // show the gate again next visit
+      window.__parvritiSigningOut = true;   // every open listener now fails on purpose: not a fault
       firebase.auth().signOut().then(function () { location.replace('index.html'); }).catch(function () { location.replace('index.html'); });
     } catch (e) { location.replace('index.html'); }
   }

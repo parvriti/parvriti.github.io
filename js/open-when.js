@@ -52,7 +52,7 @@ function startNotes() {
       seedReads = (snap.exists && snap.data()) ? snap.data() : {};
       seedReadsLoaded = true;
       onLive();
-    }, function () { seedReadsLoaded = true; onLive(); });
+    }, function (e) { if (window.parvritiFault) window.parvritiFault(e, 'letter receipts'); seedReadsLoaded = true; onLive(); });
   } catch (e) { console.warn('subscribe failed', e); }
 }
 if (window.__parvritiAuthed) startNotes();
@@ -747,7 +747,8 @@ function playRec() {
   if (!recData) return;
   const a = document.getElementById('owRecAudio');
   a.src = 'data:' + (recType || 'audio/mp4') + ';base64,' + recData;
-  a.play();
+  const pr = a.play();
+  if (pr && pr.catch) pr.catch(function () {});   // a second tap interrupts the first play: ordinary, not a fault
 }
 (function () {
   const start = document.getElementById('owRecStart');

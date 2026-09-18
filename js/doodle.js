@@ -156,7 +156,7 @@ function startDoodle() {
         var by = document.getElementById('padBy');
         if (by) by.textContent = last ? ('last doodled by ' + (last.by === 'parv' ? 'Pavu' : 'Riti')) : 'draw something silly together';
         if (!doodleLoaded) { doodleLoaded = true; if (doodleVeil) doodleVeil.done(); setTimeout(attachShelf, 300); }   // first snapshot: strokes painted, end the veil here; load the shelf a beat LATER - it downloads every saved doodle's image, and running it in parallel with the canvas lengthened the loading veil. Keep's kept-state still resolves before any tap.
-      }, function (e) { console.warn('strokes', e); loadFailed(); });
+      }, function (e) { if (window.parvritiFault) window.parvritiFault(e, 'doodles'); console.warn('strokes', e); loadFailed(); });
     } catch (e) { console.warn(e); loadFailed(); }
   } else { loadFailed(); }
 }
@@ -456,7 +456,8 @@ function attachShelf() {   // listen from startup so the kept-state is known bef
     shelfUnsub = ddb.collection('savedDoodles').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
       shelfDocs = snap.docs.map(function (d) { var x = d.data() || {}; x.id = d.id; return x; });
       shelfLoaded = true; renderShelf(); updateKeepBtn();
-    }, function () {
+    }, function (e) {
+      if (window.parvritiFault) window.parvritiFault(e, 'doodle shelf');
       shelfLoaded = true;
       var ov = document.getElementById('shelfOv');
       if (ov && ov.classList.contains('on')) { var b = document.getElementById('shelfBody'); if (b) b.innerHTML = '<div class="sd-empty">couldn\'t load the shelf, check your connection</div>'; }

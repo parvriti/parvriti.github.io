@@ -94,13 +94,14 @@ console.log('\nB3. a deep check must not leave duplicate rows or a stale verdict
   const w = await panel({ health: good });
   const count = () => (txt(w).match(/app version/g) || []).length;
   check('one app-version row on open', count() === 1, 'rows=' + count());
+  const refreshBefore = w.__refreshCalls;   // opening the panel already syncs the dot once (v150); count only what the deep check adds
   w.document.getElementById('devProbe').click();
   await sleep(1200);
   check('STILL one after a deep check (it used to stack one per render)', count() === 1, 'rows=' + count());
   w.document.getElementById('devProbe').click();
   await sleep(1200);
   check('and still one after running it twice', count() === 1, 'rows=' + count());
-  check('the deep check asks the dot to re-evaluate, so it cannot show a stale all-clear', w.__refreshCalls >= 1, 'calls=' + w.__refreshCalls);
+  check('the deep check asks the dot to re-evaluate, so it cannot show a stale all-clear', w.__refreshCalls > refreshBefore, 'calls=' + w.__refreshCalls + ' before=' + refreshBefore);
 }
 
 console.log('\nC. what the worker reports');

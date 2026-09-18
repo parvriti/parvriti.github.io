@@ -90,9 +90,12 @@ console.log('\nC. common.js: quota exhaustion is surfaced once, other errors sta
   const fnSrc = slice(common, 'var fsErrShown = false;', 'window.parvritiFsError = fsError;');
   const toasts = [];
   const logged = [];
-  const fn = new Function('toast', 'console', 'devLog', fnSrc + '; return fsError;');
+  const recorded = [];
+  const TRANSIENT = { 'unavailable': 1, 'cancelled': 1, 'aborted': 1, 'deadline-exceeded': 1, 'auth/network-request-failed': 1 };
+  const fn = new Function('toast', 'console', 'devLog', 'recordFault', 'FAULT_TRANSIENT', fnSrc + '; return fsError;');
   const warned = [];
-  const fsError = fn(m => toasts.push(m), { warn: (...a) => warned.push(a) }, (k) => logged.push(k));
+  const fsError = fn(m => toasts.push(m), { warn: (...a) => warned.push(a) }, (k) => logged.push(k),
+    (kind, msg, f, l, quiet, noLog) => recorded.push({ kind, msg, quiet, noLog }), TRANSIENT);
   fsError({ code: 'resource-exhausted' }); fsError({ code: 'resource-exhausted' }); fsError({ code: 'resource-exhausted' });
   check('resource-exhausted: exactly one toast for repeated failures', toasts.length === 1, 'toasts=' + toasts.length);
   check('toast copy names the cause and the reset', /quota/.test(toasts[0]) && /lunch/.test(toasts[0]), toasts[0]);
@@ -101,6 +104,16 @@ console.log('\nC. common.js: quota exhaustion is surfaced once, other errors sta
   check('permission-denied / unavailable / undefined: no extra toast', toasts.length === 1);
   check('permission-denied logged to console.warn', warned.length === 1);
   check('only real faults reach the dev log, not a tunnel', [...new Set(logged)].join(',') === 'quota,denied', logged.join(','));
+  // v150: the same faults also reach the recorder (for the cross-phone inbox), without a second session-log line
+  check('quota + denied reach the recorder, flagged not to double the session log',
+    recorded.some(r => r.kind === 'quota' && r.noLog) && recorded.some(r => r.kind === 'denied' && r.noLog), JSON.stringify(recorded.slice(0, 3)));
+  check('no tunnel (unavailable) ever reaches the recorder', !recorded.some(r => /unavailable/.test(r.msg)));
+  const before = recorded.length, tBefore = toasts.length;
+  fsError({ code: 'failed-precondition' }); fsError({ code: 'deadline-exceeded' }); fsError({ code: 'internal' });
+  const added = recorded.slice(before);
+  check('a real change underneath (failed-precondition, internal) IS recorded as a firestore fault', added.length === 2 && added.every(r => r.kind === 'firestore' && !r.quiet), JSON.stringify(added));
+  check('deadline-exceeded is a tunnel: not recorded', !added.some(r => /deadline/.test(r.msg)));
+  check('and none of them shows anyone a toast', toasts.length === tBefore);
 }
 
 // ────────────────────────────────────────────────────────────────────────────

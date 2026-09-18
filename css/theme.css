@@ -264,6 +264,8 @@ body[data-dev-alert] .set-devlink::after { top: 15px; right: 15px; }
 :root[data-theme="light"] .dev-home-r.ok { background: #e9f6ec; border-color: #bfe3c8; }
 :root[data-theme="light"] .dev-home-r.warn { background: #fdf3e0; border-color: #f0d7a6; }
 :root[data-theme="light"] .dev-flag { color: #9a6a0d !important; }
+:root[data-theme="light"] .dev-fault-mute { border-color: #e6cdd2; background: #fff; color: var(--l-ink2); }
+:root[data-theme="light"] .dev-fault-msg { color: #9a6a0d; }
 /* the "turn on notifications?" prompt was a dark pill with light ink; relight it for the light UI. */
 :root[data-theme="light"] .notif-prompt { background: rgba(255,255,255,.94); border-color: #f0c8d0; box-shadow: 0 8px 24px rgba(120,40,60,.14); }
 :root[data-theme="light"] .np-text { color: #5a3540; }

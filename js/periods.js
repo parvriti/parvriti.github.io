@@ -253,7 +253,7 @@
       });
       recompute(); ready = true;
       arrive();
-    }, function () { fail("couldn't load, try again"); });
+    }, function (e) { if (window.parvritiFault) window.parvritiFault(e, 'periods'); fail("couldn't load, try again"); });
   }
   function fail(msg) {
     ready = true; LOGS = []; recompute();

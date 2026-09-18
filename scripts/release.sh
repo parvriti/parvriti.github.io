@@ -82,6 +82,37 @@ preflight() {
     ok "no ID selector overrides position"
   fi
 
+  # 8. the pinned Firebase SDK. It is NOT in the offline precache, and every deploy
+  #    clears the old cache, so if Google ever stops serving this version the NEXT
+  #    deploy breaks both phones at once. So: one version everywhere (the push
+  #    worker's importScripts too, or push breaks), and Google must still serve
+  #    every file, or the bump is refused. SKIP_NET=1 skips the network half.
+  local sdks
+  sdks=$(grep -ohE 'gstatic\.com/firebasejs/[0-9]+\.[0-9]+\.[0-9]+/' ./*.html firebase-messaging-sw.js 2>/dev/null | sort -u)
+  if [ -z "$sdks" ]; then
+    bad "no Firebase SDK reference found in the pages (did the markup change?)"
+  elif [ "$(printf '%s\n' "$sdks" | wc -l | tr -d ' ')" != "1" ]; then
+    bad "the Firebase SDK version differs between files (the push worker must match the pages):"
+    printf '      %s\n' $sdks
+  else
+    ok "one Firebase SDK version everywhere, push worker included ($(printf '%s' "$sdks" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'))"
+  fi
+  if [ "${SKIP_NET:-}" = "1" ]; then
+    warn "SKIP_NET=1: did not check that Google still serves the SDK and fonts"
+  else
+    local urls u code netbad=0 nurl=0
+    urls=$( { grep -ohE "https://www\.gstatic\.com/firebasejs/[^\"' )]+\.js" ./*.html firebase-messaging-sw.js
+              grep -ohE 'https://fonts\.googleapis\.com/css2\?[^"]+' ./*.html; } 2>/dev/null | sed 's/&amp;/\&/g' | sort -u)
+    for u in $urls; do
+      nurl=$((nurl + 1))
+      code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$u")
+      [ "$code" = "200" ] || { bad "not served (HTTP $code): $u"; netbad=1; }
+    done
+    if [ "$nurl" -eq 0 ]; then bad "found no SDK or font URLs to check"
+    elif [ "$netbad" -eq 0 ]; then ok "Google still serves all $nurl SDK and font files"
+    else printf '      %sOffline? Re-run when online. If Google really dropped them, move to a served version first.%s\n' "$DIM" "$OFF"; fi
+  fi
+
   # 7. owner rule: no em dashes in shipped text
   local em
   em=$(grep -l $'—' $(version_files) js/*.js 2>/dev/null | tr '\n' ' ')
