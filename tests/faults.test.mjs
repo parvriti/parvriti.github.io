@@ -409,6 +409,10 @@ console.log('\nH. the Developer panel Faults card');
 
   const devSrc = fs.readFileSync(R + '/js/dev.js', 'utf8');
   check('deep checks now probe the faults rule too', /\{ c: 'faults', want: 'read' \}/.test(devSrc));
+  // v150 r2: the push-state button says when to use it, and its label never squeezes onto two lines
+  check('the button reads "🔕 Notifications off on purpose" (the old "Accept push state" is gone)', /id="devAccept">🔕 Notifications off on purpose</.test(devHtml) && !/Accept push state/.test(devHtml));
+  check('its row may wrap, so each label stays on one line', /class="set-actions dev-acts-wrap"/.test(devHtml) && /\.set-actions\.dev-acts-wrap \.set-btn \{[^}]*white-space: nowrap/.test(fs.readFileSync(R + '/css/styles.css', 'utf8')));
+  check('sw.js carries a revision so phones refetch while the version stays v150', /var CACHE = 'parvriti-v150';[\s\S]{0,900}var REVISION = \d+;/.test(fs.readFileSync(R + '/sw.js', 'utf8')));
 }
 
 console.log('\nI. the review fixes, in the real common.js');

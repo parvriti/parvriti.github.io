@@ -10,6 +10,13 @@
    navigation is fresh - one stale nav right after a deploy, by design.
    ===================================================================== */
 var CACHE = 'parvriti-v150';
+/* v150 is the FINAL version, so a later small fix keeps that number and bumps this instead.
+   Any byte change in this file makes every phone reinstall the worker, and install refetches
+   every precached file from origin (cache:'reload') into the SAME v150 cache, so the fix still
+   arrives while Settings keeps saying v150. Fine for wording and style fixes; a big change
+   would deserve a real version bump (release.sh bump), whose install is fully atomic.
+   r2 (2026-09-18): "Notifications off on purpose" button + its note, one-line action pills. */
+var REVISION = 2;
 var CORE = [
   'index.html', 'open-when.html', 'board.html', 'doodles.html', 'periods.html', 'settings.html', 'dev.html',
   'css/styles.css?v=150', 'css/theme.css?v=150',

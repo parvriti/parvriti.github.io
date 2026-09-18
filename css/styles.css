@@ -2253,6 +2253,10 @@ body[data-page="periods"] .tt-btn:active { color: #20264a; background: rgba(32,3
 .dev-home-btns .set-btn { flex: 1 1 auto; }
 .dev-home-btns .set-btn:disabled { opacity: .4; pointer-events: none; }
 body[data-page="dev"] .set-actions .set-btn:disabled { opacity: .4; pointer-events: none; }   /* Mark all seen / deep checks / refresh while busy or with nothing to do */
+/* the Checks card's two actions: each label stays on ONE line inside its pill; on a phone,
+   where both will not fit side by side, they stack as full-width pills instead of squeezing */
+.set-actions.dev-acts-wrap { flex-wrap: wrap; }
+.set-actions.dev-acts-wrap .set-btn { flex: 1 1 auto; white-space: nowrap; }
 
 /* the "Developer" entry row at the bottom of Settings */
 .set-devlink { display: block; text-decoration: none; color: inherit; transition: transform .12s ease, border-color .2s ease; }

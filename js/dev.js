@@ -323,7 +323,7 @@
       try { localStorage.setItem('parvritiTokenBase', JSON.stringify(base)); } catch (e) {}
       if (window.parvritiRefreshDevAlert) window.parvritiRefreshDevAlert();
       setTimeout(renderChecks, 400);
-      status('push state accepted as normal');
+      status('noted: notifications are off on purpose, the dot will not warn about it');
     }).catch(function () { status('could not read it, try again'); });
   }
 
